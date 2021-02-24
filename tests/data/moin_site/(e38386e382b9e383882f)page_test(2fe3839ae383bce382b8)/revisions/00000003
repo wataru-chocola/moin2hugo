@@ -1,0 +1,14 @@
+<<TableOfContents>>
+
+= Paragraph =
+
+Here is a test page.
+
+これは'''テスト'''です。
+
+= Table =
+
+||<tablestyle="width:85%;" style="width:20%;" rowstyle="background-color:#444; color:#eee">col1 ||<style="width:50%;">col2 ||列3 ||
+||<rowspan=2>'''A1''' ||<rowspan=2>'''B1''' ||C1-1 ||
+||C1-2 ||
+||<colspan=2>It is not the strongest of the species that survives, nor the most intelligent that survives. It is the one that is most adaptable to change.<<BR>>Charles Darwin. || ||

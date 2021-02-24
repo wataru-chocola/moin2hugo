@@ -1,18 +1,21 @@
 import os
 
+import logging
 from dataclasses import dataclass
 from typing import Iterator, List
 
 from moin2hugo.moinutils import unquoteWikiname
 
+logger = logging.getLogger(__name__)
 
-@dataclass
+
+@dataclass(frozen=True)
 class MoinAttachment:
     filepath: str
     name: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class MoinPageInfo:
     filepath: str
     name: str
@@ -41,7 +44,7 @@ class Moin2Hugo(object):
 
             content_file = os.path.join(pagedir, 'revisions', current_revision)
             if not os.path.isfile(content_file):
-                # TODO: say something
+                logger.error("Not found: %s/revisions/%s" % (entry.name, current_revision))
                 continue
 
             attachments: List[MoinAttachment] = []
@@ -60,4 +63,6 @@ class Moin2Hugo(object):
             yield page
 
     def convert(self):
-        pass
+        for page in self.scan_pages(self.src_dir):
+            # TODO
+            pass
