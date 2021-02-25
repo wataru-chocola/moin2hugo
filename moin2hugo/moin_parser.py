@@ -526,41 +526,91 @@ class MoinParser(object):
         no_new_p_before = ("heading", "rule", "table", "tableZ", "tr", "td", "ul", "ol", "dl",
                            "dt", "dd", "li", "li_none", "indent", "macro", "parser")
         dispatcher = {
+            # Moinwiki Special Syntax
             'macro': self._macro_repl,
+            'macro_name': self._macro_repl,
+            'macro_args': self._macro_repl,
             'comment': self._comment_repl,
+            'smiley': self._smiley_repl,
+
+            # Codeblock
             'parser': self._parser_repl,
+            'parser_unique': self._parser_repl,
+            'parser_line': self._parser_repl,
+            'parser_name': self._parser_repl,
+            'parser_args': self._parser_repl,
+            'parser_nothing': self._parser_repl,
             'parser_end': self._parser_end_repl,
+
+            # Table
             'tableZ': self._tableZ_repl,
             'table': self._table_repl,
+
+            # Heading / Horizontal Rule
             'heading': self._heading_repl,
-            'smiley': self._smiley_repl,
+            'heading_text': self._heading_repl,
+            'rule': self._rule_repl,
+
+            # Decorations
             'u': self._u_repl,
             'remark': self._remark_repl,
+            'remark_on': self._remark_repl,
+            'remark_off': self._remark_repl,
             'strike': self._strike_repl,
+            'strike_on': self._strike_repl,
+            'strike_off': self._strike_repl,
             'small': self._small_repl,
+            'small_on': self._small_repl,
+            'small_off': self._small_repl,
             'big': self._big_repl,
+            'big_on': self._big_repl,
+            'big_off': self._big_repl,
             'emph': self._emph_repl,
             'emph_ibb': self._emph_ibb_repl,
             'emph_ibi': self._emph_ibi_repl,
             'emph_ib_or_bi': self._emph_ib_or_bi_repl,
             'sup': self._sup_repl,
+            'sup_text': self._sup_repl,
             'sub': self._sub_repl,
+            'sub_text': self._sub_repl,
             'tt': self._tt_repl,
+            'tt_text': self._tt_repl,
             'tt_bt': self._tt_bt_repl,
-            'rule': self._rule_repl,
+            'tt_bt_text': self._tt_bt_repl,
+
+            # Links
             'interwiki': self._interwiki_repl,
+            'interwiki_wiki': self._interwiki_repl,
+            'interwiki_page': self._interwiki_repl,
             'word': self._word_repl,
+            'word_bang': self._word_repl,
+            'word_name': self._word_repl,
+            'word_anchor': self._word_repl,
             'url': self._url_repl,
+            'url_target': self._url_repl,
+            'url_schema': self._url_repl,
             'link': self._link_repl,
+            'link_target': self._link_repl,
+            'link_desc': self._link_repl,
+            'link_params': self._link_repl,
             'email': self._email_repl,
-            'sgml_entity': self._sgml_entity_repl,
-            'entity': self._entity_repl,
-            'indent': self._indent_repl,
+
+            # List
             'li_none': self._li_none_repl,
             'li': self._li_repl,
             'ol': self._ol_repl,
             'dl': self._dl_repl,
+
+            # Transclude (Image Embedding)
             'transclude': self._transclude_repl,
+            'transclude_target': self._transclude_repl,
+            'transclude_desc': self._transclude_repl,
+            'transclude_params': self._transclude_repl,
+
+            # Other
+            'sgml_entity': self._sgml_entity_repl,
+            'entity': self._entity_repl,
+            'indent': self._indent_repl,
         }
 
         result = []
@@ -599,8 +649,6 @@ class MoinParser(object):
             return self.formatter.text(word)
         self.is_remark = not self.is_remark
         return self.formatter.span(self.is_remark)
-    _remark_on_repl = _remark_repl
-    _remark_off_repl = _remark_repl
 
     def _strike_repl(self, word, groups):
         """Handle strikethrough."""
@@ -612,8 +660,6 @@ class MoinParser(object):
             return self.formatter.text(word)
         self.is_strike = not self.is_strike
         return self.formatter.strike(self.is_strike)
-    _strike_on_repl = _strike_repl
-    _strike_off_repl = _strike_repl
 
     def _small_repl(self, word, groups):
         """Handle small."""
@@ -625,8 +671,6 @@ class MoinParser(object):
             return self.formatter.text(word)
         self.is_small = not self.is_small
         return self.formatter.small(self.is_small)
-    _small_on_repl = _small_repl
-    _small_off_repl = _small_repl
 
     def _big_repl(self, word, groups):
         """Handle big."""
@@ -638,8 +682,6 @@ class MoinParser(object):
             return self.formatter.text(word)
         self.is_big = not self.is_big
         return self.formatter.big(self.is_big)
-    _big_on_repl = _big_repl
-    _big_off_repl = _big_repl
 
     def _emph_repl(self, word, groups):
         """Handle emphasis, i.e. '' and '''."""
@@ -686,7 +728,6 @@ class MoinParser(object):
         return (self.formatter.sup(1) +
                 self.formatter.text(text) +
                 self.formatter.sup(0))
-    _sup_text_repl = _sup_repl
 
     def _sub_repl(self, word, groups):
         """Handle subscript."""
@@ -694,7 +735,6 @@ class MoinParser(object):
         return (self.formatter.sub(1) +
                 self.formatter.text(text) +
                 self.formatter.sub(0))
-    _sub_text_repl = _sub_repl
 
     def _tt_repl(self, word, groups):
         """Handle inline code."""
@@ -702,7 +742,6 @@ class MoinParser(object):
         return (self.formatter.code(1) +
                 self.formatter.text(tt_text) +
                 self.formatter.code(0))
-    _tt_text_repl = _tt_repl
 
     def _tt_bt_repl(self, word, groups):
         """Handle backticked inline code."""
@@ -710,7 +749,6 @@ class MoinParser(object):
         return (self.formatter.code(1, css="backtick") +
                 self.formatter.text(tt_bt_text) +
                 self.formatter.code(0))
-    _tt_bt_text_repl = _tt_bt_repl
 
     def _rule_repl(self, word, groups):
         """Handle sequences of dashes (Horizontal Rule)."""
@@ -732,8 +770,6 @@ class MoinParser(object):
             return (self.formatter.interwikilink(1, wiki, page, anchor=anchor) +
                     self.formatter.text(page) +
                     self.formatter.interwikilink(0, wiki, page))
-    _interwiki_wiki_repl = _interwiki_repl
-    _interwiki_page_repl = _interwiki_repl
 
     def _word_repl(self, word, groups):
         """Handle WikiNames."""
@@ -756,9 +792,6 @@ class MoinParser(object):
                     self.formatter.pagelink(1, abs_name, anchor=anchor) +
                     self.formatter.text(word) +
                     self.formatter.pagelink(0, abs_name))
-    _word_bang_repl = _word_repl
-    _word_name_repl = _word_repl
-    _word_anchor_repl = _word_repl
 
     def _url_repl(self, word, groups):
         """Handle literal URLs."""
@@ -768,8 +801,6 @@ class MoinParser(object):
         return (self.formatter.url(1, target, css=scheme) +
                 self.formatter.text(target) +
                 self.formatter.url(0))
-    _url_target_repl = _url_repl
-    _url_scheme_repl = _url_repl
 
     def _transclude_description(self, desc, default_text=''):
         """ parse a string <desc> valid as transclude description (text, ...)
@@ -893,9 +924,6 @@ class MoinParser(object):
         else:
             desc = self._transclude_description(desc, target)
             return self.formatter.text('{{%s|%s|%s}}' % (target, desc, params))
-    _transclude_target_repl = _transclude_repl
-    _transclude_desc_repl = _transclude_repl
-    _transclude_params_repl = _transclude_repl
 
     def _link_description(self, desc, target='', default_text=''):
         """ parse a string <desc> valid as link description (text, transclusion, ...)
@@ -990,9 +1018,6 @@ class MoinParser(object):
             if desc:
                 desc = '|' + desc
             return self.formatter.text('[[%s%s]]' % (target, desc))
-    _link_target_repl = _link_repl
-    _link_desc_repl = _link_repl
-    _link_params_repl = _link_repl
 
     def _email_repl(self, word, groups):
         """Handle email addresses (without a leading mailto:)."""
@@ -1201,7 +1226,6 @@ class MoinParser(object):
             self.formatter.text(heading_text),
             self.formatter.heading(0, depth),
         ])
-    _heading_text_repl = _heading_repl
 
     def _parser_repl(self, word, groups):
         """Handle parsed code displays."""
@@ -1238,11 +1262,6 @@ class MoinParser(object):
             self.parser_lines.append(word)
 
         return ''
-    _parser_unique_repl = _parser_repl
-    _parser_line_repl = _parser_repl
-    _parser_name_repl = _parser_repl
-    _parser_args_repl = _parser_repl
-    _parser_nothing_repl = _parser_repl
 
     def _parser_content(self, line):
         """ handle state and collecting lines for parser in pre/parser sections """
@@ -1306,8 +1325,6 @@ class MoinParser(object):
         if self.macro is None:
             self.macro = macro.Macro(self)
         return self.formatter.macro(self.macro, macro_name, macro_args, markup=groups.get('macro'))
-    _macro_name_repl = _macro_repl
-    _macro_args_repl = _macro_repl
 
     # Private helpers ------------------------------------------------------------
     def _indent_level(self):
