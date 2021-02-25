@@ -362,7 +362,6 @@ class MoinParser(object):
         self.in_pre = None
 
         self.in_table = 0
-        self.inhibit_p = 0  # if set, do not auto-create a <p>aragraph
 
         # holds the nesting level (in chars) of open lists
         self.list_indents = []
@@ -387,7 +386,6 @@ class MoinParser(object):
             self.line_was_empty = self.line_is_empty
             self.line_is_empty = 0
             self.first_list_item = 0
-            self.inhibit_p = 0
 
             # ignore processing instructions
             processing_instructions = ["##", "#format", "#refresh", "#redirect", "#deprecated",
@@ -477,7 +475,7 @@ class MoinParser(object):
         if self.formatter.in_p: self.request.write(self.formatter.paragraph(0))
         if self.in_table: self.request.write(self.formatter.table(0))
 
-    def _scan(self, line, inhibit_p=False):
+    def _scan(self, line):
         """ Scans one line
         Append text before match, invoke _replace() with match, and add text after match.
         """
@@ -495,16 +493,16 @@ class MoinParser(object):
                     if self.in_pre:
                         self._parser_content(line[lastpos:start])
                     else:
-                        if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p):
+                        if not (self.in_pre or self.formatter.in_p):
                             result.append(self.formatter.paragraph(1))
                         # add the simple text in between lastpos and beginning of current match
                         result.append(self.formatter.text(line[lastpos:start]))
 
                 # Replace match with markup
-                if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p or
+                if not (self.in_pre or self.formatter.in_p or
                         self.in_table or self.in_list):
                     result.append(self.formatter.paragraph(1))
-                result.append(self._replace(match, inhibit_p))
+                result.append(self._replace(match))
                 end = match.end()
                 lastpos = end
                 if start == end:
@@ -516,15 +514,14 @@ class MoinParser(object):
                     if not (lastpos > 0 and line[lastpos:] == ''):
                         self._parser_content(line[lastpos:])
                 elif line[lastpos:]:
-                    if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p or
-                            self.in_li or self.in_dd):
+                    if not (self.in_pre or self.formatter.in_p or self.in_li or self.in_dd):
                         result.append(self.formatter.paragraph(1))
                     # add the simple text (no markup) after last match
                     result.append(self.formatter.text(line[lastpos:]))
                 break  # nothing left to do!
         return ''.join(result)
 
-    def _replace(self, match, inhibit_p=False):
+    def _replace(self, match):
         """ Replace match using type name """
         no_new_p_before = ("heading", "rule", "table", "tableZ", "tr", "td", "ul", "ol", "dl",
                            "dt", "dd", "li", "li_none", "indent", "macro", "parser")
@@ -570,8 +567,7 @@ class MoinParser(object):
         for _type, hit in match.groupdict().items():
             if hit is not None and _type not in ["hmarker", ]:
                 # Open p for certain types
-                if not (inhibit_p or self.inhibit_p or self.formatter.in_p
-                        or self.in_pre or (_type in no_new_p_before)):
+                if not (self.formatter.in_p or self.in_pre or (_type in no_new_p_before)):
                     result.append(self.formatter.paragraph(1))
 
                 result.append(dispatcher[_type](hit, match.groupdict()))
@@ -1279,7 +1275,6 @@ class MoinParser(object):
             we call the parser with the lines we collected
         """
         self.in_pre = None
-        self.inhibit_p = 0
         self.request.write(self._closeP())
         if self.parser_name is None:
             # we obviously did not find a parser specification
@@ -1306,7 +1301,6 @@ class MoinParser(object):
         """Handle macros."""
         macro_name = groups.get('macro_name')
         macro_args = groups.get('macro_args')
-        self.inhibit_p = 0  # 1 fixed macros like UserPreferences (in the past, gone now), 0 fixes paragraph formatting for macros
 
         # create macro instance
         if self.macro is None:
