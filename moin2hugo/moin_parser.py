@@ -336,13 +336,6 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in config.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    # Don't start p before these
-    no_new_p_before = ("heading rule table tableZ tr td "
-                       "ul ol dl dt dd li li_none indent "
-                       "macro parser")
-    no_new_p_before = no_new_p_before.split()
-    no_new_p_before = dict(zip(no_new_p_before, [1] * len(no_new_p_before)))
-
     def __init__(self, text: str, formatter):
         self.lines = text.expandtabs().splitlines()
         self.formatter = formatter
@@ -375,21 +368,226 @@ class MoinParser(object):
         self.list_indents = []
         self.list_types = []
 
-    def _close_item(self, result):
-        if self.in_table:
-            result.append(self.formatter.table(0))
-            self.in_table = 0
-        if self.in_li:
-            self.in_li = 0
-            if self.formatter.in_p:
-                result.append(self.formatter.paragraph(0))
-            result.append(self.formatter.listitem(0))
-        if self.in_dd:
-            self.in_dd = 0
-            if self.formatter.in_p:
-                result.append(self.formatter.paragraph(0))
-            result.append(self.formatter.definition_desc(0))
+    # Public Method ----------------------------------------------------------
+    @classmethod
+    def format(cls, text: str, formatter):
+        parser = cls(text, formatter)
+        return parser._format()
 
+    # Private Parsing/Formatting Entrypoint ----------------------------------
+    def _format(self):
+        """ For each line, scan through looking for magic
+            strings, outputting verbatim any intervening text.
+        """
+        self.line_is_empty = 0
+        in_processing_instructions = 1
+
+        for line in self.lines:
+            self.table_rowstart = 1
+            self.line_was_empty = self.line_is_empty
+            self.line_is_empty = 0
+            self.first_list_item = 0
+            self.inhibit_p = 0
+
+            # ignore processing instructions
+            processing_instructions = ["##", "#format", "#refresh", "#redirect", "#deprecated",
+                                       "#pragma", "#form", "#acl", "#language"]
+            if in_processing_instructions:
+                if any((line.lower().startswith(pi) for pi in processing_instructions)):
+                    continue
+                else:
+                    in_processing_instructions = 0
+
+            if not self.in_pre:
+                # we don't have \n as whitespace any more
+                # This is the space between lines we join to one paragraph
+                line += ' '
+
+                # Paragraph break on empty lines
+                if not line.strip():
+                    if self.in_table:
+                        self.request.write(self.formatter.table(0))
+                        self.in_table = 0
+                    # CHANGE: removed check for not self.list_types
+                    # p should close on every empty line
+                    if self.formatter.in_p:
+                        self.request.write(self.formatter.paragraph(0))
+                    self.line_is_empty = 1
+                    continue
+
+                # Check indent level
+                indent = self.indent_re.match(line)
+                indlen = len(indent.group(0))
+                indtype = "ul"
+                numtype = None
+                numstart = None
+                if indlen:
+                    match = self.ol_re.match(line)
+                    if match:
+                        numtype, numstart = match.group(0).strip().split('.')
+                        numtype = numtype[0]
+
+                        if numstart and numstart[0] == "#":
+                            numstart = int(numstart[1:])
+                        else:
+                            numstart = None
+
+                        indtype = "ol"
+                    else:
+                        match = self.dl_re.match(line)
+                        if match:
+                            indtype = "dl"
+
+                # output proper indentation tags
+                self.request.write(self._indent_to(indlen, indtype, numtype, numstart))
+
+                # Table mode
+                if (not self.in_table and line[indlen:indlen + 2] == "||"
+                    and line.endswith("|| ") and len(line) >= 5 + indlen):
+                    # Start table
+                    if self.list_types and not self.in_li:
+                        self.request.write(self.formatter.listitem(1, style="list-style-type:none"))
+                        self.in_li = 1
+
+                    # CHANGE: removed check for self.in_li
+                    # paragraph should end before table, always!
+                    if self.formatter.in_p:
+                        self.request.write(self.formatter.paragraph(0))
+                    attrs, attrerr = self._getTableAttrs(line[indlen+2:])
+                    self.request.write(self.formatter.table(1, attrs) + attrerr)
+                    self.in_table = True
+                elif (self.in_table and not
+                      # intra-table comments should not break a table
+                      (line.startswith("##") or
+                       line[indlen:indlen + 2] == "||" and
+                       line.endswith("|| ") and
+                       len(line) >= 5 + indlen)):
+
+                    # Close table
+                    self.request.write(self.formatter.table(0))
+                    self.in_table = 0
+
+            # Scan line, format and write
+            formatted_line = self._scan(line)
+            self.request.write(formatted_line)
+
+        # Close code displays, paragraphs, tables and open lists
+        self.request.write(self._undent())
+        if self.in_pre: self.request.write(self.formatter.preformatted(0))
+        if self.formatter.in_p: self.request.write(self.formatter.paragraph(0))
+        if self.in_table: self.request.write(self.formatter.table(0))
+
+    def _scan(self, line, inhibit_p=False):
+        """ Scans one line
+        Append text before match, invoke _replace() with match, and add text after match.
+        """
+        result = []
+        lastpos = 0  # absolute position within line
+        line_length = len(line)
+
+        while lastpos <= line_length:  # it is <=, not <, because we need to process the empty line also
+            parser_scan_re = re.compile(self.parser_scan_rule % re.escape(self.parser_unique), re.VERBOSE | re.UNICODE)
+            scan_re = self.in_pre and parser_scan_re or self.scan_re
+            match = scan_re.search(line, lastpos)
+            if match:
+                start = match.start()
+                if lastpos < start:
+                    if self.in_pre:
+                        self._parser_content(line[lastpos:start])
+                    else:
+                        if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p):
+                            result.append(self.formatter.paragraph(1))
+                        # add the simple text in between lastpos and beginning of current match
+                        result.append(self.formatter.text(line[lastpos:start]))
+
+                # Replace match with markup
+                if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p or
+                        self.in_table or self.in_list):
+                    result.append(self.formatter.paragraph(1))
+                result.append(self._replace(match, inhibit_p))
+                end = match.end()
+                lastpos = end
+                if start == end:
+                    # we matched an empty string
+                    lastpos += 1  # proceed, we don't want to match this again
+            else:
+                if self.in_pre:
+                    # ilastpos is more then 0 and result of line slice is empty make useless line
+                    if not (lastpos > 0 and line[lastpos:] == ''):
+                        self._parser_content(line[lastpos:])
+                elif line[lastpos:]:
+                    if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p or
+                            self.in_li or self.in_dd):
+                        result.append(self.formatter.paragraph(1))
+                    # add the simple text (no markup) after last match
+                    result.append(self.formatter.text(line[lastpos:]))
+                break  # nothing left to do!
+        return ''.join(result)
+
+    def _replace(self, match, inhibit_p=False):
+        """ Replace match using type name """
+        no_new_p_before = ("heading", "rule", "table", "tableZ", "tr", "td", "ul", "ol", "dl",
+                           "dt", "dd", "li", "li_none", "indent", "macro", "parser")
+        dispatcher = {
+            'macro': self._macro_repl,
+            'comment': self._comment_repl,
+            'parser': self._parser_repl,
+            'parser_end': self._parser_end_repl,
+            'tableZ': self._tableZ_repl,
+            'table': self._table_repl,
+            'heading': self._heading_repl,
+            'smiley': self._smiley_repl,
+            'u': self._u_repl,
+            'remark': self._remark_repl,
+            'strike': self._strike_repl,
+            'small': self._small_repl,
+            'big': self._big_repl,
+            'emph': self._emph_repl,
+            'emph_ibb': self._emph_ibb_repl,
+            'emph_ibi': self._emph_ibi_repl,
+            'emph_ib_or_bi': self._emph_ib_or_bi_repl,
+            'sup': self._sup_repl,
+            'sub': self._sub_repl,
+            'tt': self._tt_repl,
+            'tt_bt': self._tt_bt_repl,
+            'rule': self._rule_repl,
+            'interwiki': self._interwiki_repl,
+            'word': self._word_repl,
+            'url': self._url_repl,
+            'link': self._link_repl,
+            'email': self._email_repl,
+            'sgml_entity': self._sgml_entity_repl,
+            'entity': self._entity_repl,
+            'indent': self._indent_repl,
+            'li_none': self._li_none_repl,
+            'li': self._li_repl,
+            'ol': self._ol_repl,
+            'dl': self._dl_repl,
+            'transclude': self._transclude_repl,
+        }
+
+        result = []
+        for _type, hit in match.groupdict().items():
+            if hit is not None and _type not in ["hmarker", ]:
+                # Open p for certain types
+                if not (inhibit_p or self.inhibit_p or self.formatter.in_p
+                        or self.in_pre or (_type in no_new_p_before)):
+                    result.append(self.formatter.paragraph(1))
+
+                result.append(dispatcher[_type](hit, match.groupdict()))
+                return ''.join(result)
+        else:
+            # We should never get here
+            import pprint
+            raise Exception("Can't handle match %r\n%s\n%s" % (
+                match,
+                pprint.pformat(match.groupdict()),
+                pprint.pformat(match.groups()),
+            ))
+
+        return ""
+
+    # Private Replace Method ----------------------------------------------------------
     def _u_repl(self, word, groups):
         """Handle underline."""
         self.is_u = not self.is_u
@@ -597,28 +795,6 @@ class MoinParser(object):
         else:
             desc = default_text
         return desc
-
-    def _get_params(self, params: Dict[str, Any], tag_attrs: Dict[str, Any] = {},
-                    acceptable_attrs: List[str] = [], query_args: Dict[str, Any] = {}):
-        """ parse the parameters of link/transclusion markup,
-            defaults can be a dict with some default key/values
-            that will be in the result as given, unless overriden
-            by the params.
-        """
-        tmp_tag_attrs = copy.deepcopy(tag_attrs)
-        tmp_query_args = copy.deepcopy(query_args)
-        if params:
-            fixed, kw, trailing = wikiutil.parse_quoted_separated(params)
-            # we ignore fixed and trailing args and only use kw args:
-            for key, val in kw.items():
-                # wikiutil.escape for key/val must be done by (html) formatter!
-                if key in acceptable_attrs:
-                    # tag attributes must be string type
-                    tmp_tag_attrs[str(key)] = val
-                elif key.startswith('&'):
-                    key = key[1:]
-                    tmp_query_args[key] = val
-        return tmp_tag_attrs, tmp_query_args
 
     def _transclude_repl(self, word, groups):
         """Handles transcluding content, usually embedding images.: {{}}"""
@@ -887,84 +1063,6 @@ class MoinParser(object):
         ])
         return ''.join(result)
 
-    def _indent_level(self):
-        """Return current char-wise indent level."""
-        if not self.list_indents:
-            return 0
-        else:
-            return self.list_indents[-1]
-
-    def _indent_to(self, new_level, list_type, numtype, numstart):
-        """Close and open lists."""
-        openlist = []   # don't make one out of these two statements!
-        closelist = []
-
-        if self._indent_level() != new_level and self.in_table:
-            closelist.append(self.formatter.table(0))
-            self.in_table = 0
-
-        while self._indent_level() > new_level:
-            self._close_item(closelist)
-            if self.list_types[-1] == 'ol':
-                tag = self.formatter.number_list(0)
-            elif self.list_types[-1] == 'dl':
-                tag = self.formatter.definition_list(0)
-            else:
-                tag = self.formatter.bullet_list(0)
-            closelist.append(tag)
-
-            del self.list_indents[-1]
-            del self.list_types[-1]
-
-            if self.list_types:  # we are still in a list
-                if self.list_types[-1] == 'dl':
-                    self.in_dd = 1
-                else:
-                    self.in_li = 1
-
-        # Open new list, if necessary
-        if self._indent_level() < new_level:
-            self.list_indents.append(new_level)
-            self.list_types.append(list_type)
-
-            if self.formatter.in_p:
-                closelist.append(self.formatter.paragraph(0))
-
-            if list_type == 'ol':
-                tag = self.formatter.number_list(1, numtype, numstart)
-            elif list_type == 'dl':
-                tag = self.formatter.definition_list(1)
-            else:
-                tag = self.formatter.bullet_list(1)
-            openlist.append(tag)
-
-            self.first_list_item = 1
-            self.in_li = 0
-            self.in_dd = 0
-
-        # If list level changes, close an open table
-        if self.in_table and (openlist or closelist):
-            closelist[0:0] = [self.formatter.table(0)]
-            self.in_table = 0
-
-        self.in_list = self.list_types != []
-        return ''.join(closelist) + ''.join(openlist)
-
-    def _undent(self):
-        """Close all open lists."""
-        result = []
-        self._close_item(result)
-        for _type in self.list_types[::-1]:
-            if _type == 'ol':
-                result.append(self.formatter.number_list(0))
-            elif _type == 'dl':
-                result.append(self.formatter.definition_list(0))
-            else:
-                result.append(self.formatter.bullet_list(0))
-        self.list_indents = []
-        self.list_types = []
-        return ''.join(result)
-
     def _getTableAttrs(self, attrdef):
         attr_rule = r'^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>'
         m = re.match(attr_rule, attrdef, re.U)
@@ -1204,11 +1302,6 @@ class MoinParser(object):
         self.line_is_empty = 1  # markup following comment lines treats them as if they were empty
         return self.formatter.comment(word)
 
-    def _closeP(self):
-        if self.formatter.in_p:
-            return self.formatter.paragraph(0)
-        return ''
-
     def _macro_repl(self, word, groups):
         """Handle macros."""
         macro_name = groups.get('macro_name')
@@ -1222,186 +1315,127 @@ class MoinParser(object):
     _macro_name_repl = _macro_repl
     _macro_args_repl = _macro_repl
 
-    def scan(self, line, inhibit_p=False):
-        """ Scans one line
-        Append text before match, invoke replace() with match, and add text after match.
-        """
-        result = []
-        lastpos = 0  # absolute position within line
-        line_length = len(line)
+    # Private helpers ------------------------------------------------------------
+    def _indent_level(self):
+        """Return current char-wise indent level."""
+        if not self.list_indents:
+            return 0
+        else:
+            return self.list_indents[-1]
 
-        while lastpos <= line_length:  # it is <=, not <, because we need to process the empty line also
-            parser_scan_re = re.compile(self.parser_scan_rule % re.escape(self.parser_unique), re.VERBOSE | re.UNICODE)
-            scan_re = self.in_pre and parser_scan_re or self.scan_re
-            match = scan_re.search(line, lastpos)
-            if match:
-                start = match.start()
-                if lastpos < start:
-                    if self.in_pre:
-                        self._parser_content(line[lastpos:start])
-                    else:
-                        if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p):
-                            result.append(self.formatter.paragraph(1))
-                        # add the simple text in between lastpos and beginning of current match
-                        result.append(self.formatter.text(line[lastpos:start]))
+    def _indent_to(self, new_level, list_type, numtype, numstart):
+        """Close and open lists."""
+        openlist = []   # don't make one out of these two statements!
+        closelist = []
 
-                # Replace match with markup
-                if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p or
-                        self.in_table or self.in_list):
-                    result.append(self.formatter.paragraph(1))
-                result.append(self.replace(match, inhibit_p))
-                end = match.end()
-                lastpos = end
-                if start == end:
-                    # we matched an empty string
-                    lastpos += 1  # proceed, we don't want to match this again
+        if self._indent_level() != new_level and self.in_table:
+            closelist.append(self.formatter.table(0))
+            self.in_table = 0
+
+        while self._indent_level() > new_level:
+            self._close_item(closelist)
+            if self.list_types[-1] == 'ol':
+                tag = self.formatter.number_list(0)
+            elif self.list_types[-1] == 'dl':
+                tag = self.formatter.definition_list(0)
             else:
-                if self.in_pre:
-                    # ilastpos is more then 0 and result of line slice is empty make useless line
-                    if not (lastpos > 0 and line[lastpos:] == ''):
-                        self._parser_content(line[lastpos:])
-                elif line[lastpos:]:
-                    if not (inhibit_p or self.inhibit_p or self.in_pre or self.formatter.in_p or
-                            self.in_li or self.in_dd):
-                        result.append(self.formatter.paragraph(1))
-                    # add the simple text (no markup) after last match
-                    result.append(self.formatter.text(line[lastpos:]))
-                break  # nothing left to do!
+                tag = self.formatter.bullet_list(0)
+            closelist.append(tag)
+
+            del self.list_indents[-1]
+            del self.list_types[-1]
+
+            if self.list_types:  # we are still in a list
+                if self.list_types[-1] == 'dl':
+                    self.in_dd = 1
+                else:
+                    self.in_li = 1
+
+        # Open new list, if necessary
+        if self._indent_level() < new_level:
+            self.list_indents.append(new_level)
+            self.list_types.append(list_type)
+
+            if self.formatter.in_p:
+                closelist.append(self.formatter.paragraph(0))
+
+            if list_type == 'ol':
+                tag = self.formatter.number_list(1, numtype, numstart)
+            elif list_type == 'dl':
+                tag = self.formatter.definition_list(1)
+            else:
+                tag = self.formatter.bullet_list(1)
+            openlist.append(tag)
+
+            self.first_list_item = 1
+            self.in_li = 0
+            self.in_dd = 0
+
+        # If list level changes, close an open table
+        if self.in_table and (openlist or closelist):
+            closelist[0:0] = [self.formatter.table(0)]
+            self.in_table = 0
+
+        self.in_list = self.list_types != []
+        return ''.join(closelist) + ''.join(openlist)
+
+    def _undent(self):
+        """Close all open lists."""
+        result = []
+        self._close_item(result)
+        for _type in self.list_types[::-1]:
+            if _type == 'ol':
+                result.append(self.formatter.number_list(0))
+            elif _type == 'dl':
+                result.append(self.formatter.definition_list(0))
+            else:
+                result.append(self.formatter.bullet_list(0))
+        self.list_indents = []
+        self.list_types = []
         return ''.join(result)
 
-    def replace(self, match, inhibit_p=False):
-        """ Replace match using type name """
-        result = []
-        for _type, hit in match.groupdict().items():
-            if hit is not None and _type not in ["hmarker", ]:
-                # Open p for certain types
-                if not (inhibit_p or self.inhibit_p or self.formatter.in_p
-                        or self.in_pre or (_type in self.no_new_p_before)):
-                    result.append(self.formatter.paragraph(1))
+    def _close_item(self, result):
+        if self.in_table:
+            result.append(self.formatter.table(0))
+            self.in_table = 0
+        if self.in_li:
+            self.in_li = 0
+            if self.formatter.in_p:
+                result.append(self.formatter.paragraph(0))
+            result.append(self.formatter.listitem(0))
+        if self.in_dd:
+            self.in_dd = 0
+            if self.formatter.in_p:
+                result.append(self.formatter.paragraph(0))
+            result.append(self.formatter.definition_desc(0))
 
-                # Get replace method and replace hit
-                replace_func = getattr(self, '_%s_repl' % _type)
-                result.append(replace_func(hit, match.groupdict()))
-                return ''.join(result)
-        else:
-            # We should never get here
-            import pprint
-            raise Exception("Can't handle match %r\n%s\n%s" % (
-                match,
-                pprint.pformat(match.groupdict()),
-                pprint.pformat(match.groups()),
-            ))
+    def _closeP(self):
+        if self.formatter.in_p:
+            return self.formatter.paragraph(0)
+        return ''
 
-        return ""
-
-    @classmethod
-    def format(cls, text: str, formatter):
-        parser = cls(text, formatter)
-        return parser._format()
-
-    def _format(self):
-        """ For each line, scan through looking for magic
-            strings, outputting verbatim any intervening text.
+    def _get_params(self, params: Dict[str, Any], tag_attrs: Dict[str, Any] = {},
+                    acceptable_attrs: List[str] = [], query_args: Dict[str, Any] = {}):
+        """ parse the parameters of link/transclusion markup,
+            defaults can be a dict with some default key/values
+            that will be in the result as given, unless overriden
+            by the params.
         """
-        self.line_is_empty = 0
-        in_processing_instructions = 1
+        tmp_tag_attrs = copy.deepcopy(tag_attrs)
+        tmp_query_args = copy.deepcopy(query_args)
+        if params:
+            fixed, kw, trailing = wikiutil.parse_quoted_separated(params)
+            # we ignore fixed and trailing args and only use kw args:
+            for key, val in kw.items():
+                # wikiutil.escape for key/val must be done by (html) formatter!
+                if key in acceptable_attrs:
+                    # tag attributes must be string type
+                    tmp_tag_attrs[str(key)] = val
+                elif key.startswith('&'):
+                    key = key[1:]
+                    tmp_query_args[key] = val
+        return tmp_tag_attrs, tmp_query_args
 
-        for line in self.lines:
-            self.table_rowstart = 1
-            self.line_was_empty = self.line_is_empty
-            self.line_is_empty = 0
-            self.first_list_item = 0
-            self.inhibit_p = 0
-
-            # ignore processing instructions
-            processing_instructions = ["##", "#format", "#refresh", "#redirect", "#deprecated",
-                                       "#pragma", "#form", "#acl", "#language"]
-            if in_processing_instructions:
-                if any((line.lower().startswith(pi) for pi in processing_instructions)):
-                    continue
-                else:
-                    in_processing_instructions = 0
-
-            if not self.in_pre:
-                # we don't have \n as whitespace any more
-                # This is the space between lines we join to one paragraph
-                line += ' '
-
-                # Paragraph break on empty lines
-                if not line.strip():
-                    if self.in_table:
-                        self.request.write(self.formatter.table(0))
-                        self.in_table = 0
-                    # CHANGE: removed check for not self.list_types
-                    # p should close on every empty line
-                    if self.formatter.in_p:
-                        self.request.write(self.formatter.paragraph(0))
-                    self.line_is_empty = 1
-                    continue
-
-                # Check indent level
-                indent = self.indent_re.match(line)
-                indlen = len(indent.group(0))
-                indtype = "ul"
-                numtype = None
-                numstart = None
-                if indlen:
-                    match = self.ol_re.match(line)
-                    if match:
-                        numtype, numstart = match.group(0).strip().split('.')
-                        numtype = numtype[0]
-
-                        if numstart and numstart[0] == "#":
-                            numstart = int(numstart[1:])
-                        else:
-                            numstart = None
-
-                        indtype = "ol"
-                    else:
-                        match = self.dl_re.match(line)
-                        if match:
-                            indtype = "dl"
-
-                # output proper indentation tags
-                self.request.write(self._indent_to(indlen, indtype, numtype, numstart))
-
-                # Table mode
-                if (not self.in_table and line[indlen:indlen + 2] == "||"
-                    and line.endswith("|| ") and len(line) >= 5 + indlen):
-                    # Start table
-                    if self.list_types and not self.in_li:
-                        self.request.write(self.formatter.listitem(1, style="list-style-type:none"))
-                        self.in_li = 1
-
-                    # CHANGE: removed check for self.in_li
-                    # paragraph should end before table, always!
-                    if self.formatter.in_p:
-                        self.request.write(self.formatter.paragraph(0))
-                    attrs, attrerr = self._getTableAttrs(line[indlen+2:])
-                    self.request.write(self.formatter.table(1, attrs) + attrerr)
-                    self.in_table = True
-                elif (self.in_table and not
-                      # intra-table comments should not break a table
-                      (line.startswith("##") or
-                       line[indlen:indlen + 2] == "||" and
-                       line.endswith("|| ") and
-                       len(line) >= 5 + indlen)):
-
-                    # Close table
-                    self.request.write(self.formatter.table(0))
-                    self.in_table = 0
-
-            # Scan line, format and write
-            formatted_line = self.scan(line)
-            self.request.write(formatted_line)
-
-        # Close code displays, paragraphs, tables and open lists
-        self.request.write(self._undent())
-        if self.in_pre: self.request.write(self.formatter.preformatted(0))
-        if self.formatter.in_p: self.request.write(self.formatter.paragraph(0))
-        if self.in_table: self.request.write(self.formatter.table(0))
-
-    # Private helpers ------------------------------------------------------------
     def _set_parser(self, name):
         available_parsers = ('text', 'highlight')
         if name in available_parsers:
