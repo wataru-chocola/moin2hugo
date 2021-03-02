@@ -810,6 +810,7 @@ class MoinParser(object):
         if not mt:
             return
 
+        # TODO: don't support all attrs actually
         acceptable_attrs = ['class', 'title', 'target', 'accesskey', 'rel', ]
         tag_attrs, query_args = self._get_params(params, acceptable_attrs=acceptable_attrs)
 
@@ -835,18 +836,15 @@ class MoinParser(object):
             return self.formatter.link(target, description, **tag_attrs)
 
         elif mt.group('attach_scheme'):
-            # TODO: not implemented
             scheme = mt.group('attach_scheme')
-            url = wikiutil.url_unquote(mt.group('attach_addr'))
-            if 'title' not in tag_attrs:
-                tag_attrs['title'] = desc
-            if scheme == 'attachment':  # ZZZ
-                return (self.formatter.attachment_link(1, url, queryargs=query_args, **tag_attrs) +
-                        self._link_description(desc, target, url) +
-                        self.formatter.attachment_link(0))
+            attach_addr = wikiutil.url_unquote(mt.group('attach_addr'))
+            if scheme == 'attachment':
+                link_description = self._link_description(desc, target, attach_addr)
+                return self.formatter.attachment_link(attach_addr, link_description,
+                                                      queryargs=query_args, **tag_attrs)
             elif scheme == 'drawing':
-                url = wikiutil.drawing2fname(url)
-                return self.formatter.attachment_drawing(url, desc, alt=desc, **tag_attrs)
+                logger.info("unsupported: drawing=%s" % word)
+                return self.formatter.text(word)
 
         else:
             if desc:
@@ -927,16 +925,18 @@ class MoinParser(object):
         """Handles transcluding content, usually embedding images.: {{}}"""
         target = groups.get('transclude_target', '')
         target = wikiutil.url_unquote(target)
+
+        m = self.link_target_re.match(target)
+        if not m:
+            # TODO: logging
+            return self.formatter.text(word + '???')
+
         desc = groups.get('transclude_desc', '')
         params = groups.get('transclude_params', '')
         acceptable_attrs_img = ['class', 'title', 'longdesc', 'width', 'height', 'align', ]
         acceptable_attrs_object = ['class', 'title', 'width', 'height', 'type', 'standby', ]
-        m = self.link_target_re.match(target)
-        if not m:
-            return word + '???'
 
         if m.group('extern_addr'):
-            # currently only supports ext. image inclusion
             target = m.group('extern_addr')
             desc = self._transclude_description(desc, target)
             tag_attrs = {'alt': desc, 'title': desc, },
@@ -951,42 +951,36 @@ class MoinParser(object):
             if scheme == 'attachment':
                 mt = wikiutil.MimeType(filename=url)
                 if mt.major == 'text':
+                    # TODO:
                     desc = self._transclude_description(desc, url)
                     return self.formatter.attachment_inlined(url, desc)
-                # destinguishs if browser need a plugin in place
-                elif mt.major == 'image' and mt.minor in config.browser_supported_images:
+
+                if mt.major == 'image' and mt.minor in config.browser_supported_images:
                     desc = self._transclude_description(desc, url)
                     tag_attrs = {'alt': desc, 'title': desc, },
                     tmp_tag_attrs, query_args = \
                         self._get_params(params, acceptable_attrs=acceptable_attrs_img)
                     tag_attrs.update(tmp_tag_attrs)
                     return self.formatter.attachment_image(url, **tag_attrs)
+
+                # non-text, unsupported images, or other filetypes
+                pagename, filename = AttachFile.absoluteName(url, self.page_name)
+                if AttachFile.exists(pagename, filename):
+                    href = AttachFile.getAttachUrl(pagename, filename)
+                    tag_attrs = {'title': desc, },
+                    tmp_tag_attrs, query_args = \
+                        self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+                    tag_attrs.update(tmp_tag_attrs)
+                    return (self.formatter.transclusion(1, data=href, type=mt.spoil(), **tag_attrs) +
+                            self.formatter.text(self._transclude_description(desc, url)) +
+                            self.formatter.transclusion(0))
                 else:
-                    current_pagename = self.page_name
-                    pagename, filename = AttachFile.absoluteName(url, current_pagename)
-                    if AttachFile.exists(pagename, filename):
-                        href = AttachFile.getAttachUrl(pagename, filename)
-                        tag_attrs = {'title': desc, },
-                        tmp_tag_attrs, query_args = \
-                            self._get_params(params, acceptable_attrs=acceptable_attrs_object)
-                        tag_attrs.update(tmp_tag_attrs)
-                        return (self.formatter.transclusion(1, data=href, type=mt.spoil(), **tag_attrs) +
-                                self.formatter.text(self._transclude_description(desc, url)) +
-                                self.formatter.transclusion(0))
-                    else:
-                        return (self.formatter.attachment_link(1, url) +
-                                self.formatter.text(self._transclude_description(desc, url)) +
-                                self.formatter.attachment_link(0))
+                    description = self.formatter.text(self._transclude_description(desc, url))
+                    return self.formatter.attachment_link(url, description)
+
             elif scheme == 'drawing':
-                url = wikiutil.drawing2fname(url)
-                tag_attrs = {}
-                desc = self._transclude_description(desc, url)
-                if desc:
-                    tag_attrs = {'alt': desc, 'title': desc, }
-                tmp_tag_attrs, query_args = \
-                    self._get_params(params, acceptable_attrs=acceptable_attrs_img)
-                tag_attrs.update(tmp_tag_attrs)
-                return self.formatter.attachment_drawing(url, desc, **tag_attrs)
+                logger.info("unsupported: drawing=%s" % word)
+                return self.formatter.text(word)
 
         elif m.group('page_name'):
             # experimental client side transclusion

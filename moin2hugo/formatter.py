@@ -74,8 +74,11 @@ class Formatter(object):
     def url(self, target: str) -> str:
         return "<%s>" % (target)
 
-    def link(self, target: str, description: str) -> str:
-        return "[%s](%s)" % (description, target)
+    def link(self, target: str, description: str, title: Optional[str] = None) -> str:
+        if title is not None:
+            return '[%s](%s "%s")' % (description, target, title)
+        else:
+            return "[%s](%s)" % (description, target)
 
     def pagelink(self, page_name: str, description: str,
                  queryargs: Optional[Dict[str, str]] = None, anchor: Optional[str] = None) -> str:
@@ -86,7 +89,16 @@ class Formatter(object):
             pass
         if anchor:
             link_path += "#%s" % anchor
-        return "[%s](%s)" % (description, link_path)
+        return self.link(link_path, description)
+
+    def attachment_link(self, attach_name: str, description: str, title: Optional[str] = None,
+                        queryargs: Optional[Dict[str, str]] = None) -> str:
+        # TODO: convert attach_name to link path
+        link_path = attach_name
+        if queryargs:
+            # TODO: maybe useless
+            pass
+        return self.link(link_path, description, title)
 
     # Itemlist
     def bullet_list(self):
@@ -102,6 +114,15 @@ class Formatter(object):
         return "dummy"
 
     def listitem(self, css_class, style):
+        # TODO
+        return "dummy"
+
+    # Image Embedding
+    def image(self, src: str, alt: str, title: str) -> str:
+        # TODO
+        return "dummy"
+
+    def attachment_image(self, src: str, alt: str, title: str) -> str:
         # TODO
         return "dummy"
 

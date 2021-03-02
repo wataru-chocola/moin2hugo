@@ -84,7 +84,9 @@ def test_decorations_sl(data, expected, formatter_object, capsys):
         ('[[SamePage#subsection|subsection of Some Page]]', '[subsection of Some Page](SamePage#subsection)'),  # noqa
         # TODO: ('[[SomePage|{{attachment:imagefile.png}}]]', ''),
         # TODO: ('[[SomePage|some Page|target="_blank"]]', ''),
-        # TODO: ('[[attachment:SomePage/image.png]]', ''),
+        ('[[attachment:SomePage/image.png]]', '[SomePage/image.png](SomePage/image.png)'),
+        ('[[attachment:SomePage/image.png|image.png|title="png"]]', '[image.png](SomePage/image.png "png")'),  # noqa
+        ('[[drawing:SomePage/image.png]]', '[[drawing:SomePage/image.png]]'),
         ('[[http://example.net/|example site]]', '[example site](http://example.net/)'),
         ('[[otherwiki:somepage]]', 'otherwiki:somepage'),
     ]
@@ -121,6 +123,18 @@ def test_entities(data, expected, formatter_object, capsys):
     ]
 )
 def test_item_lists(data, expected, formatter_object, capsys):
+    MoinParser.format(data, 'PageName', formatter_object)
+    captured = capsys.readouterr()
+    # TODO: remove rstrip()
+    assert captured.out.rstrip() == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("{{drawing:twikitest.tdraw}}", "{{drawing:twikitest.tdraw}}"),
+    ]
+)
+def test_transclude(data, expected, formatter_object, capsys):
     MoinParser.format(data, 'PageName', formatter_object)
     captured = capsys.readouterr()
     # TODO: remove rstrip()
