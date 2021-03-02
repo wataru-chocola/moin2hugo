@@ -690,6 +690,8 @@ class MoinParser(object):
 
     def _emph_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle emphasis, i.e. '' and '''."""
+        # ''': b
+        # '': em
         if len(word) == 3:
             self.is_b = not self.is_b
             if self.is_em and self.is_b:
@@ -719,7 +721,10 @@ class MoinParser(object):
 
     def _emph_ib_or_bi_repl(self, word, groups):
         """Handle mixed emphasis, exactly five '''''."""
-        b_before_em = self.is_b > self.is_em > 0
+        b_before_em = False
+        if self.is_b and self.is_em:
+            # TODO: the following code use a trick that `True` is treated as `1` in math context.
+            b_before_em = self.is_b > self.is_em
         self.is_b = not self.is_b
         self.is_em = not self.is_em
         if b_before_em:
@@ -727,33 +732,25 @@ class MoinParser(object):
         else:
             return self.formatter.emphasis(self.is_em) + self.formatter.strong(self.is_b)
 
-    def _sup_repl(self, word, groups):
+    def _sup_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle superscript."""
         text = groups.get('sup_text', '')
-        return (self.formatter.sup(1) +
-                self.formatter.text(text) +
-                self.formatter.sup(0))
+        return self.formatter.sup(text)
 
-    def _sub_repl(self, word, groups):
+    def _sub_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle subscript."""
         text = groups.get('sub_text', '')
-        return (self.formatter.sub(1) +
-                self.formatter.text(text) +
-                self.formatter.sub(0))
+        return self.formatter.sub(text)
 
-    def _tt_repl(self, word, groups):
+    def _tt_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle inline code."""
         tt_text = groups.get('tt_text', '')
-        return (self.formatter.code(1) +
-                self.formatter.text(tt_text) +
-                self.formatter.code(0))
+        return self.formatter.code(tt_text)
 
-    def _tt_bt_repl(self, word, groups):
+    def _tt_bt_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle backticked inline code."""
         tt_bt_text = groups.get('tt_bt_text', '')
-        return (self.formatter.code(1, css="backtick") +
-                self.formatter.text(tt_bt_text) +
-                self.formatter.code(0))
+        return self.formatter.code(tt_bt_text)
 
     def _rule_repl(self, word, groups):
         """Handle sequences of dashes (Horizontal Rule)."""
