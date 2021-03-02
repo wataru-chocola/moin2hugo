@@ -91,3 +91,6 @@ class Formatter(object):
     def text(self, text: str) -> str:
         # TODO: escape markdown special characters, etc
         return text
+
+    def raw(self, text: str) -> str:
+        return text

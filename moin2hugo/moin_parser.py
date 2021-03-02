@@ -614,8 +614,8 @@ class MoinParser(object):
             'transclude_params': self._transclude_repl,
 
             # Other
-            'sgml_entity': self._sgml_entity_repl,
             'entity': self._entity_repl,
+            'sgml_entity': self._sgml_entity_repl,
             'indent': self._indent_repl,
         }
 
@@ -857,13 +857,14 @@ class MoinParser(object):
         """Handle email addresses (without a leading mailto:)."""
         return self.formatter.url(word)
 
-    def _sgml_entity_repl(self, word, groups):
-        """Handle SGML entities."""
-        return self.formatter.text(word)
-
     def _entity_repl(self, word, groups):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
-        return self.formatter.rawHTML(word)
+        return self.formatter.raw(word)
+
+    def _sgml_entity_repl(self, word, groups):
+        """Handle SGML entities: [<>&]"""
+        # TODO
+        return self.formatter.text(word)
 
     def _indent_repl(self, match, groups):
         """Handle pure indentation (no - * 1. markup)."""

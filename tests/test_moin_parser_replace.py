@@ -94,3 +94,17 @@ def test_links(data, expected, formatter_object, capsys):
     captured = capsys.readouterr()
     # TODO: remove rstrip()
     assert captured.out.rstrip() == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("&uuml;", "&uuml;"),
+        ("&#42;", "&#42;"),
+        ("&#x42;", "&#x42;"),
+    ]
+)
+def test_entities(data, expected, formatter_object, capsys):
+    MoinParser.format(data, 'PageName', formatter_object)
+    captured = capsys.readouterr()
+    # TODO: remove rstrip()
+    assert captured.out.rstrip() == expected
