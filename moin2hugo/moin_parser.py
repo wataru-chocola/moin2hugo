@@ -752,20 +752,11 @@ class MoinParser(object):
         tt_bt_text = groups.get('tt_bt_text', '')
         return self.formatter.code(tt_bt_text)
 
-    def _interwiki_repl(self, word, groups):
+    def _interwiki_repl(self, word: str, groups: Dict[str, str]):
         """Handle InterWiki links."""
-        wiki = groups.get('interwiki_wiki')
-        page = groups.get('interwiki_page')
-
-        wikitag_bad = wikiutil.resolve_interwiki(wiki, page)[3]
-        if wikitag_bad:
-            text = groups.get('interwiki')
-            return self.formatter.text(text)
-        else:
-            page, anchor = wikiutil.split_anchor(page)
-            return (self.formatter.interwikilink(1, wiki, page, anchor=anchor) +
-                    self.formatter.text(page) +
-                    self.formatter.interwikilink(0, wiki, page))
+        text = groups.get('interwiki')
+        logger.info("unsupported: interwiki_name=%s" % text)
+        return self.formatter.text(text)
 
     def _word_repl(self, word, groups):
         """Handle WikiNames."""
@@ -1219,7 +1210,7 @@ class MoinParser(object):
         depth = min(len(groups.get('hmarker')), 5)
         return ''.join([
             self._closeP(),
-            self.formatter.heading(depth, heading_text, _id=heading_text),
+            self.formatter.heading(depth, heading_text),
         ])
 
     def _rule_repl(self, word: str, groups: Dict[str, str]):

@@ -11,7 +11,7 @@ class Formatter(object):
         return ''
 
     # Heading / Horizontal Rule
-    def heading(self, depth: int, text: str, _id: Optional[str] = None) -> str:
+    def heading(self, depth: int, text: str) -> str:
         # TODO: support _id ?
         assert depth >= 1 and depth <= 6
         return '#' * depth + ' ' + text + "\n\n"
