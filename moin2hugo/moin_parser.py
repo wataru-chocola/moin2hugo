@@ -752,12 +752,6 @@ class MoinParser(object):
         tt_bt_text = groups.get('tt_bt_text', '')
         return self.formatter.code(tt_bt_text)
 
-    def _rule_repl(self, word, groups):
-        """Handle sequences of dashes (Horizontal Rule)."""
-        result = self._undent() + self._closeP()
-        result += self.formatter.rule()
-        return result
-
     def _interwiki_repl(self, word, groups):
         """Handle InterWiki links."""
         wiki = groups.get('interwiki_wiki')
@@ -1218,7 +1212,8 @@ class MoinParser(object):
         else:
             return self.formatter.text(word)
 
-    def _heading_repl(self, word, groups):
+    # Heading / Horizontal Rule
+    def _heading_repl(self, word: str, groups: Dict[str, str]):
         """Handle section headings.: == =="""
         heading_text = groups.get('heading_text', '')
         depth = min(len(groups.get('hmarker')), 5)
@@ -1226,6 +1221,12 @@ class MoinParser(object):
             self._closeP(),
             self.formatter.heading(depth, heading_text, _id=heading_text),
         ])
+
+    def _rule_repl(self, word: str, groups: Dict[str, str]):
+        """Handle sequences of dashes (Horizontal Rule)."""
+        result = self._undent() + self._closeP()
+        result += self.formatter.rule()
+        return result
 
     def _parser_repl(self, word, groups):
         """Handle parsed code displays."""

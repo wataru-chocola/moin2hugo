@@ -24,6 +24,19 @@ def test_heading(data, expected, formatter_object, capsys):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
+        ("----", "----\n\n"),
+        ("-----------------", "----\n\n"),
+    ]
+)
+def test_horizontal_rules(data, expected, formatter_object, capsys):
+    MoinParser.format(data, formatter_object)
+    captured = capsys.readouterr()
+    # TODO: remove rstrip()
+    assert captured.out.rstrip(' ') == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
         ("__underlined text__", "__underlined text__"),
         ("__underlined\ntext__", "__underlined text__"),
         ("--(stroke)--", "~~stroke~~"),

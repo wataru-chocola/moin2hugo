@@ -10,10 +10,14 @@ class Formatter(object):
     def paragraph(self, _open):
         return ''
 
+    # Heading / Horizontal Rule
     def heading(self, depth: int, text: str, _id: Optional[str] = None) -> str:
         # TODO: support _id ?
         assert depth >= 1 and depth <= 6
         return '#' * depth + ' ' + text + "\n\n"
+
+    def rule(self) -> str:
+        return '-' * 4 + "\n\n"
 
     # Decoration (can be multilined)
     def underline(self, on: bool) -> str:
@@ -67,4 +71,5 @@ class Formatter(object):
         return "%s%s%s" % (delimiter, text, delimiter)
 
     def text(self, text: str) -> str:
+        # TODO: escape, etc
         return text
