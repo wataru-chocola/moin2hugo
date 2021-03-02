@@ -88,6 +88,23 @@ class Formatter(object):
             link_path += "#%s" % anchor
         return "[%s](%s)" % (description, link_path)
 
+    # Itemlist
+    def bullet_list(self):
+        # TODO
+        return "dummy"
+
+    def number_list(self):
+        # TODO
+        return "dummy"
+
+    def definition_list(self):
+        # TODO
+        return "dummy"
+
+    def listitem(self, css_class, style):
+        # TODO
+        return "dummy"
+
     def text(self, text: str) -> str:
         # TODO: escape markdown special characters, etc
         return text

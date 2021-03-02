@@ -108,3 +108,20 @@ def test_entities(data, expected, formatter_object, capsys):
     captured = capsys.readouterr()
     # TODO: remove rstrip()
     assert captured.out.rstrip() == expected
+
+
+# TODO:
+@pytest.mark.skip("not implemented")
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        (" . hoge", "* hoge"),
+        (" * hoge", "* hoge"),
+        (" 1. hoge", "1. hoge"),
+        (" a. hoge", "1. hoge"),
+    ]
+)
+def test_item_lists(data, expected, formatter_object, capsys):
+    MoinParser.format(data, 'PageName', formatter_object)
+    captured = capsys.readouterr()
+    # TODO: remove rstrip()
+    assert captured.out.rstrip() == expected

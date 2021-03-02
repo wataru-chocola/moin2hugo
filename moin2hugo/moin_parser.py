@@ -452,7 +452,7 @@ class MoinParser(object):
                     # Start table
                     if self.list_types and not self.in_li:
                         self.writer.write(self.formatter.listitem(1, style="list-style-type:none"))
-                        self.in_li = 1
+                        self.in_li = True
 
                     # CHANGE: removed check for self.in_li
                     # paragraph should end before table, always!
@@ -601,8 +601,13 @@ class MoinParser(object):
             'link_params': self._link_repl,
             'email': self._email_repl,
 
+            # SGML entities
+            'entity': self._entity_repl,
+            'sgml_entity': self._sgml_entity_repl,
+
             # List
-            'li_none': self._li_none_repl,
+            'indent': self._indent_repl,
+            'li_none': self._li_repl,
             'li': self._li_repl,
             'ol': self._ol_repl,
             'dl': self._dl_repl,
@@ -612,11 +617,6 @@ class MoinParser(object):
             'transclude_target': self._transclude_repl,
             'transclude_desc': self._transclude_repl,
             'transclude_params': self._transclude_repl,
-
-            # Other
-            'entity': self._entity_repl,
-            'sgml_entity': self._sgml_entity_repl,
-            'indent': self._indent_repl,
         }
 
         result = []
@@ -871,29 +871,18 @@ class MoinParser(object):
         result = []
         if not (self.in_li or self.in_dd):
             self._close_item(result)
-            self.in_li = 1
+            self.in_li = True
             css_class = None
             if self.line_was_empty and not self.first_list_item:
                 css_class = 'gap'
             result.append(self.formatter.listitem(1, css_class=css_class, style="list-style-type:none"))
         return ''.join(result)
 
-    def _li_none_repl(self, match, groups):
-        """Handle type=none (" .") lists."""
-        result = []
-        self._close_item(result)
-        self.in_li = 1
-        css_class = None
-        if self.line_was_empty and not self.first_list_item:
-            css_class = 'gap'
-        result.append(self.formatter.listitem(1, css_class=css_class, style="list-style-type:none"))
-        return ''.join(result)
-
     def _li_repl(self, match, groups):
         """Handle bullet (" *") lists."""
         result = []
         self._close_item(result)
-        self.in_li = 1
+        self.in_li = True
         css_class = None
         if self.line_was_empty and not self.first_list_item:
             css_class = 'gap'
@@ -917,7 +906,7 @@ class MoinParser(object):
         ])
         return ''.join(result)
 
-    def _transclude_description(self, desc, default_text=''):
+    def _transclude_description(self, desc: str, default_text: str = '') -> str:
         """ parse a string <desc> valid as transclude description (text, ...)
             and return the description.
 
@@ -926,17 +915,13 @@ class MoinParser(object):
 
             We do NOT call formatter.text here because it sometimes is just used
             for some alt and/or title attribute, but not emitted as text.
-
-            @param desc: the transclude description to parse
-            @param default_text: use this text if parsing desc returns nothing.
         """
         m = self.transclude_desc_re.match(desc)
-        if m:
-            if m.group('simple_text'):
-                desc = m.group('simple_text')
-        else:
-            desc = default_text
-        return desc
+        if not m:
+            return default_text
+
+        if m.group('simple_text'):
+            return m.group('simple_text')
 
     def _transclude_repl(self, word, groups):
         """Handles transcluding content, usually embedding images.: {{}}"""
@@ -1319,9 +1304,9 @@ class MoinParser(object):
 
             if self.list_types:  # we are still in a list
                 if self.list_types[-1] == 'dl':
-                    self.in_dd = 1
+                    self.in_dd = True
                 else:
-                    self.in_li = 1
+                    self.in_li = True
 
         # Open new list, if necessary
         if self._indent_level() < new_level:
@@ -1340,8 +1325,8 @@ class MoinParser(object):
             openlist.append(tag)
 
             self.first_list_item = 1
-            self.in_li = 0
-            self.in_dd = 0
+            self.in_li = False
+            self.in_dd = False
 
         # If list level changes, close an open table
         if self.in_table and (openlist or closelist):

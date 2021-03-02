@@ -1,4 +1,5 @@
 import re
+import urllib.parse
 from typing import Tuple
 
 PARENT_PREFIX = "../"
@@ -275,9 +276,12 @@ def AbsPageName(context, pagename):
     return pagename
 
 
-def url_unquote(s, want_unicode=None):
-    # TODO
-    raise NotImplementedError()
+def url_unquote(s: str) -> str:
+    try:
+        # TODO: return urllib.parse.unquote(s, charset=config.charset, errors='strict')
+        return urllib.parse.unquote(s, encoding='utf-8', errors='strict')
+    except UnicodeDecodeError:
+        return urllib.parse.unquote(s, encoding='iso-8859-1', errors='replace')
 
 
 def unquoteWikiname(filename: str) -> str:
