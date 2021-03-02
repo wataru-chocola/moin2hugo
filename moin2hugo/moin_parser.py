@@ -2,7 +2,7 @@ import sys
 import re
 import logging
 import copy
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TextIO, Optional
 
 import moin2hugo.moinutils as wikiutil
 import moin2hugo.moin_config as config
@@ -336,12 +336,18 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in config.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    def __init__(self, text: str, formatter):
+    def __init__(self, text: str, formatter, writer: Optional[TextIO] = None):
         self.lines = text.expandtabs().splitlines()
         self.formatter = formatter
 
-        self.request = sys.stdout
+        if writer:
+            self.writer = writer
+        else:
+            self.writer = sys.stdout
         self.macro = None
+
+        self.line_is_empty = False
+        self.line_was_empty = False
 
         self.is_em = 0  # must be int
         self.is_b = 0  # must be int
@@ -351,9 +357,9 @@ class MoinParser(object):
         self.is_small = False
         self.is_remark = False
 
-        self.in_list = 0  # between <ul/ol/dl> and </ul/ol/dl>
-        self.in_li = 0  # between <li> and </li>
-        self.in_dd = 0  # between <dd> and </dd>
+        self.in_list = False  # between <ul/ol/dl> and </ul/ol/dl>
+        self.in_li = False  # between <li> and </li>
+        self.in_dd = False  # between <dd> and </dd>
 
         # states of the parser concerning being inside/outside of some "pre" section:
         # None == we are not in any kind of pre section (was: 0)
@@ -369,8 +375,8 @@ class MoinParser(object):
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def format(cls, text: str, formatter):
-        parser = cls(text, formatter)
+    def format(cls, text: str, formatter, writer: Optional[TextIO] = None):
+        parser = cls(text, formatter, writer=writer)
         return parser._format()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
@@ -378,13 +384,13 @@ class MoinParser(object):
         """ For each line, scan through looking for magic
             strings, outputting verbatim any intervening text.
         """
-        self.line_is_empty = 0
+        self.line_is_empty = False
         in_processing_instructions = 1
 
         for line in self.lines:
             self.table_rowstart = 1
             self.line_was_empty = self.line_is_empty
-            self.line_is_empty = 0
+            self.line_is_empty = False
             self.first_list_item = 0
 
             # ignore processing instructions
@@ -404,13 +410,13 @@ class MoinParser(object):
                 # Paragraph break on empty lines
                 if not line.strip():
                     if self.in_table:
-                        self.request.write(self.formatter.table(0))
+                        self.writer.write(self.formatter.table(0))
                         self.in_table = 0
                     # CHANGE: removed check for not self.list_types
                     # p should close on every empty line
                     if self.formatter.in_p:
-                        self.request.write(self.formatter.paragraph(0))
-                    self.line_is_empty = 1
+                        self.writer.write(self.formatter.paragraph(0))
+                    self.line_is_empty = True
                     continue
 
                 # Check indent level
@@ -437,22 +443,22 @@ class MoinParser(object):
                             indtype = "dl"
 
                 # output proper indentation tags
-                self.request.write(self._indent_to(indlen, indtype, numtype, numstart))
+                self.writer.write(self._indent_to(indlen, indtype, numtype, numstart))
 
                 # Table mode
                 if (not self.in_table and line[indlen:indlen + 2] == "||"
                     and line.endswith("|| ") and len(line) >= 5 + indlen):
                     # Start table
                     if self.list_types and not self.in_li:
-                        self.request.write(self.formatter.listitem(1, style="list-style-type:none"))
+                        self.writer.write(self.formatter.listitem(1, style="list-style-type:none"))
                         self.in_li = 1
 
                     # CHANGE: removed check for self.in_li
                     # paragraph should end before table, always!
                     if self.formatter.in_p:
-                        self.request.write(self.formatter.paragraph(0))
+                        self.writer.write(self.formatter.paragraph(0))
                     attrs, attrerr = self._getTableAttrs(line[indlen+2:])
-                    self.request.write(self.formatter.table(1, attrs) + attrerr)
+                    self.writer.write(self.formatter.table(1, attrs) + attrerr)
                     self.in_table = True
                 elif (self.in_table and not
                       # intra-table comments should not break a table
@@ -462,18 +468,18 @@ class MoinParser(object):
                        len(line) >= 5 + indlen)):
 
                     # Close table
-                    self.request.write(self.formatter.table(0))
+                    self.writer.write(self.formatter.table(0))
                     self.in_table = 0
 
             # Scan line, format and write
             formatted_line = self._scan(line)
-            self.request.write(formatted_line)
+            self.writer.write(formatted_line)
 
         # Close code displays, paragraphs, tables and open lists
-        self.request.write(self._undent())
-        if self.in_pre: self.request.write(self.formatter.preformatted(0))
-        if self.formatter.in_p: self.request.write(self.formatter.paragraph(0))
-        if self.in_table: self.request.write(self.formatter.table(0))
+        self.writer.write(self._undent())
+        if self.in_pre: self.writer.write(self.formatter.preformatted(0))
+        if self.formatter.in_p: self.writer.write(self.formatter.paragraph(0))
+        if self.in_table: self.writer.write(self.formatter.table(0))
 
     def _scan(self, line):
         """ Scans one line
@@ -499,8 +505,7 @@ class MoinParser(object):
                         result.append(self.formatter.text(line[lastpos:start]))
 
                 # Replace match with markup
-                if not (self.in_pre or self.formatter.in_p or
-                        self.in_table or self.in_list):
+                if not (self.in_pre or self.formatter.in_p or self.in_table or self.in_list):
                     result.append(self.formatter.paragraph(1))
                 result.append(self._replace(match))
                 end = match.end()
@@ -634,13 +639,13 @@ class MoinParser(object):
         return ""
 
     # Private Replace Method ----------------------------------------------------------
-    def _u_repl(self, word, groups):
+    def _u_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle underline."""
         self.is_u = not self.is_u
         return self.formatter.underline(self.is_u)
 
-    def _remark_repl(self, word, groups):
-        """Handle remarks."""
+    def _remark_repl(self, word: str, groups: Dict[str, str]) -> str:
+        """Handle remarks (Text starting with whitespace)."""
         on = groups.get('remark_on')
         if on and self.is_remark:
             return self.formatter.text(word)
@@ -650,7 +655,7 @@ class MoinParser(object):
         self.is_remark = not self.is_remark
         return self.formatter.span(self.is_remark)
 
-    def _strike_repl(self, word, groups):
+    def _strike_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle strikethrough."""
         on = groups.get('strike_on')
         if on and self.is_strike:
@@ -661,7 +666,7 @@ class MoinParser(object):
         self.is_strike = not self.is_strike
         return self.formatter.strike(self.is_strike)
 
-    def _small_repl(self, word, groups):
+    def _small_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle small."""
         on = groups.get('small_on')
         if on and self.is_small:
@@ -672,7 +677,7 @@ class MoinParser(object):
         self.is_small = not self.is_small
         return self.formatter.small(self.is_small)
 
-    def _big_repl(self, word, groups):
+    def _big_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle big."""
         on = groups.get('big_on')
         if on and self.is_big:
@@ -683,7 +688,7 @@ class MoinParser(object):
         self.is_big = not self.is_big
         return self.formatter.big(self.is_big)
 
-    def _emph_repl(self, word, groups):
+    def _emph_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle emphasis, i.e. '' and '''."""
         if len(word) == 3:
             self.is_b = not self.is_b
@@ -761,7 +766,7 @@ class MoinParser(object):
         wiki = groups.get('interwiki_wiki')
         page = groups.get('interwiki_page')
 
-        wikitag_bad = wikiutil.resolve_interwiki(self.request, wiki, page)[3]
+        wikitag_bad = wikiutil.resolve_interwiki(wiki, page)[3]
         if wikitag_bad:
             text = groups.get('interwiki')
             return self.formatter.text(text)
@@ -865,8 +870,8 @@ class MoinParser(object):
                 else:
                     current_pagename = self.formatter.page.page_name
                     pagename, filename = AttachFile.absoluteName(url, current_pagename)
-                    if AttachFile.exists(self.request, pagename, filename):
-                        href = AttachFile.getAttachUrl(pagename, filename, self.request)
+                    if AttachFile.exists(pagename, filename):
+                        href = AttachFile.getAttachUrl(pagename, filename)
                         tag_attrs, query_args = self._get_params(params,
                                                                  tag_attrs={'title': desc, },
                                                                  acceptable_attrs=acceptable_attrs_object)
@@ -893,7 +898,7 @@ class MoinParser(object):
             page_name_all = m.group('page_name')
             if ':' in page_name_all:
                 wiki_name, page_name = page_name_all.split(':', 1)
-                wikitag, wikiurl, wikitail, err = wikiutil.resolve_interwiki(self.request, wiki_name, page_name)
+                wikitag, wikiurl, wikitail, err = wikiutil.resolve_interwiki(wiki_name, page_name)
             else:
                 err = True
 
@@ -904,7 +909,7 @@ class MoinParser(object):
                                                          acceptable_attrs=acceptable_attrs_object)
                 if 'action' not in query_args:
                     query_args['action'] = 'content'
-                url = Page(self.request, page_name_all).url(self.request, querystr=query_args)
+                url = Page(page_name_all).url(querystr=query_args)
                 return (self.formatter.transclusion(1, data=url, **tag_attrs) +
                         self.formatter.text(self._transclude_description(desc, page_name_all)) +
                         self.formatter.transclusion(0))
@@ -968,7 +973,7 @@ class MoinParser(object):
             if ':' in page_name_and_anchor:
                 wiki_name, page_name = page_name_and_anchor.split(':', 1)
                 wikitag, wikiurl, wikitail, err = \
-                    wikiutil.resolve_interwiki(self.request, wiki_name, page_name)
+                    wikiutil.resolve_interwiki(wiki_name, page_name)
             else:
                 err = True
 
@@ -1222,9 +1227,7 @@ class MoinParser(object):
         depth = min(len(groups.get('hmarker')), 5)
         return ''.join([
             self._closeP(),
-            self.formatter.heading(1, depth, _id=heading_text),
-            self.formatter.text(heading_text),
-            self.formatter.heading(0, depth),
+            self.formatter.heading(depth, heading_text, _id=heading_text),
         ])
 
     def _parser_repl(self, word, groups):
@@ -1294,7 +1297,7 @@ class MoinParser(object):
             we call the parser with the lines we collected
         """
         self.in_pre = None
-        self.request.write(self._closeP())
+        self.writer.write(self._closeP())
         if self.parser_name is None:
             # we obviously did not find a parser specification
             self.parser_name = 'text'
@@ -1313,7 +1316,7 @@ class MoinParser(object):
         # in the line below the comment will reopen a new paragraph.
         if self.formatter.in_p:
             self.formatter.paragraph(0)
-        self.line_is_empty = 1  # markup following comment lines treats them as if they were empty
+        self.line_is_empty = True  # markup following comment lines treats them as if they were empty
         return self.formatter.comment(word)
 
     def _macro_repl(self, word, groups):
