@@ -1,6 +1,6 @@
 import re
 
-from typing import Optional
+from typing import Optional, Dict
 
 
 class Formatter(object):
@@ -70,6 +70,24 @@ class Formatter(object):
         delimiter = "`" * (len_of_longest_backticks + 1)
         return "%s%s%s" % (delimiter, text, delimiter)
 
+    # Links
+    def url(self, target: str) -> str:
+        return "<%s>" % (target)
+
+    def link(self, target: str, description: str) -> str:
+        return "[%s](%s)" % (description, target)
+
+    def pagelink(self, page_name: str, description: str,
+                 queryargs: Optional[Dict[str, str]] = None, anchor: Optional[str] = None) -> str:
+        # TODO: convert page_name to link path
+        link_path = page_name
+        if queryargs:
+            # TODO: maybe useless
+            pass
+        if anchor:
+            link_path += "#%s" % anchor
+        return "[%s](%s)" % (description, link_path)
+
     def text(self, text: str) -> str:
-        # TODO: escape, etc
+        # TODO: escape markdown special characters, etc
         return text

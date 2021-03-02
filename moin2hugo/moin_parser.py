@@ -2,7 +2,7 @@ import sys
 import re
 import logging
 import copy
-from typing import List, Dict, Any, TextIO, Optional
+from typing import List, Dict, Tuple, Any, TextIO, Optional
 
 import moin2hugo.moinutils as wikiutil
 import moin2hugo.moin_config as config
@@ -336,8 +336,9 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in config.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    def __init__(self, text: str, formatter, writer: Optional[TextIO] = None):
+    def __init__(self, text: str, page_name: str, formatter, writer: Optional[TextIO] = None):
         self.lines = text.expandtabs().splitlines()
+        self.page_name = page_name
         self.formatter = formatter
 
         if writer:
@@ -375,8 +376,8 @@ class MoinParser(object):
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def format(cls, text: str, formatter, writer: Optional[TextIO] = None):
-        parser = cls(text, formatter, writer=writer)
+    def format(cls, text: str, page_name: str, formatter, writer: Optional[TextIO] = None):
+        parser = cls(text, page_name, formatter, writer=writer)
         return parser._format()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
@@ -752,255 +753,101 @@ class MoinParser(object):
         tt_bt_text = groups.get('tt_bt_text', '')
         return self.formatter.code(tt_bt_text)
 
-    def _interwiki_repl(self, word: str, groups: Dict[str, str]):
+    def _interwiki_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle InterWiki links."""
         text = groups.get('interwiki')
         logger.info("unsupported: interwiki_name=%s" % text)
         return self.formatter.text(text)
 
-    def _word_repl(self, word, groups):
+    def _word_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle WikiNames."""
         bang = ''
-        bang_present = groups.get('word_bang')
-        if bang_present:
+        if groups.get('word_bang'):
             if site_config.bang_meta:
-                # handle !NotWikiNames
-                return self.formatter.nowikiword(word)
+                return self.formatter.text(word)
             bang = self.formatter.text('!')
-        name = groups.get('word_name')
-        current_page = self.formatter.page.page_name
-        abs_name = wikiutil.AbsPageName(current_page, name)
+        current_page = self.page_name
+        abs_name = wikiutil.AbsPageName(current_page, groups.get('word_name'))
         # if a simple, self-referencing link, emit it as plain text
         if abs_name == current_page:
             return self.formatter.text(word)
-        else:
-            abs_name, anchor = wikiutil.split_anchor(abs_name)
-            return (bang +
-                    self.formatter.pagelink(1, abs_name, anchor=anchor) +
-                    self.formatter.text(word) +
-                    self.formatter.pagelink(0, abs_name))
 
-    def _url_repl(self, word, groups):
+        abs_name, anchor = wikiutil.split_anchor(abs_name)
+        return (bang + self.formatter.pagelink(abs_name, word, anchor=anchor))
+
+    def _url_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle literal URLs."""
-        scheme = groups.get('url_scheme', 'http')
         target = groups.get('url_target', '')
-        # TODO: css may be unused anymore
-        return (self.formatter.url(1, target, css=scheme) +
-                self.formatter.text(target) +
-                self.formatter.url(0))
+        return self.formatter.url(target)
 
-    def _transclude_description(self, desc, default_text=''):
-        """ parse a string <desc> valid as transclude description (text, ...)
-            and return the description.
-
-            We do NOT use wikiutil.escape here because it is html specific (the
-            html formatter, if used, does this for all html attributes).
-
-            We do NOT call formatter.text here because it sometimes is just used
-            for some alt and/or title attribute, but not emitted as text.
-
-            @param desc: the transclude description to parse
-            @param default_text: use this text if parsing desc returns nothing.
-        """
-        m = self.transclude_desc_re.match(desc)
-        if m:
-            if m.group('simple_text'):
-                desc = m.group('simple_text')
-        else:
-            desc = default_text
-        return desc
-
-    def _transclude_repl(self, word, groups):
-        """Handles transcluding content, usually embedding images.: {{}}"""
-        target = groups.get('transclude_target', '')
-        target = wikiutil.url_unquote(target)
-        desc = groups.get('transclude_desc', '')
-        params = groups.get('transclude_params', '')
-        acceptable_attrs_img = ['class', 'title', 'longdesc', 'width', 'height', 'align', ]
-        acceptable_attrs_object = ['class', 'title', 'width', 'height', 'type', 'standby', ]
-        m = self.link_target_re.match(target)
-        if not m:
-            return word + '???'
-
-        if m.group('extern_addr'):
-            # currently only supports ext. image inclusion
-            target = m.group('extern_addr')
-            desc = self._transclude_description(desc, target)
-            tag_attrs, query_args = self._get_params(params,
-                                                     tag_attrs={'class': 'external_image',
-                                                                'alt': desc,
-                                                                'title': desc, },
-                                                     acceptable_attrs=acceptable_attrs_img)
-            return self.formatter.image(src=target, **tag_attrs)
-
-        elif m.group('attach_scheme'):
-            scheme = m.group('attach_scheme')
-            url = wikiutil.url_unquote(m.group('attach_addr'))
-            if scheme == 'attachment':
-                mt = wikiutil.MimeType(filename=url)
-                if mt.major == 'text':
-                    desc = self._transclude_description(desc, url)
-                    return self.formatter.attachment_inlined(url, desc)
-                # destinguishs if browser need a plugin in place
-                elif mt.major == 'image' and mt.minor in config.browser_supported_images:
-                    desc = self._transclude_description(desc, url)
-                    tag_attrs, query_args = self._get_params(params,
-                                                             tag_attrs={'alt': desc,
-                                                                        'title': desc, },
-                                                             acceptable_attrs=acceptable_attrs_img)
-                    return self.formatter.attachment_image(url, **tag_attrs)
-                else:
-                    current_pagename = self.formatter.page.page_name
-                    pagename, filename = AttachFile.absoluteName(url, current_pagename)
-                    if AttachFile.exists(pagename, filename):
-                        href = AttachFile.getAttachUrl(pagename, filename)
-                        tag_attrs, query_args = self._get_params(params,
-                                                                 tag_attrs={'title': desc, },
-                                                                 acceptable_attrs=acceptable_attrs_object)
-                        return (self.formatter.transclusion(1, data=href, type=mt.spoil(), **tag_attrs) +
-                                self.formatter.text(self._transclude_description(desc, url)) +
-                                self.formatter.transclusion(0))
-                    else:
-                        return (self.formatter.attachment_link(1, url) +
-                                self.formatter.text(self._transclude_description(desc, url)) +
-                                self.formatter.attachment_link(0))
-            elif scheme == 'drawing':
-                url = wikiutil.drawing2fname(url)
-                tag_attrs = {}
-                desc = self._transclude_description(desc, url)
-                if desc:
-                    tag_attrs = {'alt': desc, 'title': desc, }
-                tag_attrs, query_args = self._get_params(params,
-                                                         tag_attrs=tag_attrs,
-                                                         acceptable_attrs=acceptable_attrs_img)
-                return self.formatter.attachment_drawing(url, desc, **tag_attrs)
-
-        elif m.group('page_name'):
-            # experimental client side transclusion
-            page_name_all = m.group('page_name')
-            if ':' in page_name_all:
-                wiki_name, page_name = page_name_all.split(':', 1)
-                wikitag, wikiurl, wikitail, err = wikiutil.resolve_interwiki(wiki_name, page_name)
-            else:
-                err = True
-
-            if err:  # not a interwiki link / not in interwiki map
-                tag_attrs, query_args = self._get_params(params,
-                                                         tag_attrs={'type': 'text/html',
-                                                                    'width': '100%', },
-                                                         acceptable_attrs=acceptable_attrs_object)
-                if 'action' not in query_args:
-                    query_args['action'] = 'content'
-                url = Page(page_name_all).url(querystr=query_args)
-                return (self.formatter.transclusion(1, data=url, **tag_attrs) +
-                        self.formatter.text(self._transclude_description(desc, page_name_all)) +
-                        self.formatter.transclusion(0))
-            else:  # looks like a valid interwiki link
-                url = wikiutil.join_wiki(wikiurl, wikitail)
-                tag_attrs, query_args = self._get_params(params,
-                                                         tag_attrs={'type': 'text/html',
-                                                                    'width': '100%', },
-                                                         acceptable_attrs=acceptable_attrs_object)
-                if 'action' not in query_args:
-                    query_args['action'] = 'content'  # XXX moin specific
-                url += '?%s' % wikiutil.makeQueryString(query_args)
-                return (self.formatter.transclusion(1, data=url, **tag_attrs) +
-                        self.formatter.text(self._transclude_description(desc, page_name)) +
-                        self.formatter.transclusion(0))
-
-        else:
-            desc = self._transclude_description(desc, target)
-            return self.formatter.text('{{%s|%s|%s}}' % (target, desc, params))
-
-    def _link_description(self, desc, target='', default_text=''):
-        """ parse a string <desc> valid as link description (text, transclusion, ...)
-            and return formatted content.
-
-            @param desc: the link description to parse
-            @param default_text: use this text (formatted as text) if parsing
-                                 desc returns nothing.
-            @param target: target of the link (as readable markup) - used for
-                           transcluded image's description
-        """
+    def _link_description(self, desc: str, target: str = '', default_text: str = '') -> str:
         m = self.link_desc_re.match(desc)
-        if m:
-            if m.group('simple_text'):
-                desc = m.group('simple_text')
-                desc = self.formatter.text(desc)
-            elif m.group('transclude'):
-                groupdict = m.groupdict()
-                if groupdict.get('transclude_desc') is None:
-                    # if transcluded obj (image) has no description, use target for it
-                    groupdict['transclude_desc'] = target
-                desc = m.group('transclude')
-                desc = self._transclude_repl(desc, groupdict)
-        else:
+        if not m:
             desc = default_text
             if desc:
                 desc = self.formatter.text(desc)
+            return desc
+
+        if m.group('simple_text'):
+            desc = m.group('simple_text')
+            desc = self.formatter.text(desc)
+        elif m.group('transclude'):
+            groupdict = m.groupdict()
+            if groupdict.get('transclude_desc') is None:
+                # TODO: is this really necessary?
+                # if transcluded obj (image) has no description, use target for it
+                groupdict['transclude_desc'] = target
+            desc = m.group('transclude')
+            desc = self._transclude_repl(desc, groupdict)
         return desc
 
-    def _link_repl(self, word, groups):
+    def _link_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle [[target|text]] links."""
         target = groups.get('link_target', '')
         desc = groups.get('link_desc', '') or ''
         params = groups.get('link_params', '') or ''
-        acceptable_attrs = ['class', 'title', 'target', 'accesskey', 'rel', ]
         mt = self.link_target_re.match(target)
         if not mt:
             return
 
+        acceptable_attrs = ['class', 'title', 'target', 'accesskey', 'rel', ]
+        tag_attrs, query_args = self._get_params(params, acceptable_attrs=acceptable_attrs)
+
         if mt.group('page_name'):
             page_name_and_anchor = mt.group('page_name')
             if ':' in page_name_and_anchor:
-                wiki_name, page_name = page_name_and_anchor.split(':', 1)
-                wikitag, wikiurl, wikitail, err = \
-                    wikiutil.resolve_interwiki(wiki_name, page_name)
-            else:
-                err = True
+                # interwiki
+                logger.info("unsupported: interwiki_name=%s" % page_name_and_anchor)
+                return self.formatter.text(page_name_and_anchor)
 
-            tag_attrs, query_args = self._get_params(params, acceptable_attrs=acceptable_attrs)
-            if err:  # not a interwiki link / not in interwiki map
-                page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
-                current_page = self.formatter.page.page_name
-                if not page_name:
-                    page_name = current_page
-                # handle relative links
-                abs_page_name = wikiutil.AbsPageName(current_page, page_name)
-                return (self.formatter.pagelink(1, abs_page_name, anchor=anchor,
-                                                querystr=query_args, **tag_attrs) +
-                        self._link_description(desc, target, page_name_and_anchor) +
-                        self.formatter.pagelink(0, abs_page_name))
-            else:  # interwiki link
-                page_name, anchor = wikiutil.split_anchor(page_name)
-                return (self.formatter.interwikilink(1, wiki_name, page_name, anchor=anchor,
-                                                     querystr=query_args, **tag_attrs) +
-                        self._link_description(desc, target, page_name) +
-                        self.formatter.interwikilink(0, wiki_name, page_name))
+            page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
+            current_page = self.page_name
+            if not page_name:
+                page_name = current_page
+            abs_page_name = wikiutil.AbsPageName(current_page, page_name)
+            description = self._link_description(desc, target, page_name_and_anchor)
+            return self.formatter.pagelink(abs_page_name, description, anchor=anchor,
+                                           queryargs=query_args, **tag_attrs)
 
         elif mt.group('extern_addr'):
-            scheme = mt.group('extern_scheme')
             target = mt.group('extern_addr')
-            tag_attrs, query_args = self._get_params(params,
-                                                     tag_attrs={'class': scheme, },
-                                                     acceptable_attrs=acceptable_attrs)
-            return (self.formatter.url(1, target, **tag_attrs) +
-                    self._link_description(desc, target, target) +
-                    self.formatter.url(0))
+            description = self._link_description(desc, target, target)
+            return self.formatter.link(target, description, **tag_attrs)
 
         elif mt.group('attach_scheme'):
+            # TODO: not implemented
             scheme = mt.group('attach_scheme')
             url = wikiutil.url_unquote(mt.group('attach_addr'))
-            tag_attrs, query_args = self._get_params(params,
-                                                     tag_attrs={'title': desc, },
-                                                     acceptable_attrs=acceptable_attrs)
-            if scheme == 'attachment': # ZZZ
-                return (self.formatter.attachment_link(1, url, querystr=query_args, **tag_attrs) +
+            if 'title' not in tag_attrs:
+                tag_attrs['title'] = desc
+            if scheme == 'attachment':  # ZZZ
+                return (self.formatter.attachment_link(1, url, queryargs=query_args, **tag_attrs) +
                         self._link_description(desc, target, url) +
                         self.formatter.attachment_link(0))
             elif scheme == 'drawing':
                 url = wikiutil.drawing2fname(url)
                 return self.formatter.attachment_drawing(url, desc, alt=desc, **tag_attrs)
+
         else:
             if desc:
                 desc = '|' + desc
@@ -1008,9 +855,7 @@ class MoinParser(object):
 
     def _email_repl(self, word, groups):
         """Handle email addresses (without a leading mailto:)."""
-        return (self.formatter.url(1, "mailto:%s" % word, css='mailto') +
-                self.formatter.text(word) +
-                self.formatter.url(0))
+        return self.formatter.url(word)
 
     def _sgml_entity_repl(self, word, groups):
         """Handle SGML entities."""
@@ -1070,6 +915,129 @@ class MoinParser(object):
             self.formatter.definition_desc(1),
         ])
         return ''.join(result)
+
+    def _transclude_description(self, desc, default_text=''):
+        """ parse a string <desc> valid as transclude description (text, ...)
+            and return the description.
+
+            We do NOT use wikiutil.escape here because it is html specific (the
+            html formatter, if used, does this for all html attributes).
+
+            We do NOT call formatter.text here because it sometimes is just used
+            for some alt and/or title attribute, but not emitted as text.
+
+            @param desc: the transclude description to parse
+            @param default_text: use this text if parsing desc returns nothing.
+        """
+        m = self.transclude_desc_re.match(desc)
+        if m:
+            if m.group('simple_text'):
+                desc = m.group('simple_text')
+        else:
+            desc = default_text
+        return desc
+
+    def _transclude_repl(self, word, groups):
+        """Handles transcluding content, usually embedding images.: {{}}"""
+        target = groups.get('transclude_target', '')
+        target = wikiutil.url_unquote(target)
+        desc = groups.get('transclude_desc', '')
+        params = groups.get('transclude_params', '')
+        acceptable_attrs_img = ['class', 'title', 'longdesc', 'width', 'height', 'align', ]
+        acceptable_attrs_object = ['class', 'title', 'width', 'height', 'type', 'standby', ]
+        m = self.link_target_re.match(target)
+        if not m:
+            return word + '???'
+
+        if m.group('extern_addr'):
+            # currently only supports ext. image inclusion
+            target = m.group('extern_addr')
+            desc = self._transclude_description(desc, target)
+            tag_attrs = {'alt': desc, 'title': desc, },
+            tmp_tag_attrs, query_args = self._get_params(params,
+                                                         acceptable_attrs=acceptable_attrs_img)
+            tag_attrs.update(tmp_tag_attrs)
+            return self.formatter.image(src=target, **tag_attrs)
+
+        elif m.group('attach_scheme'):
+            scheme = m.group('attach_scheme')
+            url = wikiutil.url_unquote(m.group('attach_addr'))
+            if scheme == 'attachment':
+                mt = wikiutil.MimeType(filename=url)
+                if mt.major == 'text':
+                    desc = self._transclude_description(desc, url)
+                    return self.formatter.attachment_inlined(url, desc)
+                # destinguishs if browser need a plugin in place
+                elif mt.major == 'image' and mt.minor in config.browser_supported_images:
+                    desc = self._transclude_description(desc, url)
+                    tag_attrs = {'alt': desc, 'title': desc, },
+                    tmp_tag_attrs, query_args = \
+                        self._get_params(params, acceptable_attrs=acceptable_attrs_img)
+                    tag_attrs.update(tmp_tag_attrs)
+                    return self.formatter.attachment_image(url, **tag_attrs)
+                else:
+                    current_pagename = self.page_name
+                    pagename, filename = AttachFile.absoluteName(url, current_pagename)
+                    if AttachFile.exists(pagename, filename):
+                        href = AttachFile.getAttachUrl(pagename, filename)
+                        tag_attrs = {'title': desc, },
+                        tmp_tag_attrs, query_args = \
+                            self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+                        tag_attrs.update(tmp_tag_attrs)
+                        return (self.formatter.transclusion(1, data=href, type=mt.spoil(), **tag_attrs) +
+                                self.formatter.text(self._transclude_description(desc, url)) +
+                                self.formatter.transclusion(0))
+                    else:
+                        return (self.formatter.attachment_link(1, url) +
+                                self.formatter.text(self._transclude_description(desc, url)) +
+                                self.formatter.attachment_link(0))
+            elif scheme == 'drawing':
+                url = wikiutil.drawing2fname(url)
+                tag_attrs = {}
+                desc = self._transclude_description(desc, url)
+                if desc:
+                    tag_attrs = {'alt': desc, 'title': desc, }
+                tmp_tag_attrs, query_args = \
+                    self._get_params(params, acceptable_attrs=acceptable_attrs_img)
+                tag_attrs.update(tmp_tag_attrs)
+                return self.formatter.attachment_drawing(url, desc, **tag_attrs)
+
+        elif m.group('page_name'):
+            # experimental client side transclusion
+            page_name_all = m.group('page_name')
+            if ':' in page_name_all:
+                wiki_name, page_name = page_name_all.split(':', 1)
+                #wikitag, wikiurl, wikitail, err = wikiutil.resolve_interwiki(wiki_name, page_name)
+            else:
+                err = True
+
+            if err:  # not a interwiki link / not in interwiki map
+                tag_attrs = {'type': 'text/html', 'width': '100%', },
+                tmp_tag_attrs, query_args = \
+                    self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+                tag_attrs.update(tmp_tag_attrs)
+                if 'action' not in query_args:
+                    query_args['action'] = 'content'
+                url = Page(page_name_all).url(queryargs=query_args)
+                return (self.formatter.transclusion(1, data=url, **tag_attrs) +
+                        self.formatter.text(self._transclude_description(desc, page_name_all)) +
+                        self.formatter.transclusion(0))
+            else:  # looks like a valid interwiki link
+                url = wikiutil.join_wiki(wikiurl, wikitail)
+                tag_attrs = {'type': 'text/html', 'width': '100%', },
+                tmp_tag_attrs, query_args = \
+                    self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+                tag_attrs.update(tmp_tag_attrs)
+                if 'action' not in query_args:
+                    query_args['action'] = 'content'  # XXX moin specific
+                url += '?%s' % wikiutil.makeQueryString(query_args)
+                return (self.formatter.transclusion(1, data=url, **tag_attrs) +
+                        self.formatter.text(self._transclude_description(desc, page_name)) +
+                        self.formatter.transclusion(0))
+
+        else:
+            desc = self._transclude_description(desc, target)
+            return self.formatter.text('{{%s|%s|%s}}' % (target, desc, params))
 
     def _getTableAttrs(self, attrdef):
         attr_rule = r'^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>'
@@ -1417,27 +1385,26 @@ class MoinParser(object):
             return self.formatter.paragraph(0)
         return ''
 
-    def _get_params(self, params: Dict[str, Any], tag_attrs: Dict[str, Any] = {},
-                    acceptable_attrs: List[str] = [], query_args: Dict[str, Any] = {}):
+    def _get_params(self, params: Dict[str, Any], acceptable_attrs: List[str] = []
+                    ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """ parse the parameters of link/transclusion markup,
             defaults can be a dict with some default key/values
             that will be in the result as given, unless overriden
             by the params.
         """
-        tmp_tag_attrs = copy.deepcopy(tag_attrs)
-        tmp_query_args = copy.deepcopy(query_args)
+        tag_attrs = {}
+        query_args = {}
         if params:
             fixed, kw, trailing = wikiutil.parse_quoted_separated(params)
             # we ignore fixed and trailing args and only use kw args:
             for key, val in kw.items():
-                # wikiutil.escape for key/val must be done by (html) formatter!
                 if key in acceptable_attrs:
                     # tag attributes must be string type
-                    tmp_tag_attrs[str(key)] = val
+                    tag_attrs[str(key)] = val
                 elif key.startswith('&'):
                     key = key[1:]
-                    tmp_query_args[key] = val
-        return tmp_tag_attrs, tmp_query_args
+                    query_args[key] = val
+        return tag_attrs, query_args
 
     def _set_parser(self, name):
         available_parsers = ('text', 'highlight')
