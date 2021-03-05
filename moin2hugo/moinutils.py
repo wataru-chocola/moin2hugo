@@ -17,10 +17,11 @@ class InvalidFileNameError(Exception):
     pass
 
 
-def split_anchor(pagename: str) -> Tuple[str]:
+def split_anchor(pagename: str) -> Tuple[str, str]:
     parts = pagename.rsplit('#', 1)
     if len(parts) == 2:
-        return tuple(parts)
+        pagename, anchor = parts
+        return (pagename, anchor)
     return (pagename, "")
 
 
