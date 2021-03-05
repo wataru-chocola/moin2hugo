@@ -2,11 +2,58 @@ import re
 
 from typing import Optional, Dict
 
+smiley2emoji = {
+    'X-(': ':angry:',
+    ':D': ':smiley:',
+    '<:(': ':frowning:',
+    ':o': ':astonished:',
+
+    ':(': ':frowning:',
+    ':)': ':simple_smile:',
+    'B)': ':sunglasses:',
+    ':))': ':simple_smile:',
+
+    ';)': ':wink:',
+    '/!\\': ':exclamation:',
+    '<!>': ':exclamation:',
+    '(!)': ':bulb:',
+
+    ':-?': ':stuck_out_tongue_closed_eyes:',
+    ':\\': ':astonished:',
+    '>:>': ':angry:',
+    '|)': ':innocent:',
+
+    ':-(': ':frowning:',
+    ':-)': ':simple_smile:',
+    'B-)': ':sunglasses:',
+    ':-))': ':simple_smile:',
+
+    ';-)': ':wink:',
+    '|-)': ':innocent:',
+    '(./)': ':white_check_mark:',
+    '{OK}': ':thumbsup:',
+
+    '{X}': ':negative_squared_cross_mark:',
+    '{i}': ':information_source:',
+    '{1}': ':one:',
+    '{2}': ':two:',
+
+    '{3}': ':three:',
+    '{*}': ':star:',
+    '{o}': ':star2:',
+}
+
 
 class Formatter(object):
     def __init__(self):
         self.in_p = False
 
+    # Moinwiki Special Object
+    def smiley(self, smiley: str):
+        # TODO: enableEmoji option?
+        return smiley2emoji[smiley]
+
+    # XXX:
     def paragraph(self, _open):
         return ''
 

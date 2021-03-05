@@ -11,6 +11,18 @@ def formatter_object():
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
+        (":)", ":simple_smile:"),
+    ]
+)
+def test_smiley(data, expected, formatter_object, capsys):
+    MoinParser.format(data, 'PageName', formatter_object)
+    captured = capsys.readouterr()
+    # TODO: remove rstrip()
+    assert captured.out.rstrip(' ') == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
         ("= head1 =", "# head1\n\n"),
         ("===== head5 =====", "##### head5\n\n"),
         ("====== head5 ======", "##### head5\n\n"),

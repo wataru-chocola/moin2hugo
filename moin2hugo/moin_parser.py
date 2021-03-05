@@ -983,37 +983,21 @@ class MoinParser(object):
                 return self.formatter.text(word)
 
         elif m.group('page_name'):
-            # experimental client side transclusion
             page_name_all = m.group('page_name')
             if ':' in page_name_all:
-                wiki_name, page_name = page_name_all.split(':', 1)
-                #wikitag, wikiurl, wikitail, err = wikiutil.resolve_interwiki(wiki_name, page_name)
-            else:
-                err = True
+                logger.info("unsupported: interwiki_name=%s" % page_name_all)
+                return self.formatter.text(word)
 
-            if err:  # not a interwiki link / not in interwiki map
-                tag_attrs = {'type': 'text/html', 'width': '100%', },
-                tmp_tag_attrs, query_args = \
-                    self._get_params(params, acceptable_attrs=acceptable_attrs_object)
-                tag_attrs.update(tmp_tag_attrs)
-                if 'action' not in query_args:
-                    query_args['action'] = 'content'
-                url = Page(page_name_all).url(queryargs=query_args)
-                return (self.formatter.transclusion(1, data=url, **tag_attrs) +
-                        self.formatter.text(self._transclude_description(desc, page_name_all)) +
-                        self.formatter.transclusion(0))
-            else:  # looks like a valid interwiki link
-                url = wikiutil.join_wiki(wikiurl, wikitail)
-                tag_attrs = {'type': 'text/html', 'width': '100%', },
-                tmp_tag_attrs, query_args = \
-                    self._get_params(params, acceptable_attrs=acceptable_attrs_object)
-                tag_attrs.update(tmp_tag_attrs)
-                if 'action' not in query_args:
-                    query_args['action'] = 'content'  # XXX moin specific
-                url += '?%s' % wikiutil.makeQueryString(query_args)
-                return (self.formatter.transclusion(1, data=url, **tag_attrs) +
-                        self.formatter.text(self._transclude_description(desc, page_name)) +
-                        self.formatter.transclusion(0))
+            tag_attrs = {'type': 'text/html', 'width': '100%', },
+            tmp_tag_attrs, query_args = \
+                self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+            tag_attrs.update(tmp_tag_attrs)
+            if 'action' not in query_args:
+                query_args['action'] = 'content'
+            url = Page(page_name_all).url(queryargs=query_args)
+            return (self.formatter.transclusion(1, data=url, **tag_attrs) +
+                    self.formatter.text(self._transclude_description(desc, page_name_all)) +
+                    self.formatter.transclusion(0))
 
         else:
             desc = self._transclude_description(desc, target)
@@ -1244,8 +1228,7 @@ class MoinParser(object):
         self.parser = None
         return result
 
-    def _smiley_repl(self, word, groups):
-        """Handle smileys."""
+    def _smiley_repl(self, word: str, groups: Dict[str, str]) -> str:
         return self.formatter.smiley(word)
 
     def _comment_repl(self, word, groups):
