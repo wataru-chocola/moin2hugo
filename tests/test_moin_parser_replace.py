@@ -21,6 +21,20 @@ def test_smiley(data, expected, formatter_object, capsys):
     assert captured.out.rstrip(' ') == expected
 
 
+def test_codeblock(formatter_object, capsys):
+    code_block_text = """{{{#!highlight python
+import sys
+sys.out.write("Hello, World")
+}}}"""
+    expected = """```python
+import sys
+sys.out.write("Hello, World")
+```"""
+    MoinParser.format(code_block_text, 'PageName', formatter_object)
+    captured = capsys.readouterr()
+    assert captured.out.rstrip(' ') == expected
+
+
 @pytest.mark.parametrize(
     ("data", "expected"), [
         ("= head1 =", "# head1\n\n"),

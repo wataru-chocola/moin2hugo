@@ -1,6 +1,7 @@
 import re
+import sys
 
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 smiley2emoji = {
     'X-(': ':angry:',
@@ -53,9 +54,40 @@ class Formatter(object):
         # TODO: enableEmoji option?
         return smiley2emoji[smiley]
 
+    def macro(self, macro_obj, name, args, markup=None):
+        # TODO:
+        try:
+            return macro_obj.execute(name, args)
+        except ImportError as err:
+            errmsg = str(err)
+            if name not in errmsg:
+                raise
+            if markup:
+                return (self.span(1, title=errmsg) +
+                        self.text(markup) +
+                        self.span(0))
+            else:
+                return self.text(errmsg)
+
     # XXX:
     def paragraph(self, _open):
         return ''
+
+    # Codeblock
+    def parser(self, parser_name: str, parser_args: str, lines: List[str]):
+        if lines and not lines[0]:
+            lines = lines[1:]
+        if lines and not lines[-1].strip():
+            lines = lines[:-1]
+
+        ret = ''
+        if parser_name == 'highlight':
+            parser_args = parser_args or ''
+            # TODO: take consideration of indentation
+            ret += "```%s\n" % parser_args
+            ret += "\n".join(lines)
+            ret += "\n```"
+        return ret
 
     # Heading / Horizontal Rule
     def heading(self, depth: int, text: str) -> str:

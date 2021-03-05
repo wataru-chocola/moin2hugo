@@ -346,6 +346,9 @@ class MoinParser(object):
         else:
             self.writer = sys.stdout
         self.macro = None
+        self.parser_name = None
+        self.parser_args = None
+        self.parser_lines = []
 
         self.line_is_empty = False
         self.line_was_empty = False
@@ -537,6 +540,9 @@ class MoinParser(object):
             'macro_name': self._macro_repl,
             'macro_args': self._macro_repl,
             'comment': self._comment_repl,
+            'remark': self._remark_repl,
+            'remark_on': self._remark_repl,
+            'remark_off': self._remark_repl,
             'smiley': self._smiley_repl,
 
             # Codeblock
@@ -559,9 +565,6 @@ class MoinParser(object):
 
             # Decorations
             'u': self._u_repl,
-            'remark': self._remark_repl,
-            'remark_on': self._remark_repl,
-            'remark_off': self._remark_repl,
             'strike': self._strike_repl,
             'strike_on': self._strike_repl,
             'strike_off': self._strike_repl,
@@ -646,7 +649,7 @@ class MoinParser(object):
         return self.formatter.underline(self.is_u)
 
     def _remark_repl(self, word: str, groups: Dict[str, str]) -> str:
-        """Handle remarks (Text starting with whitespace)."""
+        """Handle remarks: /* ... */"""
         on = groups.get('remark_on')
         if on and self.is_remark:
             return self.formatter.text(word)
@@ -861,7 +864,6 @@ class MoinParser(object):
 
     def _sgml_entity_repl(self, word, groups):
         """Handle SGML entities: [<>&]"""
-        # TODO
         return self.formatter.text(word)
 
     def _indent_repl(self, match, groups):
@@ -1151,67 +1153,77 @@ class MoinParser(object):
         result += self.formatter.rule()
         return result
 
-    def _parser_repl(self, word, groups):
+    def _parser_repl(self, word: str, groups: Dict[str, str]) -> str:
         """Handle parsed code displays."""
-        self.parser = None
         self.parser_name = None
+        self.parser_args = None
         self.parser_lines = []
+        self.in_pre = 'search_parser'
+
         parser_name = groups.get('parser_name', None)
+        parser_args = groups.get('parser_args', None)
         parser_nothing = groups.get('parser_nothing', None)
+
         parser_unique = groups.get('parser_unique', '') or ''
         if set(parser_unique) == set('{'):  # just some more {{{{{{
             parser_unique = '}' * len(parser_unique)  # for symmetry cosmetic reasons
         self.parser_unique = parser_unique
+
         if parser_name is not None:
-            # First try to find a parser for this
             if parser_name == '':
-                # empty bang paths lead to a normal code display
-                # can be used to escape real, non-empty bang paths
                 parser_name = 'text'
                 word = ''
         elif parser_nothing is None:
-            # there was something non-whitespace following the {{{
             parser_name = 'text'
 
-        self._set_parser(parser_name)
-        if not self.parser and parser_name:
-            # loading the desired parser didn't work, retry a safe option:
-            parser_name = 'text'
-            self._set_parser('text')
-            word = ''
+        if parser_name:
+            if self._set_parser(parser_name):
+                self.parser_args = parser_args
+                word = ''
+            else:
+                # loading the desired parser didn't work, retry a safe option:
+                self._set_parser('text')
+                word = ''
 
-        self.parser_name = parser_name
-        self.in_pre = 'found_parser'
-        if word:
-            self.parser_lines.append(word)
+        if self.parser_name:
+            self.in_pre = 'found_parser'
+            if word:
+                self.parser_lines.append(word)
 
         return ''
 
     def _parser_content(self, line):
         """ handle state and collecting lines for parser in pre/parser sections """
         if self.in_pre == 'search_parser' and line.strip():
-            # try to find a parser specification
+            bang_line = False
+            stripped_line = line.strip()
             parser_name = ''
-            if line.strip().startswith("#!"):
-                parser_name = line.strip()[2:]
+            parser_args = None
+
+            if stripped_line.startswith("#!"):
+                bang_line = True
+                tmp = stripped_line[2:].split(None, 2)
+                if len(tmp) == 2:
+                    parser_name, parser_args = tmp
+                elif len(tmp) == 1:
+                    parser_name = tmp[0]
+
             if parser_name:
-                parser_name = parser_name.split()[0]
+                parser_name = 'text'
+
+            if self._set_parser(parser_name):
+                self.parser_args = parser_args
             else:
-                parser_name = 'text'
-            self._set_parser(parser_name)
-            if not self.parser:
-                parser_name = 'text'
-                self._set_parser(parser_name)
+                self._set_parser('text')
 
             self.in_pre = 'found_parser'
-            self.parser_lines.append(line)
-            self.parser_name = parser_name
+            if not bang_line:
+                self.parser_lines.append(line)
 
         elif self.in_pre == 'found_parser':
-            # collect the content lines
             self.parser_lines.append(line)
 
-        return ''  # we emit the content after reaching the end of the parser/pre section
+        return ''
 
     def _parser_end_repl(self, word, groups):
         """ when we reach the end of a parser/pre section,
@@ -1219,13 +1231,15 @@ class MoinParser(object):
         """
         self.in_pre = None
         self.writer.write(self._closeP())
-        if self.parser_name is None:
-            # we obviously did not find a parser specification
-            self.parser_name = 'text'
-        result = self.formatter.parser(self.parser_name, self.parser_lines)
-        del self.parser_lines
+        parser_name = self.parser_name
+        if parser_name is None:
+            parser_name = 'text'
+        result = self.formatter.parser(parser_name, self.parser_args, self.parser_lines)
+
+        self.parser_lines = []
         self.in_pre = None
-        self.parser = None
+        self.parser_name = None
+        self.parser_args = None
         return result
 
     def _smiley_repl(self, word: str, groups: Dict[str, str]) -> str:
@@ -1239,12 +1253,11 @@ class MoinParser(object):
         self.line_is_empty = True  # markup following comment lines treats them as if they were empty
         return self.formatter.comment(word)
 
-    def _macro_repl(self, word, groups):
+    def _macro_repl(self, word: str, groups: Dict[str, str]):
         """Handle macros."""
         macro_name = groups.get('macro_name')
         macro_args = groups.get('macro_args')
 
-        # create macro instance
         if self.macro is None:
             self.macro = macro.Macro(self)
         return self.formatter.macro(self.macro, macro_name, macro_args, markup=groups.get('macro'))
@@ -1369,10 +1382,11 @@ class MoinParser(object):
                     query_args[key] = val
         return tag_attrs, query_args
 
-    def _set_parser(self, name):
+    def _set_parser(self, name: str) -> bool:
         available_parsers = ('text', 'highlight')
         if name in available_parsers:
-            self.parser = name
+            self.parser_name = name
+            return True
         else:
             logger.warning("unsupported parser: %s" % name)
-            self.parser = None
+            return False
