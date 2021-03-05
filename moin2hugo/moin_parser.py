@@ -183,7 +183,7 @@ class MoinParser(object):
     dl_re = re.compile(dl_rule, re.VERBOSE | re.UNICODE)
 
     # others
-    indent_re = re.compile(r"^\s*", re.UNICODE)
+    indent_re: re.Pattern = re.compile(r"^\s*", re.UNICODE)
 
     # this is used inside parser/pre sections (we just want to know when it's over):
     parser_unique = ''
@@ -345,9 +345,9 @@ class MoinParser(object):
         else:
             self.writer = sys.stdout
         self.macro = None
-        self.parser_name = None
-        self.parser_args = None
-        self.parser_lines = []
+        self.parser_name: Optional[str] = None
+        self.parser_args: Optional[str] = None
+        self.parser_lines: List[str] = []
 
         self.line_is_empty = False
         self.line_was_empty = False
@@ -360,21 +360,20 @@ class MoinParser(object):
         self.is_small = False
         self.is_remark = False
 
-        self.in_list = False  # between <ul/ol/dl> and </ul/ol/dl>
-        self.in_li = False  # between <li> and </li>
-        self.in_dd = False  # between <dd> and </dd>
+        self.in_list: bool = False  # between <ul/ol/dl> and </ul/ol/dl>
+        self.in_li: bool = False  # between <li> and </li>
+        self.in_dd: bool = False  # between <dd> and </dd>
+        self.in_table: bool = False
 
         # states of the parser concerning being inside/outside of some "pre" section:
         # None == we are not in any kind of pre section (was: 0)
         # 'search_parser' == we didn't get a parser yet, still searching for it (was: 1)
         # 'found_parser' == we found a valid parser (was: 2)
-        self.in_pre = None
-
-        self.in_table = 0
+        self.in_pre: Optional[str] = None
 
         # holds the nesting level (in chars) of open lists
-        self.list_indents = []
-        self.list_types = []
+        self.list_indents: List[int] = []
+        self.list_types: List[str] = []
 
     # Public Method ----------------------------------------------------------
     @classmethod
@@ -414,7 +413,7 @@ class MoinParser(object):
                 if not line.strip():
                     if self.in_table:
                         self.writer.write(self.formatter.table(0))
-                        self.in_table = 0
+                        self.in_table = False
                     # TODO: p should close on every empty line
                     if self.formatter.in_p:
                         self.writer.write(self.formatter.paragraph(0))
@@ -777,7 +776,7 @@ class MoinParser(object):
         params = groups.get('link_params', '') or ''
         mt = self.link_target_re.match(target)
         if not mt:
-            return
+            return ''
 
         # TODO: don't support all attrs actually
         acceptable_attrs = ['class', 'title', 'target', 'accesskey', 'rel', ]
@@ -813,6 +812,10 @@ class MoinParser(object):
                                                       queryargs=query_args, **tag_attrs)
             elif scheme == 'drawing':
                 logger.info("unsupported: drawing=%s" % word)
+                return self.formatter.text(word)
+
+            else:
+                logger.info("unsupported: scheme=%s" % scheme)
                 return self.formatter.text(word)
 
         else:
@@ -886,8 +889,7 @@ class MoinParser(object):
         if not m:
             return default_text
 
-        if m.group('simple_text'):
-            return m.group('simple_text')
+        return m.group('simple_text')
 
     def _transclude_repl(self, word, groups):
         """Handles transcluding content, usually embedding images.: {{}}"""
@@ -1017,7 +1019,7 @@ class MoinParser(object):
     def _heading_repl(self, word: str, groups: Dict[str, str]):
         """Handle section headings.: == =="""
         heading_text = groups.get('heading_text', '')
-        depth = min(len(groups.get('hmarker')), 5)
+        depth = min(len(groups.get('hmarker', '')), 5)
         return ''.join([
             self._closeP(),
             self.formatter.heading(depth, heading_text),
@@ -1141,7 +1143,9 @@ class MoinParser(object):
     # Private helpers ------------------------------------------------------------
     def _parse_indentinfo(self, line: str) -> Tuple[int, str, Optional[str], Optional[int]]:
         indent = self.indent_re.match(line)
-        indlen = len(indent.group(0))
+        indlen = 0
+        if indent:
+            indlen = len(indent.group(0))
         indtype = "ul"
         numtype = None
         numstart = None
@@ -1175,7 +1179,7 @@ class MoinParser(object):
 
         if self._indent_level() != new_level and self.in_table:
             closelist.append(self.formatter.table(0))
-            self.in_table = 0
+            self.in_table = False
 
         while self._indent_level() > new_level:
             self._close_item(closelist)
@@ -1219,7 +1223,7 @@ class MoinParser(object):
         # If list level changes, close an open table
         if self.in_table and (openlist or closelist):
             closelist[0:0] = [self.formatter.table(0)]
-            self.in_table = 0
+            self.in_table = False
 
         self.in_list = self.list_types != []
         return ''.join(closelist) + ''.join(openlist)
@@ -1242,7 +1246,7 @@ class MoinParser(object):
     def _close_item(self, result):
         if self.in_table:
             result.append(self.formatter.table(0))
-            self.in_table = 0
+            self.in_table = False
         if self.in_li:
             self.in_li = 0
             if self.formatter.in_p:
@@ -1259,7 +1263,7 @@ class MoinParser(object):
             return self.formatter.paragraph(0)
         return ''
 
-    def _get_params(self, params: Dict[str, Any], acceptable_attrs: List[str] = []
+    def _get_params(self, paramstring: str, acceptable_attrs: List[str] = []
                     ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """ parse the parameters of link/transclusion markup,
             defaults can be a dict with some default key/values
@@ -1268,8 +1272,8 @@ class MoinParser(object):
         """
         tag_attrs = {}
         query_args = {}
-        if params:
-            fixed, kw, trailing = wikiutil.parse_quoted_separated(params)
+        if paramstring:
+            fixed, kw, trailing = wikiutil.parse_quoted_separated(paramstring)
             # we ignore fixed and trailing args and only use kw args:
             for key, val in kw.items():
                 if key in acceptable_attrs:
@@ -1294,7 +1298,7 @@ def _getTableAttrs(attrdef: str) -> Dict[str, str]:
     attr_rule = r'^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>'
     m = re.match(attr_rule, attrdef, re.U)
     if not m:
-        return {}, ''
+        return {}
     attrdef = m.group('attrs')
 
     # extension for special table markup
