@@ -1,6 +1,13 @@
 import re
 import urllib.parse
+import html
+import shlex
+import logging
+
+from io import StringIO
 from typing import Tuple
+
+logger = logging.getLogger(__name__)
 
 PARENT_PREFIX = "../"
 CHILD_PREFIX = "/"
@@ -316,75 +323,44 @@ def drawing2fname(drawing):
     raise NotImplementedError()
 
 
-def parseAttributes(attrstring, endtoken=None, extension=None):
-    # TODO
-    """
-    Parse a list of attributes and return a dict plus a possible
-    error message.
-    If extension is passed, it has to be a callable that returns
-    a tuple (found_flag, msg). found_flag is whether it did find and process
-    something, msg is '' when all was OK or any other string to return an error
-    message.
-    @param attrstring: string containing the attributes to be parsed
-    @param endtoken: token terminating parsing
-    @param extension: extension function -
-                      gets called with the current token, the parser and the dict
-    @rtype: dict, msg
-    @return: a dict plus a possible error message
-    """
-    import shlex
-    import StringIO
-
-    parser = shlex.shlex(StringIO.StringIO(attrstring))
+def parseAttributes(attrstring: str, endtoken=None, extension=None):
+    parser = shlex.shlex(StringIO(attrstring))
     parser.commenters = ''
-    msg = None
     attrs = {}
 
-    while not msg:
-        try:
+    try:
+        while True:
             key = parser.get_token()
-        except ValueError as err:
-            msg = str(err)
-            break
-        if not key:
-            break
-        if endtoken and key == endtoken:
-            break
-
-        # call extension function with the current token, the parser, and the dict
-        if extension:
-            found_flag, msg = extension(key, parser, attrs)
-            if found_flag:
-                continue
-            elif msg:
+            if not key:
+                break
+            if endtoken and key == endtoken:
                 break
 
-        try:
+            # call extension function with the current token, the parser, and the dict
+            if extension:
+                tmp_attrs = extension(key, parser)
+                if tmp_attrs:
+                    attrs.update(tmp_attrs)
+                    continue
+
             eq = parser.get_token()
-        except ValueError as err:
-            msg = str(err)
-            break
-        if eq != "=":
-            msg = _('Expected "=" to follow "%(token)s"') % {'token': key}
-            break
+            if eq != "=":
+                raise ValueError('Expected "=" to follow "%(token)s"' % {'token': key})
 
-        try:
             val = parser.get_token()
-        except ValueError as err:
-            msg = str(err)
-            break
-        if not val:
-            msg = _('Expected a value for key "%(token)s"') % {'token': key}
-            break
+            if not val:
+                raise ValueError('Expected a value for key "%(token)s"' % {'token': key})
 
-        key = escape(key)  # make sure nobody cheats
+            key = html.escape(key, quote=False)  # make sure nobody cheats
 
-        # safely escape and quote value
-        if val[0] in ["'", '"']:
-            val = escape(val)
-        else:
-            val = '"%s"' % escape(val, 1)
+            # safely escape and quote value
+            if val[0] in ["'", '"']:
+                val = html.escape(val, quote=False)
+            else:
+                val = '"%s"' % html.escape(val)
 
-        attrs[key.lower()] = val
+            attrs[key.lower()] = val
+    except ValueError as e:
+        logger.info("failed to parse attributes: %s by %s" % (attrstring, repr(e)))
 
-    return attrs, msg or ''
+    return attrs

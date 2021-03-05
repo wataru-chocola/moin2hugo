@@ -1,6 +1,6 @@
 import pytest
 
-from moin2hugo.moin_parser import MoinParser
+from moin2hugo.moin_parser import MoinParser, _getTableAttrs
 from moin2hugo.formatter import Formatter
 
 
@@ -33,6 +33,17 @@ sys.out.write("Hello, World")
     MoinParser.format(code_block_text, 'PageName', formatter_object)
     captured = capsys.readouterr()
     assert captured.out.rstrip(' ') == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ('<bgcolor="#00FF00" rowspan="2">', {'bgcolor': '"#00FF00"', 'rowspan': '"2"'}),
+        ('<#TGIF rowspan="2">', {}),
+    ]
+)
+def test_getTableAttrs(data, expected, formatter_object):
+    ret = _getTableAttrs(data)
+    assert ret == expected
 
 
 @pytest.mark.parametrize(

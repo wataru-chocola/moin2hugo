@@ -1,7 +1,6 @@
 import sys
 import re
 import logging
-import copy
 from typing import List, Dict, Tuple, Any, TextIO, Optional
 
 import moin2hugo.moinutils as wikiutil
@@ -438,8 +437,8 @@ class MoinParser(object):
 
                     if self.formatter.in_p:
                         self.writer.write(self.formatter.paragraph(0))
-                    attrs, attrerr = self._getTableAttrs(line[indlen+2:])
-                    self.writer.write(self.formatter.table(1, attrs) + attrerr)
+                    attrs = _getTableAttrs(tmp_line[2:])
+                    self.writer.write(self.formatter.table(1, attrs))
                     self.in_table = True
                 elif self.in_table and (not is_table_line) and (not line.startswith("##")):
                     # close table
@@ -972,94 +971,6 @@ class MoinParser(object):
             desc = self._transclude_description(desc, target)
             return self.formatter.text('{{%s|%s|%s}}' % (target, desc, params))
 
-    def _getTableAttrs(self, attrdef):
-        attr_rule = r'^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>'
-        m = re.match(attr_rule, attrdef, re.U)
-        if not m:
-            return {}, ''
-        attrdef = m.group('attrs')
-
-        # extension for special table markup
-        def table_extension(key, parser, attrs, wiki_parser=self):
-            """ returns: tuple (found_flag, msg)
-                found_flag: whether we found something and were able to process it here
-                  true for special stuff like 100% or - or #AABBCC
-                  false for style xxx="yyy" attributes
-                msg: "" or an error msg
-            """
-            _ = wiki_parser._
-            found = False
-            msg = ''
-            if key[0] in "0123456789":
-                token = parser.get_token()
-                if token != '%':
-                    wanted = '%'
-                    msg = _('Expected "%(wanted)s" after "%(key)s", got "%(token)s"') % {
-                        'wanted': wanted, 'key': key, 'token': token}
-                else:
-                    try:
-                        _ = int(key)
-                    except ValueError:
-                        msg = _('Expected an integer "%(key)s" before "%(token)s"') % {
-                            'key': key, 'token': token}
-                    else:
-                        found = True
-                        attrs['width'] = '"%s%%"' % key
-            elif key == '-':
-                arg = parser.get_token()
-                try:
-                    _ = int(arg)
-                except ValueError:
-                    msg = _('Expected an integer "%(arg)s" after "%(key)s"') % {
-                        'arg': arg, 'key': key}
-                else:
-                    found = True
-                    attrs['colspan'] = '"%s"' % arg
-            elif key == '|':
-                arg = parser.get_token()
-                try:
-                    _ = int(arg)
-                except ValueError:
-                    msg = _('Expected an integer "%(arg)s" after "%(key)s"') % {
-                        'arg': arg, 'key': key}
-                else:
-                    found = True
-                    attrs['rowspan'] = '"%s"' % arg
-            elif key == '(':
-                found = True
-                attrs['align'] = '"left"'
-            elif key == ':':
-                found = True
-                attrs['align'] = '"center"'
-            elif key == ')':
-                found = True
-                attrs['align'] = '"right"'
-            elif key == '^':
-                found = True
-                attrs['valign'] = '"top"'
-            elif key == 'v':
-                found = True
-                attrs['valign'] = '"bottom"'
-            elif key == '#':
-                arg = parser.get_token()
-                try:
-                    if len(arg) != 6:
-                        raise ValueError
-                    _ = int(arg, 16)
-                except ValueError:
-                    msg = _('Expected a color value "%(arg)s" after "%(key)s"') % {
-                        'arg': arg, 'key': key}
-                else:
-                    found = True
-                    attrs['bgcolor'] = '"#%s"' % arg
-            return found, self.formatter.rawHTML(msg)
-
-        # scan attributes
-        attr, msg = wikiutil.parseAttributes(attrdef, '>', table_extension)
-        if msg:
-            msg = '<strong class="highlight">%s</strong>' % msg
-        return attr, msg
-
     def _tableZ_repl(self, word, groups):
         """Handle table row end."""
         if self.in_table:
@@ -1075,7 +986,7 @@ class MoinParser(object):
         """Handle table cell separator."""
         if self.in_table:
             result = []
-            attrs, attrerr = self._getTableAttrs(word)
+            attrs = _getTableAttrs(word)
 
             # start the table row?
             if self.table_rowstart:
@@ -1083,7 +994,6 @@ class MoinParser(object):
                 result.append(self.formatter.table_row(1, attrs))
             else:
                 # Close table cell, first closing open p
-                # REMOVED check for self.in_li, paragraph should close always!
                 if self.formatter.in_p:
                     result.append(self.formatter.paragraph(0))
                 result.append(self.formatter.table_cell(0))
@@ -1098,7 +1008,7 @@ class MoinParser(object):
                     attrs['colspan'] = '"%d"' % (word.count("|")/2)
 
             # return the complete cell markup
-            result.append(self.formatter.table_cell(1, attrs) + attrerr)
+            result.append(self.formatter.table_cell(1, attrs))
             return ''.join(result)
         else:
             return self.formatter.text(word)
@@ -1378,3 +1288,48 @@ class MoinParser(object):
         else:
             logger.warning("unsupported parser: %s" % name)
             return False
+
+
+def _getTableAttrs(attrdef: str) -> Dict[str, str]:
+    attr_rule = r'^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>'
+    m = re.match(attr_rule, attrdef, re.U)
+    if not m:
+        return {}, ''
+    attrdef = m.group('attrs')
+
+    # extension for special table markup
+    def table_extension(key, parser):
+        align_keys = {'(': 'left', ':': 'center', ')': 'right'}
+        valign_keys = {'^': 'top', 'v': 'bottom'}
+
+        attrs = {}
+        if key[0] in "0123456789":
+            token = parser.get_token()
+            if token != '%':
+                raise ValueError('Expected "%%" after "%(key)s", got "%(token)s"' % {
+                    'key': key, 'token': token})
+            _ = int(key)
+            attrs['width'] = '"%s%%"' % key
+        elif key == '-':
+            arg = parser.get_token()
+            _ = int(arg)
+            attrs['colspan'] = '"%s"' % arg
+        elif key == '|':
+            arg = parser.get_token()
+            _ = int(arg)
+            attrs['rowspan'] = '"%s"' % arg
+        elif key in align_keys:
+            attrs['align'] = '"%s"' % align_keys[key]
+        elif key in valign_keys:
+            attrs['valign'] = '"%s"' % valign_keys[key]
+        elif key == '#':
+            arg = parser.get_token()
+            if len(arg) != 6:
+                raise ValueError()
+            _ = int(arg, 16)
+            attrs['bgcolor'] = '"#%s"' % arg
+        return attrs
+
+    # scan attributes
+    attr = wikiutil.parseAttributes(attrdef, '>', table_extension)
+    return attr
