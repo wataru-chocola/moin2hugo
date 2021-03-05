@@ -407,7 +407,7 @@ class MoinParser(object):
                     in_processing_instructions = 0
 
             if not self.in_pre:
-                # we don't have \n as whitespace any more
+                # TODO: we don't have \n as whitespace any more
                 # This is the space between lines we join to one paragraph
                 line += ' '
 
@@ -416,68 +416,39 @@ class MoinParser(object):
                     if self.in_table:
                         self.writer.write(self.formatter.table(0))
                         self.in_table = 0
-                    # CHANGE: removed check for not self.list_types
-                    # p should close on every empty line
+                    # TODO: p should close on every empty line
                     if self.formatter.in_p:
                         self.writer.write(self.formatter.paragraph(0))
                     self.line_is_empty = True
                     continue
 
-                # Check indent level
-                indent = self.indent_re.match(line)
-                indlen = len(indent.group(0))
-                indtype = "ul"
-                numtype = None
-                numstart = None
-                if indlen:
-                    match = self.ol_re.match(line)
-                    if match:
-                        numtype, numstart = match.group(0).strip().split('.')
-                        numtype = numtype[0]
-
-                        if numstart and numstart[0] == "#":
-                            numstart = int(numstart[1:])
-                        else:
-                            numstart = None
-
-                        indtype = "ol"
-                    else:
-                        match = self.dl_re.match(line)
-                        if match:
-                            indtype = "dl"
-
-                # output proper indentation tags
+                # Handle Indentation
+                indlen, indtype, numtype, numstart = self._parse_indentinfo(line)
                 self.writer.write(self._indent_to(indlen, indtype, numtype, numstart))
 
-                # Table mode
-                if (not self.in_table and line[indlen:indlen + 2] == "||"
-                    and line.endswith("|| ") and len(line) >= 5 + indlen):
-                    # Start table
+                # Table start / break
+                tmp_line = line.lstrip()
+                is_table_line = tmp_line.startswith("||") and tmp_line.endswith("|| ") \
+                    and len(tmp_line) >= 5
+                if not self.in_table and is_table_line:
+                    # start table
                     if self.list_types and not self.in_li:
                         self.writer.write(self.formatter.listitem(1, style="list-style-type:none"))
                         self.in_li = True
 
-                    # CHANGE: removed check for self.in_li
-                    # paragraph should end before table, always!
                     if self.formatter.in_p:
                         self.writer.write(self.formatter.paragraph(0))
                     attrs, attrerr = self._getTableAttrs(line[indlen+2:])
                     self.writer.write(self.formatter.table(1, attrs) + attrerr)
                     self.in_table = True
-                elif (self.in_table and not
-                      # intra-table comments should not break a table
-                      (line.startswith("##") or
-                       line[indlen:indlen + 2] == "||" and
-                       line.endswith("|| ") and
-                       len(line) >= 5 + indlen)):
-
-                    # Close table
+                elif self.in_table and (not is_table_line) and (not line.startswith("##")):
+                    # close table
+                    # intra-table comments should not break a table
                     self.writer.write(self.formatter.table(0))
-                    self.in_table = 0
+                    self.in_table = False
 
             # Scan line, format and write
-            formatted_line = self._scan(line)
-            self.writer.write(formatted_line)
+            self._format_line(line)
 
         # Close code displays, paragraphs, tables and open lists
         self.writer.write(self._undent())
@@ -485,52 +456,48 @@ class MoinParser(object):
         if self.formatter.in_p: self.writer.write(self.formatter.paragraph(0))
         if self.in_table: self.writer.write(self.formatter.table(0))
 
-    def _scan(self, line):
-        """ Scans one line
-        Append text before match, invoke _replace() with match, and add text after match.
-        """
-        result = []
+    def _format_line(self, line: str):
         lastpos = 0  # absolute position within line
         line_length = len(line)
 
-        while lastpos <= line_length:  # it is <=, not <, because we need to process the empty line also
-            parser_scan_re = re.compile(self.parser_scan_rule % re.escape(self.parser_unique), re.VERBOSE | re.UNICODE)
-            scan_re = self.in_pre and parser_scan_re or self.scan_re
+        while lastpos <= line_length:
+            parser_scan_re = re.compile(self.parser_scan_rule % re.escape(self.parser_unique),
+                                        re.VERBOSE | re.UNICODE)
+            scan_re = parser_scan_re if self.in_pre else self.scan_re
             match = scan_re.search(line, lastpos)
-            if match:
-                start = match.start()
-                if lastpos < start:
-                    if self.in_pre:
-                        self._parser_content(line[lastpos:start])
-                    else:
-                        if not (self.in_pre or self.formatter.in_p):
-                            result.append(self.formatter.paragraph(1))
-                        # add the simple text in between lastpos and beginning of current match
-                        result.append(self.formatter.text(line[lastpos:start]))
-
-                # Replace match with markup
-                if not (self.in_pre or self.formatter.in_p or self.in_table or self.in_list):
-                    result.append(self.formatter.paragraph(1))
-                result.append(self._replace(match))
-                end = match.end()
-                lastpos = end
-                if start == end:
-                    # we matched an empty string
-                    lastpos += 1  # proceed, we don't want to match this again
-            else:
+            if not match:
+                remainder = line[lastpos:]
                 if self.in_pre:
-                    # ilastpos is more then 0 and result of line slice is empty make useless line
-                    if not (lastpos > 0 and line[lastpos:] == ''):
-                        self._parser_content(line[lastpos:])
-                elif line[lastpos:]:
+                    # lastpos is more then 0 and result of line slice is empty make useless line
+                    if not (lastpos > 0 and remainder == ''):
+                        self._parser_content(remainder)
+                elif remainder:
                     if not (self.in_pre or self.formatter.in_p or self.in_li or self.in_dd):
-                        result.append(self.formatter.paragraph(1))
-                    # add the simple text (no markup) after last match
-                    result.append(self.formatter.text(line[lastpos:]))
-                break  # nothing left to do!
-        return ''.join(result)
+                        self.writer.write(self.formatter.paragraph(1))
+                    self.writer.write(self.formatter.text(remainder))
+                break
 
-    def _replace(self, match):
+            start = match.start()
+            if lastpos < start:
+                # process leading text
+                if self.in_pre:
+                    self._parser_content(line[lastpos:start])
+                else:
+                    if not (self.in_pre or self.formatter.in_p):
+                        self.writer.write(self.formatter.paragraph(1))
+                    self.writer.write(self.formatter.text(line[lastpos:start]))
+
+            # Replace match with markup
+            if not (self.in_pre or self.formatter.in_p or self.in_table or self.in_list):
+                self.writer.write(self.formatter.paragraph(1))
+            self.writer.write(self._replace(match))
+            end = match.end()
+            lastpos = end
+            if start == end:
+                # we matched an empty string
+                lastpos += 1  # proceed, we don't want to match this again
+
+    def _replace(self, match: re.Match):
         """ Replace match using type name """
         no_new_p_before = ("heading", "rule", "table", "tableZ", "tr", "td", "ul", "ol", "dl",
                            "dt", "dd", "li", "li_none", "indent", "macro", "parser")
@@ -1097,7 +1064,6 @@ class MoinParser(object):
         """Handle table row end."""
         if self.in_table:
             result = ''
-            # REMOVED: check for self.in_li, p should always close
             if self.formatter.in_p:
                 result = self.formatter.paragraph(0)
             result += self.formatter.table_cell(0) + self.formatter.table_row(0)
@@ -1263,6 +1229,28 @@ class MoinParser(object):
         return self.formatter.macro(self.macro, macro_name, macro_args, markup=groups.get('macro'))
 
     # Private helpers ------------------------------------------------------------
+    def _parse_indentinfo(self, line: str) -> Tuple[int, str, Optional[str], Optional[int]]:
+        indent = self.indent_re.match(line)
+        indlen = len(indent.group(0))
+        indtype = "ul"
+        numtype = None
+        numstart = None
+
+        if not indlen:
+            return (indlen, indtype, numtype, numstart)
+
+        match = self.ol_re.match(line)
+        if match:
+            indtype = "ol"
+            numtype, tmp_numstart = match.group(0).strip().split('.')
+            numtype = numtype[0]
+            if tmp_numstart and tmp_numstart[0] == "#":
+                numstart = int(tmp_numstart[1:])
+        elif self.dl_re.match(line):
+            indtype = "dl"
+
+        return (indlen, indtype, numtype, numstart)
+
     def _indent_level(self):
         """Return current char-wise indent level."""
         if not self.list_indents:
