@@ -1,0 +1,15 @@
+Test attachments.
+
+<<TableOfContents>>
+
+= PNG =
+
+PNG test image.
+
+{{attachment:file_example_PNG_500kB.png||width=50%}}
+
+= JPG =
+
+JPEG test image.
+
+{{attachment:file_example_JPG_100kB.jpg}}
