@@ -1,8 +1,9 @@
 import sys
 import re
 import logging
-from typing import List, Dict, Tuple, Any, TextIO, Optional
+from typing import List, Dict, Tuple, TextIO, Optional
 
+import moin2hugo.page_builder
 import moin2hugo.moinutils as wikiutil
 import moin2hugo.moin_config as config
 import moin2hugo.moin_site_config as site_config
@@ -335,15 +336,12 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in config.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    def __init__(self, text: str, page_name: str, formatter, writer: Optional[TextIO] = None):
+    def __init__(self, text: str, page_name: str, formatter):
+        self.builder = moin2hugo.page_builder.PageBuilder()
         self.lines = text.expandtabs().splitlines()
         self.page_name = page_name
         self.formatter = formatter
 
-        if writer:
-            self.writer = writer
-        else:
-            self.writer = sys.stdout
         self.macro = None
         self.parser_name: Optional[str] = None
         self.parser_args: Optional[str] = None
@@ -377,12 +375,12 @@ class MoinParser(object):
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def format(cls, text: str, page_name: str, formatter, writer: Optional[TextIO] = None):
-        parser = cls(text, page_name, formatter, writer=writer)
-        return parser._format()
+    def parse(cls, text: str, page_name: str, formatter):
+        parser = cls(text, page_name, formatter)
+        return parser._parse()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
-    def _format(self):
+    def _parse(self):
         """ For each line, scan through looking for magic
             strings, outputting verbatim any intervening text.
         """
@@ -401,8 +399,7 @@ class MoinParser(object):
             if in_processing_instructions:
                 if any((line.lower().startswith(pi) for pi in processing_instructions)):
                     continue
-                else:
-                    in_processing_instructions = 0
+                in_processing_instructions = 0
 
             if not self.in_pre:
                 # TODO: we don't have \n as whitespace any more
@@ -412,17 +409,17 @@ class MoinParser(object):
                 # Paragraph break on empty lines
                 if not line.strip():
                     if self.in_table:
-                        self.writer.write(self.formatter.table(0))
+                        self.builder.table(False)
                         self.in_table = False
                     # TODO: p should close on every empty line
                     if self.formatter.in_p:
-                        self.writer.write(self.formatter.paragraph(0))
+                        self.builder.paragraph(False)
                     self.line_is_empty = True
                     continue
 
                 # Handle Indentation
                 indlen, indtype, numtype, numstart = self._parse_indentinfo(line)
-                self.writer.write(self._indent_to(indlen, indtype, numtype, numstart))
+                self._indent_to(indlen, indtype, numtype, numstart)
 
                 # Table start / break
                 tmp_line = line.lstrip()
@@ -431,28 +428,30 @@ class MoinParser(object):
                 if not self.in_table and is_table_line:
                     # start table
                     if self.list_types and not self.in_li:
-                        self.writer.write(self.formatter.listitem(1, style="list-style-type:none"))
+                        self.builder.listitem(True)
                         self.in_li = True
 
                     if self.formatter.in_p:
-                        self.writer.write(self.formatter.paragraph(0))
+                        self.builder.paragraph(False)
                     attrs = _getTableAttrs(tmp_line[2:])
-                    self.writer.write(self.formatter.table(1, attrs))
+                    self.builder.table(True, attrs)
                     self.in_table = True
                 elif self.in_table and (not is_table_line) and (not line.startswith("##")):
                     # close table
                     # intra-table comments should not break a table
-                    self.writer.write(self.formatter.table(0))
+                    self.builder.table(False)
                     self.in_table = False
 
             # Scan line, format and write
             self._format_line(line)
 
         # Close code displays, paragraphs, tables and open lists
-        self.writer.write(self._undent())
-        if self.in_pre: self.writer.write(self.formatter.preformatted(0))
-        if self.formatter.in_p: self.writer.write(self.formatter.paragraph(0))
-        if self.in_table: self.writer.write(self.formatter.table(0))
+        self._undent()
+        if self.in_pre: self.builder.preformatted(False)
+        if self.formatter.in_p: self.builder.paragraph(False)
+        if self.in_table: self.builder.table(False)
+
+        return self.builder.page_root
 
     def _format_line(self, line: str):
         lastpos = 0  # absolute position within line
@@ -471,8 +470,8 @@ class MoinParser(object):
                         self._parser_content(remainder)
                 elif remainder:
                     if not (self.in_pre or self.formatter.in_p or self.in_li or self.in_dd):
-                        self.writer.write(self.formatter.paragraph(1))
-                    self.writer.write(self.formatter.text(remainder))
+                        self.builder.paragraph(True)
+                    self.builder.text(remainder)
                 break
 
             start = match.start()
@@ -482,120 +481,119 @@ class MoinParser(object):
                     self._parser_content(line[lastpos:start])
                 else:
                     if not (self.in_pre or self.formatter.in_p):
-                        self.writer.write(self.formatter.paragraph(1))
-                    self.writer.write(self.formatter.text(line[lastpos:start]))
+                        self.builder.paragraph(True)
+                    self.builder.text(line[lastpos:start])
 
             # Replace match with markup
             if not (self.in_pre or self.formatter.in_p or self.in_table or self.in_list):
-                self.writer.write(self.formatter.paragraph(1))
-            self.writer.write(self._replace(match))
+                self.builder.paragraph(True)
+            self._process_markup(match)
             end = match.end()
             lastpos = end
             if start == end:
                 # we matched an empty string
                 lastpos += 1  # proceed, we don't want to match this again
 
-    def _replace(self, match: re.Match):
+    def _process_markup(self, match: re.Match):
         """ Replace match using type name """
         no_new_p_before = ("heading", "rule", "table", "tableZ", "tr", "td", "ul", "ol", "dl",
                            "dt", "dd", "li", "li_none", "indent", "macro", "parser")
         dispatcher = {
             # Moinwiki Special Syntax
-            'macro': self._macro_repl,
-            'macro_name': self._macro_repl,
-            'macro_args': self._macro_repl,
-            'comment': self._comment_repl,
-            'remark': self._remark_repl,
-            'remark_on': self._remark_repl,
-            'remark_off': self._remark_repl,
-            'smiley': self._smiley_repl,
+            'macro': self._macro_handler,
+            'macro_name': self._macro_handler,
+            'macro_args': self._macro_handler,
+            'comment': self._comment_handler,
+            'remark': self._remark_handler,
+            'remark_on': self._remark_handler,
+            'remark_off': self._remark_handler,
+            'smiley': self._smiley_handler,
 
             # Codeblock
-            'parser': self._parser_repl,
-            'parser_unique': self._parser_repl,
-            'parser_line': self._parser_repl,
-            'parser_name': self._parser_repl,
-            'parser_args': self._parser_repl,
-            'parser_nothing': self._parser_repl,
-            'parser_end': self._parser_end_repl,
+            'parser': self._parser_handler,
+            'parser_unique': self._parser_handler,
+            'parser_line': self._parser_handler,
+            'parser_name': self._parser_handler,
+            'parser_args': self._parser_handler,
+            'parser_nothing': self._parser_handler,
+            'parser_end': self._parser_end_handler,
 
             # Table
-            'tableZ': self._tableZ_repl,
-            'table': self._table_repl,
+            'tableZ': self._tableZ_handler,
+            'table': self._table_handler,
 
             # Heading / Horizontal Rule
-            'heading': self._heading_repl,
-            'heading_text': self._heading_repl,
-            'rule': self._rule_repl,
+            'heading': self._heading_handler,
+            'heading_text': self._heading_handler,
+            'rule': self._rule_handler,
 
             # Decorations
-            'u': self._u_repl,
-            'strike': self._strike_repl,
-            'strike_on': self._strike_repl,
-            'strike_off': self._strike_repl,
-            'small': self._small_repl,
-            'small_on': self._small_repl,
-            'small_off': self._small_repl,
-            'big': self._big_repl,
-            'big_on': self._big_repl,
-            'big_off': self._big_repl,
-            'emph': self._emph_repl,
-            'emph_ibb': self._emph_ibb_repl,
-            'emph_ibi': self._emph_ibi_repl,
-            'emph_ib_or_bi': self._emph_ib_or_bi_repl,
-            'sup': self._sup_repl,
-            'sup_text': self._sup_repl,
-            'sub': self._sub_repl,
-            'sub_text': self._sub_repl,
-            'tt': self._tt_repl,
-            'tt_text': self._tt_repl,
-            'tt_bt': self._tt_bt_repl,
-            'tt_bt_text': self._tt_bt_repl,
+            'u': self._u_handler,
+            'strike': self._strike_handler,
+            'strike_on': self._strike_handler,
+            'strike_off': self._strike_handler,
+            'small': self._small_handler,
+            'small_on': self._small_handler,
+            'small_off': self._small_handler,
+            'big': self._big_handler,
+            'big_on': self._big_handler,
+            'big_off': self._big_handler,
+            'emph': self._emph_handler,
+            'emph_ibb': self._emph_ibb_handler,
+            'emph_ibi': self._emph_ibi_handler,
+            'emph_ib_or_bi': self._emph_ib_or_bi_handler,
+            'sup': self._sup_handler,
+            'sup_text': self._sup_handler,
+            'sub': self._sub_handler,
+            'sub_text': self._sub_handler,
+            'tt': self._tt_handler,
+            'tt_text': self._tt_handler,
+            'tt_bt': self._tt_bt_handler,
+            'tt_bt_text': self._tt_bt_handler,
 
             # Links
-            'interwiki': self._interwiki_repl,
-            'interwiki_wiki': self._interwiki_repl,
-            'interwiki_page': self._interwiki_repl,
-            'word': self._word_repl,
-            'word_bang': self._word_repl,
-            'word_name': self._word_repl,
-            'word_anchor': self._word_repl,
-            'url': self._url_repl,
-            'url_target': self._url_repl,
-            'url_schema': self._url_repl,
-            'link': self._link_repl,
-            'link_target': self._link_repl,
-            'link_desc': self._link_repl,
-            'link_params': self._link_repl,
-            'email': self._email_repl,
+            'interwiki': self._interwiki_handler,
+            'interwiki_wiki': self._interwiki_handler,
+            'interwiki_page': self._interwiki_handler,
+            'word': self._word_handler,
+            'word_bang': self._word_handler,
+            'word_name': self._word_handler,
+            'word_anchor': self._word_handler,
+            'url': self._url_handler,
+            'url_target': self._url_handler,
+            'url_schema': self._url_handler,
+            'link': self._link_handler,
+            'link_target': self._link_handler,
+            'link_desc': self._link_handler,
+            'link_params': self._link_handler,
+            'email': self._email_handler,
 
             # SGML entities
-            'entity': self._entity_repl,
-            'sgml_entity': self._sgml_entity_repl,
+            'entity': self._entity_handler,
+            'sgml_entity': self._sgml_entity_handler,
 
             # List
-            'indent': self._indent_repl,
-            'li_none': self._li_repl,
-            'li': self._li_repl,
-            'ol': self._ol_repl,
-            'dl': self._dl_repl,
+            'indent': self._indent_handler,
+            'li_none': self._li_handler,
+            'li': self._li_handler,
+            'ol': self._ol_handler,
+            'dl': self._dl_handler,
 
             # Transclude (Image Embedding)
-            'transclude': self._transclude_repl,
-            'transclude_target': self._transclude_repl,
-            'transclude_desc': self._transclude_repl,
-            'transclude_params': self._transclude_repl,
+            'transclude': self._transclude_handler,
+            'transclude_target': self._transclude_handler,
+            'transclude_desc': self._transclude_handler,
+            'transclude_params': self._transclude_handler,
         }
 
-        result = []
         for _type, hit in match.groupdict().items():
             if hit is not None and _type not in ["hmarker", ]:
                 # Open p for certain types
                 if not (self.formatter.in_p or self.in_pre or (_type in no_new_p_before)):
-                    result.append(self.formatter.paragraph(1))
+                    self.builder.paragraph(True)
 
-                result.append(dispatcher[_type](hit, match.groupdict()))
-                return ''.join(result)
+                dispatcher[_type](hit, match.groupdict())
+                return
         else:
             # We should never get here
             import pprint
@@ -605,160 +603,159 @@ class MoinParser(object):
                 pprint.pformat(match.groups()),
             ))
 
-        return ""
-
     # Private Replace Method ----------------------------------------------------------
-    def _u_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _u_handler(self, word: str, groups: Dict[str, str]):
         """Handle underline."""
         self.is_u = not self.is_u
-        return self.formatter.underline(self.is_u)
+        self.builder.underline(self.is_u)
 
-    def _remark_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _remark_handler(self, word: str, groups: Dict[str, str]):
         """Handle remarks: /* ... */"""
         on = groups.get('remark_on')
-        if on and self.is_remark:
-            return self.formatter.text(word)
         off = groups.get('remark_off')
-        if off and not self.is_remark:
-            return self.formatter.text(word)
+        if (on and self.is_remark) or (off and not self.is_remark):
+            self.builder.text(word)
+            return
         self.is_remark = not self.is_remark
-        return self.formatter.span(self.is_remark)
+        self.builder.span(self.is_remark)
 
-    def _strike_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _strike_handler(self, word: str, groups: Dict[str, str]):
         """Handle strikethrough."""
         on = groups.get('strike_on')
-        if on and self.is_strike:
-            return self.formatter.text(word)
         off = groups.get('strike_off')
-        if off and not self.is_strike:
-            return self.formatter.text(word)
+        if (on and self.is_strike) or (off and not self.is_strike):
+            self.builder.text(word)
+            return
         self.is_strike = not self.is_strike
-        return self.formatter.strike(self.is_strike)
+        self.builder.strike(self.is_strike)
 
-    def _small_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _small_handler(self, word: str, groups: Dict[str, str]):
         """Handle small."""
         on = groups.get('small_on')
-        if on and self.is_small:
-            return self.formatter.text(word)
         off = groups.get('small_off')
-        if off and not self.is_small:
-            return self.formatter.text(word)
+        if (on and self.is_small) or (off and not self.is_small):
+            self.builder.text(word)
+            return
         self.is_small = not self.is_small
-        return self.formatter.small(self.is_small)
+        self.builder.small(self.is_small)
 
-    def _big_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _big_handler(self, word: str, groups: Dict[str, str]):
         """Handle big."""
         on = groups.get('big_on')
-        if on and self.is_big:
-            return self.formatter.text(word)
         off = groups.get('big_off')
-        if off and not self.is_big:
-            return self.formatter.text(word)
+        if (on and self.is_big) or (off and not self.is_big):
+            self.builder.text(word)
+            return
         self.is_big = not self.is_big
-        return self.formatter.big(self.is_big)
+        self.builder.big(self.is_big)
 
-    def _emph_repl(self, word: str, groups: Dict[str, str]) -> str:
-        """Handle emphasis, i.e. '' and '''."""
-        # ''': b
-        # '': em
+    def _emph_handler(self, word: str, groups: Dict[str, str]):
+        """Handle emphasis, i.e. ''(em) and '''(b)."""
         if len(word) == 3:
             self.is_b = not self.is_b
             if self.is_em and self.is_b:
                 self.is_b = 2
-            return self.formatter.strong(self.is_b)
+            self.builder.strong(self.is_b)
         else:
             self.is_em = not self.is_em
             if self.is_em and self.is_b:
                 self.is_em = 2
-            return self.formatter.emphasis(self.is_em)
+            self.builder.emphasis(self.is_em)
+        return
 
-    def _emph_ibb_repl(self, word, groups):
+    def _emph_ibb_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, i.e. ''''' followed by '''."""
         self.is_b = not self.is_b
         self.is_em = not self.is_em
         if self.is_em and self.is_b:
             self.is_b = 2
-        return self.formatter.emphasis(self.is_em) + self.formatter.strong(self.is_b)
+        self.builder.emphasis(self.is_em)
+        self.builder.strong(self.is_b)
 
-    def _emph_ibi_repl(self, word, groups):
+    def _emph_ibi_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, i.e. ''''' followed by ''."""
         self.is_b = not self.is_b
         self.is_em = not self.is_em
         if self.is_em and self.is_b:
             self.is_em = 2
-        return self.formatter.strong(self.is_b) + self.formatter.emphasis(self.is_em)
+        self.builder.strong(self.is_b)
+        self.builder.emphasis(self.is_em)
 
-    def _emph_ib_or_bi_repl(self, word, groups):
+    def _emph_ib_or_bi_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, exactly five '''''."""
         b_before_em = False
         if self.is_b and self.is_em:
-            # TODO: the following code use a trick that `True` is treated as `1` in math context.
             b_before_em = self.is_b > self.is_em
         self.is_b = not self.is_b
         self.is_em = not self.is_em
         if b_before_em:
-            return self.formatter.strong(self.is_b) + self.formatter.emphasis(self.is_em)
+            self.builder.strong(self.is_b)
+            self.builder.emphasis(self.is_em)
         else:
-            return self.formatter.emphasis(self.is_em) + self.formatter.strong(self.is_b)
+            self.builder.emphasis(self.is_em)
+            self.builder.strong(self.is_b)
+        return
 
-    def _sup_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _sup_handler(self, word: str, groups: Dict[str, str]):
         """Handle superscript."""
         text = groups.get('sup_text', '')
-        return self.formatter.sup(text)
+        self.builder.sup(text)
 
-    def _sub_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _sub_handler(self, word: str, groups: Dict[str, str]):
         """Handle subscript."""
         text = groups.get('sub_text', '')
-        return self.formatter.sub(text)
+        self.builder.sub(text)
 
-    def _tt_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _tt_handler(self, word: str, groups: Dict[str, str]):
         """Handle inline code."""
         tt_text = groups.get('tt_text', '')
-        return self.formatter.code(tt_text)
+        self.builder.code(tt_text)
 
-    def _tt_bt_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _tt_bt_handler(self, word: str, groups: Dict[str, str]):
         """Handle backticked inline code."""
         tt_bt_text = groups.get('tt_bt_text', '')
-        return self.formatter.code(tt_bt_text)
+        self.builder.code(tt_bt_text)
 
-    def _interwiki_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _interwiki_handler(self, word: str, groups: Dict[str, str]):
         """Handle InterWiki links."""
-        text = groups.get('interwiki')
+        text = groups.get('interwiki', '')
         logger.info("unsupported: interwiki_name=%s" % text)
-        return self.formatter.text(text)
+        self.builder.text(text)
 
-    def _word_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _word_handler(self, word: str, groups: Dict[str, str]):
         """Handle WikiNames."""
-        bang = ''
         if groups.get('word_bang'):
             if site_config.bang_meta:
-                return self.formatter.text(word)
-            bang = self.formatter.text('!')
+                self.builder.text(word)
+                return
+            self.builder.text('!')
         current_page = self.page_name
         abs_name = wikiutil.AbsPageName(current_page, groups.get('word_name'))
         # if a simple, self-referencing link, emit it as plain text
         if abs_name == current_page:
-            return self.formatter.text(word)
-
+            self.builder.text(word)
+            return
         abs_name, anchor = wikiutil.split_anchor(abs_name)
-        return (bang + self.formatter.pagelink(abs_name, word, anchor=anchor))
+        self.builder.pagelink(True, abs_name, anchor=anchor)
+        self.builder.text(word)
+        self.builder.pagelink(False)
 
-    def _url_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _url_handler(self, word: str, groups: Dict[str, str]):
         """Handle literal URLs."""
         target = groups.get('url_target', '')
-        return self.formatter.url(target)
+        self.builder.url(target)
 
-    def _link_description(self, desc: str, target: str = '', default_text: str = '') -> str:
+    def _link_description(self, desc: str, target: str = '', default_text: str = ''):
         m = self.link_desc_re.match(desc)
         if not m:
             desc = default_text
             if desc:
-                desc = self.formatter.text(desc)
-            return desc
+                self.builder.text(desc)
+            return
 
         if m.group('simple_text'):
             desc = m.group('simple_text')
-            desc = self.formatter.text(desc)
+            self.builder.text(desc)
         elif m.group('transclude'):
             groupdict = m.groupdict()
             if groupdict.get('transclude_desc') is None:
@@ -766,17 +763,16 @@ class MoinParser(object):
                 # if transcluded obj (image) has no description, use target for it
                 groupdict['transclude_desc'] = target
             desc = m.group('transclude')
-            desc = self._transclude_repl(desc, groupdict)
-        return desc
+            desc = self._transclude_handler(desc, groupdict)
 
-    def _link_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _link_handler(self, word: str, groups: Dict[str, str]):
         """Handle [[target|text]] links."""
         target = groups.get('link_target', '')
         desc = groups.get('link_desc', '') or ''
         params = groups.get('link_params', '') or ''
         mt = self.link_target_re.match(target)
         if not mt:
-            return ''
+            return
 
         # TODO: don't support all attrs actually
         acceptable_attrs = ['class', 'title', 'target', 'accesskey', 'rel', ]
@@ -787,93 +783,81 @@ class MoinParser(object):
             if ':' in page_name_and_anchor:
                 # interwiki
                 logger.info("unsupported: interwiki_name=%s" % page_name_and_anchor)
-                return self.formatter.text(page_name_and_anchor)
+                self.builder.text(page_name_and_anchor)
+                return
 
             page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
             current_page = self.page_name
             if not page_name:
                 page_name = current_page
             abs_page_name = wikiutil.AbsPageName(current_page, page_name)
-            description = self._link_description(desc, target, page_name_and_anchor)
-            return self.formatter.pagelink(abs_page_name, description, anchor=anchor,
-                                           queryargs=query_args, **tag_attrs)
+            self.builder.pagelink(True, abs_page_name, anchor=anchor,
+                                  queryargs=query_args, **tag_attrs)
+            self._link_description(desc, target, page_name_and_anchor)
+            self.builder.pagelink(False)
 
         elif mt.group('extern_addr'):
             target = mt.group('extern_addr')
-            description = self._link_description(desc, target, target)
-            return self.formatter.link(target, description, **tag_attrs)
+            self.builder.link_start(target, **tag_attrs)
+            self._link_description(desc, target, target)
+            self.builder.link_end()
 
         elif mt.group('attach_scheme'):
             scheme = mt.group('attach_scheme')
             attach_addr = wikiutil.url_unquote(mt.group('attach_addr'))
             if scheme == 'attachment':
-                link_description = self._link_description(desc, target, attach_addr)
-                return self.formatter.attachment_link(attach_addr, link_description,
-                                                      queryargs=query_args, **tag_attrs)
+                self.builder.attachment_link_start(attach_addr, queryargs=query_args, **tag_attrs)
+                self._link_description(desc, target, attach_addr)
+                self.builder.attachment_link_end()
             elif scheme == 'drawing':
                 logger.info("unsupported: drawing=%s" % word)
-                return self.formatter.text(word)
-
+                self.builder.text(word)
             else:
                 logger.info("unsupported: scheme=%s" % scheme)
-                return self.formatter.text(word)
-
+                self.builder.text(word)
         else:
             if desc:
                 desc = '|' + desc
-            return self.formatter.text('[[%s%s]]' % (target, desc))
+            self.builder.text('[[%s%s]]' % (target, desc))
 
-    def _email_repl(self, word, groups):
+    def _email_handler(self, word: str, groups: Dict[str, str]):
         """Handle email addresses (without a leading mailto:)."""
-        return self.formatter.url(word)
+        self.builder.url(word)
 
-    def _entity_repl(self, word, groups):
+    def _entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
-        return self.formatter.raw(word)
+        self.builder.raw(word)
 
-    def _sgml_entity_repl(self, word, groups):
+    def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle SGML entities: [<>&]"""
+        # TODO
         return self.formatter.text(word)
 
-    def _indent_repl(self, match, groups):
+    def _indent_handler(self, word: str, groups: Dict[str, str]):
         """Handle pure indentation (no - * 1. markup)."""
-        result = []
         if not (self.in_li or self.in_dd):
-            self._close_item(result)
+            self._close_item()
             self.in_li = True
-            css_class = None
-            if self.line_was_empty and not self.first_list_item:
-                css_class = 'gap'
-            result.append(self.formatter.listitem(1, css_class=css_class, style="list-style-type:none"))
-        return ''.join(result)
+            self.builder.listitem(True)
 
-    def _li_repl(self, match, groups):
+    def _li_handler(self, word: str, groups: Dict[str, str]):
         """Handle bullet (" *") lists."""
-        result = []
-        self._close_item(result)
+        self._close_item()
         self.in_li = True
-        css_class = None
-        if self.line_was_empty and not self.first_list_item:
-            css_class = 'gap'
-        result.append(self.formatter.listitem(1, css_class=css_class))
-        return ''.join(result)
+        self.builder.listitem(True)
 
-    def _ol_repl(self, match, groups):
+    def _ol_handler(self, word: str, groups: Dict[str, str]):
         """Handle numbered lists."""
-        return self._li_repl(match, groups)
+        return self._li_handler(word, groups)
 
-    def _dl_repl(self, match, groups):
+    def _dl_handler(self, word: str, groups: Dict[str, str]):
         """Handle definition lists."""
-        result = []
-        self._close_item(result)
+        self._close_item()
         self.in_dd = 1
-        result.extend([
-            self.formatter.definition_term(1),
-            self.formatter.text(match[1:-3].lstrip(' ')),
-            self.formatter.definition_term(0),
-            self.formatter.definition_desc(1),
-        ])
-        return ''.join(result)
+        self.builder.definition_term(True)
+        self.builder.text(word[1:-3].lstrip(' '))
+        self.builder.definition_term(False)
+        self.builder.definition_desc(True)
 
     def _transclude_description(self, desc: str, default_text: str = '') -> str:
         """ parse a string <desc> valid as transclude description (text, ...)
@@ -888,10 +872,9 @@ class MoinParser(object):
         m = self.transclude_desc_re.match(desc)
         if not m:
             return default_text
-
         return m.group('simple_text')
 
-    def _transclude_repl(self, word, groups):
+    def _transclude_handler(self, word: str, groups: Dict[str, str]):
         """Handles transcluding content, usually embedding images.: {{}}"""
         target = groups.get('transclude_target', '')
         target = wikiutil.url_unquote(target)
@@ -909,7 +892,7 @@ class MoinParser(object):
         if m.group('extern_addr'):
             target = m.group('extern_addr')
             desc = self._transclude_description(desc, target)
-            tag_attrs = {'alt': desc, 'title': desc, },
+            tag_attrs = {'alt': desc, 'title': desc, }
             tmp_tag_attrs, query_args = self._get_params(params,
                                                          acceptable_attrs=acceptable_attrs_img)
             tag_attrs.update(tmp_tag_attrs)
@@ -927,7 +910,7 @@ class MoinParser(object):
 
                 if mt.major == 'image' and mt.minor in config.browser_supported_images:
                     desc = self._transclude_description(desc, url)
-                    tag_attrs = {'alt': desc, 'title': desc, },
+                    tag_attrs = {'alt': desc, 'title': desc, }
                     tmp_tag_attrs, query_args = \
                         self._get_params(params, acceptable_attrs=acceptable_attrs_img)
                     tag_attrs.update(tmp_tag_attrs)
@@ -937,7 +920,7 @@ class MoinParser(object):
                 pagename, filename = AttachFile.absoluteName(url, self.page_name)
                 if AttachFile.exists(pagename, filename):
                     href = AttachFile.getAttachUrl(pagename, filename)
-                    tag_attrs = {'title': desc, },
+                    tag_attrs = {'title': desc, }
                     tmp_tag_attrs, query_args = \
                         self._get_params(params, acceptable_attrs=acceptable_attrs_object)
                     tag_attrs.update(tmp_tag_attrs)
@@ -950,6 +933,7 @@ class MoinParser(object):
 
             elif scheme == 'drawing':
                 logger.info("unsupported: drawing=%s" % word)
+                self.builder.text(word)
                 return self.formatter.text(word)
 
         elif m.group('page_name'):
@@ -958,7 +942,7 @@ class MoinParser(object):
                 logger.info("unsupported: interwiki_name=%s" % page_name_all)
                 return self.formatter.text(word)
 
-            tag_attrs = {'type': 'text/html', 'width': '100%', },
+            tag_attrs = {'type': 'text/html', 'width': '100%', }
             tmp_tag_attrs, query_args = \
                 self._get_params(params, acceptable_attrs=acceptable_attrs_object)
             tag_attrs.update(tmp_tag_attrs)
@@ -973,7 +957,7 @@ class MoinParser(object):
             desc = self._transclude_description(desc, target)
             return self.formatter.text('{{%s|%s|%s}}' % (target, desc, params))
 
-    def _tableZ_repl(self, word, groups):
+    def _tableZ_handler(self, word, groups):
         """Handle table row end."""
         if self.in_table:
             result = ''
@@ -984,7 +968,7 @@ class MoinParser(object):
         else:
             return self.formatter.text(word)
 
-    def _table_repl(self, word, groups):
+    def _table_handler(self, word, groups):
         """Handle table cell separator."""
         if self.in_table:
             result = []
@@ -1016,22 +1000,20 @@ class MoinParser(object):
             return self.formatter.text(word)
 
     # Heading / Horizontal Rule
-    def _heading_repl(self, word: str, groups: Dict[str, str]):
+    def _heading_handler(self, word: str, groups: Dict[str, str]):
         """Handle section headings.: == =="""
         heading_text = groups.get('heading_text', '')
         depth = min(len(groups.get('hmarker', '')), 5)
-        return ''.join([
-            self._closeP(),
-            self.formatter.heading(depth, heading_text),
-        ])
+        self._closeP()
+        self.builder.heading(depth, heading_text),
 
-    def _rule_repl(self, word: str, groups: Dict[str, str]):
+    def _rule_handler(self, word: str, groups: Dict[str, str]):
         """Handle sequences of dashes (Horizontal Rule)."""
-        result = self._undent() + self._closeP()
-        result += self.formatter.rule()
-        return result
+        self._undent()
+        self._closeP()
+        self.builder.rule()
 
-    def _parser_repl(self, word: str, groups: Dict[str, str]) -> str:
+    def _parser_handler(self, word: str, groups: Dict[str, str]):
         """Handle parsed code displays."""
         self.parser_name = None
         self.parser_args = None
@@ -1070,7 +1052,7 @@ class MoinParser(object):
 
         return ''
 
-    def _parser_content(self, line):
+    def _parser_content(self, line: str):
         """ handle state and collecting lines for parser in pre/parser sections """
         if self.in_pre == 'search_parser' and line.strip():
             bang_line = False
@@ -1101,29 +1083,27 @@ class MoinParser(object):
         elif self.in_pre == 'found_parser':
             self.parser_lines.append(line)
 
-        return ''
-
-    def _parser_end_repl(self, word, groups):
+    def _parser_end_handler(self, word: str, groups: Dict[str, str]):
         """ when we reach the end of a parser/pre section,
             we call the parser with the lines we collected
         """
         self.in_pre = None
-        self.writer.write(self._closeP())
+        self._closeP()
         parser_name = self.parser_name
         if parser_name is None:
             parser_name = 'text'
-        result = self.formatter.parser(parser_name, self.parser_args, self.parser_lines)
+        self.builder.parsed_text(parser_name, self.parser_args, self.parser_lines)
 
         self.parser_lines = []
         self.in_pre = None
         self.parser_name = None
         self.parser_args = None
-        return result
 
-    def _smiley_repl(self, word: str, groups: Dict[str, str]) -> str:
-        return self.formatter.smiley(word)
+    def _smiley_handler(self, word: str, groups: Dict[str, str]):
+        self.builder.smiley(word)
+        return ''
 
-    def _comment_repl(self, word, groups):
+    def _comment_handler(self, word, groups):
         # if we are in a paragraph, we must close it so that normal text following
         # in the line below the comment will reopen a new paragraph.
         if self.formatter.in_p:
@@ -1131,7 +1111,7 @@ class MoinParser(object):
         self.line_is_empty = True  # markup following comment lines treats them as if they were empty
         return self.formatter.comment(word)
 
-    def _macro_repl(self, word: str, groups: Dict[str, str]):
+    def _macro_handler(self, word: str, groups: Dict[str, str]):
         """Handle macros."""
         macro_name = groups.get('macro_name')
         macro_args = groups.get('macro_args')
@@ -1174,22 +1154,22 @@ class MoinParser(object):
 
     def _indent_to(self, new_level, list_type, numtype, numstart):
         """Close and open lists."""
-        openlist = []   # don't make one out of these two statements!
-        closelist = []
-
         if self._indent_level() != new_level and self.in_table:
-            closelist.append(self.formatter.table(0))
+            self.builder.table(False)
             self.in_table = False
 
         while self._indent_level() > new_level:
-            self._close_item(closelist)
+            if self.in_table:
+                self.builder.table(False)
+                self.in_table = False
+
+            self._close_item()
             if self.list_types[-1] == 'ol':
-                tag = self.formatter.number_list(0)
+                self.builder.number_list(False)
             elif self.list_types[-1] == 'dl':
-                tag = self.formatter.definition_list(0)
+                self.builder.definition_list(False)
             else:
-                tag = self.formatter.bullet_list(0)
-            closelist.append(tag)
+                self.builder.bullet_list(False)
 
             del self.list_indents[-1]
             del self.list_types[-1]
@@ -1205,63 +1185,57 @@ class MoinParser(object):
             self.list_indents.append(new_level)
             self.list_types.append(list_type)
 
+            if self.in_table:
+                self.builder.table(False)
+                self.in_table = False
+
             if self.formatter.in_p:
-                closelist.append(self.formatter.paragraph(0))
+                self.builder.paragraph(False)
 
             if list_type == 'ol':
-                tag = self.formatter.number_list(1, numtype, numstart)
+                self.builder.number_list(True, numtype, numstart)
             elif list_type == 'dl':
-                tag = self.formatter.definition_list(1)
+                self.builder.definition_list(True)
             else:
-                tag = self.formatter.bullet_list(1)
-            openlist.append(tag)
+                self.builder.bullet_list(True)
 
             self.first_list_item = 1
             self.in_li = False
             self.in_dd = False
 
-        # If list level changes, close an open table
-        if self.in_table and (openlist or closelist):
-            closelist[0:0] = [self.formatter.table(0)]
-            self.in_table = False
-
         self.in_list = self.list_types != []
-        return ''.join(closelist) + ''.join(openlist)
 
     def _undent(self):
         """Close all open lists."""
-        result = []
-        self._close_item(result)
+        self._close_item()
         for _type in self.list_types[::-1]:
             if _type == 'ol':
-                result.append(self.formatter.number_list(0))
+                self.builder.number_list(False)
             elif _type == 'dl':
-                result.append(self.formatter.definition_list(0))
+                self.builder.definition_list(False)
             else:
-                result.append(self.formatter.bullet_list(0))
+                self.builder.bullet_list(False)
         self.list_indents = []
         self.list_types = []
-        return ''.join(result)
 
-    def _close_item(self, result):
+    def _close_item(self):
         if self.in_table:
-            result.append(self.formatter.table(0))
+            self.builder.table(False)
             self.in_table = False
         if self.in_li:
             self.in_li = 0
             if self.formatter.in_p:
-                result.append(self.formatter.paragraph(0))
-            result.append(self.formatter.listitem(0))
+                self.builder.paragraph(False)
+            self.builder.listitem(False)
         if self.in_dd:
             self.in_dd = 0
             if self.formatter.in_p:
-                result.append(self.formatter.paragraph(0))
-            result.append(self.formatter.definition_desc(0))
+                self.builder.paragraph(False)
+            self.formatter.definition_desc(False)
 
     def _closeP(self):
         if self.formatter.in_p:
-            return self.formatter.paragraph(0)
-        return ''
+            self.builder.paragraph(False)
 
     def _get_params(self, paramstring: str, acceptable_attrs: List[str] = []
                     ) -> Tuple[Dict[str, str], Dict[str, str]]:
