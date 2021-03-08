@@ -190,7 +190,7 @@ class MoinParser(object):
     parser_unique = ''
     parser_scan_rule = r"""
 (?P<parser_end>
-    %s\}\}\}  # in parser/pre, we only look for the end of the parser/pre
+    %s\}\}\}\n?  # in parser/pre, we only look for the end of the parser/pre
 )
 """
 
