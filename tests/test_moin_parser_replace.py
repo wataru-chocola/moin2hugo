@@ -12,6 +12,20 @@ def formatter_object():
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
+        ("<<TableOfContents>>", ''),
+        ("<<BR>>", '<br />'),
+        ("<<UnsupportedMacro>>", '<<UnsupportedMacro>>'),
+    ]
+)
+def test_macro(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    # TODO: remove trailing space
+    ret = formatter_object.format(page).rstrip()
+    assert ret == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
         (":)", ":simple_smile:"),
     ]
 )

@@ -59,7 +59,9 @@ class Raw(PageElement):
 #
 @attr.s
 class Macro(PageElement):
-    pass
+    macro_name: str = attr.ib(kw_only=True)
+    macro_args: Optional[str] = attr.ib(kw_only=True)
+    markup: str = attr.ib(kw_only=True)
 
 
 @attr.s
