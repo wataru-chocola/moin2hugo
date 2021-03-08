@@ -2,7 +2,7 @@ import re
 
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Macro, Smiley,
+    Macro, Comment, Smiley,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm,
@@ -70,6 +70,7 @@ class Formatter(object):
 
             # Moinwiki Special Objects
             Macro: self.macro,
+            Comment: self.comment,
             Smiley: self.smiley,
 
             # Codeblock / ParsedText
@@ -141,12 +142,15 @@ class Formatter(object):
                 return self.text(e.markup)
         return ''
 
-    def smiley(self, smiley: Smiley):
+    def comment(self, comment: Comment) -> str:
+        return ''
+
+    def smiley(self, smiley: Smiley) -> str:
         # TODO: enableEmoji option?
         return smiley2emoji[smiley.content]
 
     # Codeblock
-    def parsed_text(self, e: ParsedText):
+    def parsed_text(self, e: ParsedText) -> str:
         lines = e.content.splitlines()
         if lines and not lines[0]:
             lines = lines[1:]
