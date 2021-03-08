@@ -49,12 +49,6 @@ class PageBuilder(object):
         self.cur = self.cur.parent
 
     # General Objects
-    def paragraph(self, on: bool):
-        if on:
-            self._start_new_elem(Paragraph())
-        else:
-            self._end_current_elem()
-
     def paragraph_start(self):
         self._start_new_elem(Paragraph())
 
@@ -82,21 +76,17 @@ class PageBuilder(object):
         pass
 
     # Codeblock / ParsedText
-    def parsed_text(self, parser_name: str, parser_args: Optional[str], lines: List[str]):
-        self.cur.add_child(ParsedText(parser_name=parser_name, parser_args=parser_args,
-                                      content="\n".join(lines)))
-
     def parsed_text_start(self):
         e = ParsedText()
         self._start_new_elem(e)
 
-    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str]):
+    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str] = None):
         assert isinstance(self.cur, ParsedText)
         self.cur.parser_name = parser_name
         self.cur.parser_args = parser_args
 
     def parsed_text_end(self, lines: List[str]):
-        self.cur.content = '\n'.join(lines)
+        self.cur.content = ''.join(lines)
         self._end_current_elem()
 
     def preformatted(self, on):
@@ -206,11 +196,11 @@ class PageBuilder(object):
         else:
             self._end_current_elem()
 
-    def listitem(self, on: bool):
-        if on:
-            self._start_new_elem(Listitem())
-        else:
-            self._end_current_elem()
+    def listitem_start(self):
+        self._start_new_elem(Listitem())
+
+    def listitem_end(self):
+        self._end_current_elem()
 
     def definition_list(self, on: bool):
         if on:
