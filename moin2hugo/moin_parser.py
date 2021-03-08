@@ -344,9 +344,6 @@ class MoinParser(object):
         self.page_name = page_name
         self.formatter = formatter
 
-        self.macro = None
-        self.parser_name: Optional[str] = None
-        self.parser_args: Optional[str] = None
         self.parser_lines: List[str] = []
 
         self.line_is_empty = False
@@ -1092,10 +1089,7 @@ class MoinParser(object):
         """Handle macros."""
         macro_name = groups.get('macro_name')
         macro_args = groups.get('macro_args')
-
-        if self.macro is None:
-            self.macro = macro.Macro(self)
-        return self.formatter.macro(self.macro, macro_name, macro_args, markup=groups.get('macro'))
+        self.builder.macro(macro_name, macro_args, markup=groups.get('macro'))
 
     # Private helpers ------------------------------------------------------------
     def _parse_indentinfo(self, line: str) -> Tuple[int, str, Optional[str], Optional[int]]:

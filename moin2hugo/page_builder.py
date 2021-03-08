@@ -1,13 +1,14 @@
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Smiley,
+    Macro, Smiley,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm,
     Heading, HorizontalRule,
     ParsedText,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw)
+    Paragraph, Text, Raw
+)
 
 from typing import List, Dict, Optional
 
@@ -27,6 +28,9 @@ class PageBuilder(object):
         return bool(self.cur.parser_name)
 
     # Helpers
+    def _add_new_elem(self, e: PageElement):
+        self.cur.add_child(e)
+
     def _start_new_elem(self, e: PageElement):
         self.cur.add_child(e)
         self.cur = e
@@ -42,17 +46,17 @@ class PageBuilder(object):
             self._end_current_elem()
 
     def text(self, text: str):
-        self.cur.add_child(Text(content=text))
+        self._add_new_elem(Text(content=text))
 
     # Moinwiki Special Objects
-    def macro(self):
-        pass
+    def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
+        self._add_new_elem(Macro(macro_name=macro_name, macro_args=macro_args, markup=markup))
 
     def comment(self):
         pass
 
     def smiley(self, smiley: str):
-        self.cur.add_child(Smiley(content=smiley))
+        self._add_new_elem(Smiley(content=smiley))
 
     def span(self):
         pass

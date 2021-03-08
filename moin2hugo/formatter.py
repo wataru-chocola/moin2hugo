@@ -1,12 +1,18 @@
 import re
 
-from moin2hugo.page_tree import PageElement, PageRoot, Smiley, Paragraph, Text, Raw
-from moin2hugo.page_tree import BulletList, Listitem
-from moin2hugo.page_tree import Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code
-from moin2hugo.page_tree import Heading, HorizontalRule
-from moin2hugo.page_tree import ParsedText
-from moin2hugo.page_tree import Link, Pagelink, Url, AttachmentLink
-from typing import Optional, Dict, List, Callable, TypeVar, Type, Any
+from moin2hugo.page_tree import (
+    PageRoot, PageElement,
+    Macro, Smiley,
+    Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
+    BulletList, NumberList, Listitem,
+    DefinitionList, DefinitionTerm,
+    Heading, HorizontalRule,
+    ParsedText,
+    Link, Pagelink, Url, AttachmentLink,
+    Paragraph, Text, Raw
+)
+
+from typing import Optional, Dict, Callable, TypeVar, Type, Any
 
 T_PageElement = TypeVar("T_PageElement", bound=PageElement)
 
@@ -64,6 +70,8 @@ class Formatter(object):
             Paragraph: self.paragraph,
             Text: self.text2,
 
+            # Moinwiki Special Objects
+            Macro: self.macro,
             Smiley: self.smiley,
 
             Underline: self.underline,
@@ -113,20 +121,17 @@ class Formatter(object):
         return e.content
 
     # Moinwiki Special Objects
-    def macro(self, macro_obj, name, args, markup=None):
-        # TODO:
-        try:
-            return macro_obj.execute(name, args)
-        except ImportError as err:
-            errmsg = str(err)
-            if name not in errmsg:
-                raise
-            if markup:
-                return (self.span(1, title=errmsg) +
-                        self.text(markup) +
-                        self.span(0))
-            else:
-                return self.text(errmsg)
+    def macro(self, e: Macro) -> str:
+        if e.macro_name == 'BR':
+            # TODO:
+            return '<br />'
+        elif e.macro_name == 'TableOfContents':
+            # TODO
+            return ''
+        else:
+            if e.markup:
+                return self.text(e.markup)
+        return ''
 
     def smiley(self, smiley: Smiley):
         # TODO: enableEmoji option?
