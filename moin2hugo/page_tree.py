@@ -194,6 +194,6 @@ class Url(PageElement):
 
 @attr.s
 class ParsedText(PageElement):
-    parser_name: str = attr.ib(kw_only=True)
+    parser_name: str = attr.ib(default='')
     parser_args: Optional[str] = attr.ib(default=None)
 
