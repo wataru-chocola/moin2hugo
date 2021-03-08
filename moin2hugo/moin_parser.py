@@ -846,10 +846,10 @@ class MoinParser(object):
         """Handle definition lists."""
         self._close_item()
         self.in_dd = 1
-        self.builder.definition_term(True)
+        self.builder.definition_term_start()
         self.builder.text(word[1:-3].lstrip(' '))
-        self.builder.definition_term(False)
-        self.builder.definition_desc(True)
+        self.builder.definition_term_end()
+        self.builder.definition_desc_start()
 
     def _transclude_description(self, desc: str, default_text: str = '') -> str:
         """ parse a string <desc> valid as transclude description (text, ...)
@@ -1133,11 +1133,11 @@ class MoinParser(object):
 
             self._close_item()
             if self.list_types[-1] == 'ol':
-                self.builder.number_list(False)
+                self.builder.number_list_end()
             elif self.list_types[-1] == 'dl':
-                self.builder.definition_list(False)
+                self.builder.definition_list_end()
             else:
-                self.builder.bullet_list(False)
+                self.builder.bullet_list_end()
 
             del self.list_indents[-1]
             del self.list_types[-1]
@@ -1161,11 +1161,11 @@ class MoinParser(object):
                 self.builder.paragraph_end()
 
             if list_type == 'ol':
-                self.builder.number_list(True, numtype, numstart)
+                self.builder.number_list_start(numtype, numstart)
             elif list_type == 'dl':
-                self.builder.definition_list(True)
+                self.builder.definition_list_start()
             else:
-                self.builder.bullet_list(True)
+                self.builder.bullet_list_start()
 
             self.first_list_item = 1
             self.in_li = False
@@ -1178,11 +1178,11 @@ class MoinParser(object):
         self._close_item()
         for _type in self.list_types[::-1]:
             if _type == 'ol':
-                self.builder.number_list(False)
+                self.builder.number_list_end()
             elif _type == 'dl':
-                self.builder.definition_list(False)
+                self.builder.definition_list_end()
             else:
-                self.builder.bullet_list(False)
+                self.builder.bullet_list_end()
         self.list_indents = []
         self.list_types = []
 
@@ -1199,7 +1199,7 @@ class MoinParser(object):
             self.in_dd = 0
             if self.builder.in_p:
                 self.builder.paragraph_end()
-            self.formatter.definition_desc(False)
+            self.builder.definition_desc_end()
 
     def _closeP(self):
         if self.builder.in_p:

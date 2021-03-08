@@ -246,6 +246,48 @@ def test_itemlists_containing_paragraph(formatter_object):
     assert formatter_object.format(page) == expected
 
 
+def test_definition_lists(formatter_object):
+    moin_text = """\
+    Preamble.
+
+     term:: definition
+     object::
+     :: description 1
+        * a
+        * b
+     :: description 2
+
+     {{{#!highlight python
+    import sys
+    sys.stdout.write("hello, world")
+    }}}
+     :: description 3
+    """
+    expected = """\
+    Preamble.
+
+    term
+    : definition
+
+    object
+    : description 1
+        * a
+        * b
+    : description 2
+
+        ```python
+        import sys
+        sys.stdout.write("hello, world")
+        ```
+    : description 3
+    """
+    data = textwrap.dedent(moin_text)
+
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    expected = textwrap.dedent(expected)
+    assert formatter_object.format(page) == expected
+
+
 @pytest.mark.parametrize(
     ("data", "expected"), [
         ("{{drawing:twikitest.tdraw}}", "{{drawing:twikitest.tdraw}}"),

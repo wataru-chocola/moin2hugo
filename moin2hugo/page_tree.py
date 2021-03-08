@@ -213,6 +213,11 @@ class DefinitionTerm(PageElement):
 
 
 @attr.s
+class DefinitionDesc(PageElement):
+    pass
+
+
+@attr.s
 class Listitem(PageElement):
     pass
 
