@@ -101,17 +101,17 @@ class ParsedText(PageElement):
 #
 @attr.s
 class Table(PageElement):
-    pass
+    attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
 
 
 @attr.s
 class TableRow(PageElement):
-    pass
+    attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
 
 
 @attr.s
 class TableCell(PageElement):
-    pass
+    attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
 
 
 # Heading / Horizontal Rule

@@ -65,6 +65,20 @@ def test_codeblock(formatter_object):
     assert formatter_object.format(page) == expected
 
 
+def test_table(formatter_object):
+    table_text = """\
+    ||'''A'''||'''B'''||'''C'''||
+    ||1      || 2 ||3      ||
+    """
+    expected = """\
+    | **A** | **B** | **C** |
+    | 1 | 2 | 3 |
+    """
+    page = MoinParser.parse(textwrap.dedent(table_text), 'PageName', formatter_object)
+    expected = textwrap.dedent(expected)
+    assert formatter_object.format(page) == expected
+
+
 @pytest.mark.parametrize(
     ("data", "expected"), [
         ('<bgcolor="#00FF00" rowspan="2">', {'bgcolor': '"#00FF00"', 'rowspan': '"2"'}),

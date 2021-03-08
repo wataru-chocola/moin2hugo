@@ -4,11 +4,12 @@ import textwrap
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley,
+    ParsedText,
+    Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
-    ParsedText,
     Link, Pagelink, Url, AttachmentLink,
     Paragraph, Text, Raw
 )
@@ -78,7 +79,9 @@ class Formatter(object):
             ParsedText: self.parsed_text,
 
             # Table
-            # Table: self.table,
+            Table: self.table,
+            TableRow: self.table_row,
+            TableCell: self.table_cell,
 
             # Heading / Horizontal Rule
             Heading: self.heading,
@@ -179,9 +182,18 @@ class Formatter(object):
         return ret
 
     # Table
-    # def table(self, e: Table) -> str:
-    #     ret = self._separator_line(e)
-    #     pass
+    def table(self, e: Table) -> str:
+        return self._separator_line(e) + self._generic_container(e)
+
+    def table_row(self, e: Table) -> str:
+        ret = []
+        for c in e.children:
+            assert isinstance(c, TableCell)
+            ret.append(self.format(c))
+        return "|" + "|".join(ret) + "|\n"
+
+    def table_cell(self, e: Table) -> str:
+        return " %s " % self._generic_container(e).strip()
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
