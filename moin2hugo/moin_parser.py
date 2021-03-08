@@ -336,6 +336,8 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in config.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
+    available_parsers = ('text', 'highlight')
+
     def __init__(self, text: str, page_name: str, formatter):
         self.builder = moin2hugo.page_builder.PageBuilder()
         self.lines = text.expandtabs().splitlines()
@@ -362,12 +364,6 @@ class MoinParser(object):
         self.in_li: bool = False  # between <li> and </li>
         self.in_dd: bool = False  # between <dd> and </dd>
         self.in_table: bool = False
-
-        # states of the parser concerning being inside/outside of some "pre" section:
-        # None == we are not in any kind of pre section (was: 0)
-        # 'search_parser' == we didn't get a parser yet, still searching for it (was: 1)
-        # 'found_parser' == we found a valid parser (was: 2)
-        self.in_pre: Optional[str] = None
 
         # holds the nesting level (in chars) of open lists
         self.list_indents: List[int] = []
@@ -401,7 +397,7 @@ class MoinParser(object):
                     continue
                 in_processing_instructions = 0
 
-            if not self.in_pre:
+            if not self.builder.in_pre:
                 # TODO: we don't have \n as whitespace any more
                 # This is the space between lines we join to one paragraph
                 line += ' '
@@ -447,7 +443,8 @@ class MoinParser(object):
 
         # Close code displays, paragraphs, tables and open lists
         self._undent()
-        if self.in_pre: self.builder.preformatted(False)
+        # TODO: preformatted?
+        if self.builder.in_pre: self.builder.preformatted(False)
         if self.formatter.in_p: self.builder.paragraph(False)
         if self.in_table: self.builder.table(False)
 
@@ -460,16 +457,16 @@ class MoinParser(object):
         while lastpos <= line_length:
             parser_scan_re = re.compile(self.parser_scan_rule % re.escape(self.parser_unique),
                                         re.VERBOSE | re.UNICODE)
-            scan_re = parser_scan_re if self.in_pre else self.scan_re
+            scan_re = parser_scan_re if self.builder.in_pre else self.scan_re
             match = scan_re.search(line, lastpos)
             if not match:
                 remainder = line[lastpos:]
-                if self.in_pre:
+                if self.builder.in_pre:
                     # lastpos is more then 0 and result of line slice is empty make useless line
                     if not (lastpos > 0 and remainder == ''):
                         self._parser_content(remainder)
                 elif remainder:
-                    if not (self.in_pre or self.formatter.in_p or self.in_li or self.in_dd):
+                    if not (self.builder.in_pre or self.formatter.in_p or self.in_li or self.in_dd):
                         self.builder.paragraph(True)
                     self.builder.text(remainder)
                 break
@@ -477,15 +474,15 @@ class MoinParser(object):
             start = match.start()
             if lastpos < start:
                 # process leading text
-                if self.in_pre:
+                if self.builder.in_pre:
                     self._parser_content(line[lastpos:start])
                 else:
-                    if not (self.in_pre or self.formatter.in_p):
+                    if not (self.builder.in_pre or self.formatter.in_p):
                         self.builder.paragraph(True)
                     self.builder.text(line[lastpos:start])
 
             # Replace match with markup
-            if not (self.in_pre or self.formatter.in_p or self.in_table or self.in_list):
+            if not (self.builder.in_pre or self.formatter.in_p or self.in_table or self.in_list):
                 self.builder.paragraph(True)
             self._process_markup(match)
             end = match.end()
@@ -589,7 +586,7 @@ class MoinParser(object):
         for _type, hit in match.groupdict().items():
             if hit is not None and _type not in ["hmarker", ]:
                 # Open p for certain types
-                if not (self.formatter.in_p or self.in_pre or (_type in no_new_p_before)):
+                if not (self.formatter.in_p or self.builder.in_pre or (_type in no_new_p_before)):
                     self.builder.paragraph(True)
 
                 dispatcher[_type](hit, match.groupdict())
@@ -1015,10 +1012,8 @@ class MoinParser(object):
 
     def _parser_handler(self, word: str, groups: Dict[str, str]):
         """Handle parsed code displays."""
-        self.parser_name = None
-        self.parser_args = None
+        self.builder.parsed_text_start()
         self.parser_lines = []
-        self.in_pre = 'search_parser'
 
         parser_name = groups.get('parser_name', None)
         parser_args = groups.get('parser_args', None)
@@ -1029,32 +1024,23 @@ class MoinParser(object):
             parser_unique = '}' * len(parser_unique)  # for symmetry cosmetic reasons
         self.parser_unique = parser_unique
 
-        if parser_name is not None:
-            if parser_name == '':
-                parser_name = 'text'
-                word = ''
-        elif parser_nothing is None:
+        if parser_name is not None and parser_name == '':
+            parser_name = 'text'
+        if parser_name is None and parser_nothing is None:
             parser_name = 'text'
 
         if parser_name:
-            if self._set_parser(parser_name):
-                self.parser_args = parser_args
-                word = ''
-            else:
-                # loading the desired parser didn't work, retry a safe option:
-                self._set_parser('text')
-                word = ''
-
-        if self.parser_name:
-            self.in_pre = 'found_parser'
-            if word:
-                self.parser_lines.append(word)
-
-        return ''
+            if parser_name not in self.available_parsers:
+                logger.warning("unsupported parser: %s" % parser_name)
+                parser_name = 'text'
+                parser_args = None
+            self.builder.parsed_text_parser(parser_name, parser_args)
 
     def _parser_content(self, line: str):
         """ handle state and collecting lines for parser in pre/parser sections """
-        if self.in_pre == 'search_parser' and line.strip():
+        if self.builder.is_found_parser:
+            self.parser_lines.append(line)
+        elif line.strip():
             bang_line = False
             stripped_line = line.strip()
             parser_name = ''
@@ -1068,36 +1054,27 @@ class MoinParser(object):
                 elif len(tmp) == 1:
                     parser_name = tmp[0]
 
-            if parser_name:
+            if not parser_name:
                 parser_name = 'text'
 
-            if self._set_parser(parser_name):
-                self.parser_args = parser_args
-            else:
-                self._set_parser('text')
+            if parser_name not in self.available_parsers:
+                logger.warning("unsupported parser: %s" % parser_name)
+                parser_name = 'text'
 
-            self.in_pre = 'found_parser'
+            self.builder.parsed_text_parser(parser_name, parser_args)
             if not bang_line:
                 self.parser_lines.append(line)
-
-        elif self.in_pre == 'found_parser':
-            self.parser_lines.append(line)
 
     def _parser_end_handler(self, word: str, groups: Dict[str, str]):
         """ when we reach the end of a parser/pre section,
             we call the parser with the lines we collected
         """
-        self.in_pre = None
         self._closeP()
-        parser_name = self.parser_name
-        if parser_name is None:
-            parser_name = 'text'
-        self.builder.parsed_text(parser_name, self.parser_args, self.parser_lines)
+        if not self.builder.is_found_parser:
+            self.builder.parsed_text_parser('text')
+        self.builder.parsed_text_end(self.parser_lines)
 
         self.parser_lines = []
-        self.in_pre = None
-        self.parser_name = None
-        self.parser_args = None
 
     def _smiley_handler(self, word: str, groups: Dict[str, str]):
         self.builder.smiley(word)
@@ -1257,15 +1234,6 @@ class MoinParser(object):
                     key = key[1:]
                     query_args[key] = val
         return tag_attrs, query_args
-
-    def _set_parser(self, name: str) -> bool:
-        available_parsers = ('text', 'highlight')
-        if name in available_parsers:
-            self.parser_name = name
-            return True
-        else:
-            logger.warning("unsupported parser: %s" % name)
-            return False
 
 
 def _getTableAttrs(attrdef: str) -> Dict[str, str]:

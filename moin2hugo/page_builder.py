@@ -1,12 +1,13 @@
-from moin2hugo.page_tree import PageRoot
-from moin2hugo.page_tree import Smiley
-from moin2hugo.page_tree import Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code
-from moin2hugo.page_tree import BulletList, NumberList, Listitem
-from moin2hugo.page_tree import DefinitionList, DefinitionTerm
-from moin2hugo.page_tree import Heading, HorizontalRule
-from moin2hugo.page_tree import ParsedText
-from moin2hugo.page_tree import Link, Pagelink, Url, AttachmentLink
-from moin2hugo.page_tree import Paragraph, Text, Raw
+from moin2hugo.page_tree import (
+    PageRoot, PageElement,
+    Smiley,
+    Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
+    BulletList, NumberList, Listitem,
+    DefinitionList, DefinitionTerm,
+    Heading, HorizontalRule,
+    ParsedText,
+    Link, Pagelink, Url, AttachmentLink,
+    Paragraph, Text, Raw)
 
 from typing import List, Dict, Optional
 
@@ -16,14 +17,29 @@ class PageBuilder(object):
         self.page_root = PageRoot()
         self.cur = self.page_root
 
+    # Page Bulding Status
+    @property
+    def in_pre(self) -> bool:
+        return isinstance(self.cur, ParsedText)
+
+    def is_found_parser(self) -> bool:
+        assert self.in_pre
+        return bool(self.cur.parser_name)
+
+    # Helpers
+    def _start_new_elem(self, e: PageElement):
+        self.cur.add_child(e)
+        self.cur = e
+
+    def _end_current_elem(self):
+        self.cur = self.cur.parent
+
     # General Objects
     def paragraph(self, on: bool):
         if on:
-            e = Paragraph()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Paragraph())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def text(self, text: str):
         self.cur.add_child(Text(content=text))
@@ -179,9 +195,23 @@ class PageBuilder(object):
         else:
             self.cur = self.cur.parent
 
+    # TODO
     def parsed_text(self, parser_name: str, parser_args: Optional[str], lines: List[str]):
         self.cur.add_child(ParsedText(parser_name=parser_name, parser_args=parser_args,
                                       content="\n".join(lines)))
+
+    def parsed_text_start(self):
+        e = ParsedText()
+        self._start_new_elem(e)
+
+    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str]):
+        assert isinstance(self.cur, ParsedText)
+        self.cur.parser_name = parser_name
+        self.cur.parser_args = parser_args
+
+    def parsed_text_end(self, lines: List[str]):
+        self.cur.content = '\n'.join(lines)
+        self._end_current_elem()
 
     def preformatted(self, on):
         pass
