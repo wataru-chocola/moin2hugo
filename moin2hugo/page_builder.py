@@ -16,6 +16,19 @@ class PageBuilder(object):
         self.page_root = PageRoot()
         self.cur = self.page_root
 
+    # General Objects
+    def paragraph(self, on: bool):
+        if on:
+            e = Paragraph()
+            self.cur.add_child(e)
+            self.cur = e
+        else:
+            self.cur = self.cur.parent
+
+    def text(self, text: str):
+        self.cur.add_child(Text(content=text))
+
+    # Moinwiki Special Objects
     def macro(self):
         pass
 
@@ -36,7 +49,7 @@ class PageBuilder(object):
 
     def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
                               queryargs: Optional[Dict[str, str]] = None):
-        e = AttachmentLink(attach_name, title, queryargs=queryargs)
+        e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
         self.cur.add_child(e)
         self.cur = e
 
@@ -44,7 +57,7 @@ class PageBuilder(object):
         self.cur = self.cur.parent
 
     def heading(self, depth: int, text: str):
-        self.cur.add_child(Heading(depth, content=text))
+        self.cur.add_child(Heading(depth=depth, content=text))
 
     def rule(self):
         self.cur.add_child(HorizontalRule())
@@ -150,7 +163,7 @@ class PageBuilder(object):
         pass
 
     def link_start(self, target: str, title: Optional[str] = None):
-        e = Link(target, title=title)
+        e = Link(target=target, title=title)
         self.cur.add_child(e)
         self.cur = e
 
@@ -160,22 +173,15 @@ class PageBuilder(object):
     def pagelink(self, on: bool, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
                  anchor: Optional[str] = None):
         if on:
-            e = Pagelink(page_name, queryargs=queryargs, anchor=anchor)
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
-
-    def paragraph(self, on: bool):
-        if on:
-            e = Paragraph()
+            e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
             self.cur.add_child(e)
             self.cur = e
         else:
             self.cur = self.cur.parent
 
     def parsed_text(self, parser_name: str, parser_args: Optional[str], lines: List[str]):
-        self.cur.add_child(ParsedText(parser_name, parser_args, content="\n".join(lines)))
+        self.cur.add_child(ParsedText(parser_name=parser_name, parser_args=parser_args,
+                                      content="\n".join(lines)))
 
     def preformatted(self, on):
         pass
@@ -191,9 +197,6 @@ class PageBuilder(object):
 
     def table_row(self):
         pass
-
-    def text(self, text: str):
-        self.cur.add_child(Text(content=text))
 
     def transclusion(self):
         pass

@@ -59,6 +59,11 @@ class Formatter(object):
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self._generic_container,
+
+            # General Objects
+            Paragraph: self.paragraph,
+            Text: self.text2,
+
             Smiley: self.smiley,
 
             Underline: self.underline,
@@ -84,17 +89,8 @@ class Formatter(object):
 
             BulletList: self.bullet_list,
             Listitem: self.listitem,
-            Paragraph: self.paragraph,
-            Text: self.text2,
         }
         return dispatch_tbl[type(e)](e)
-
-    def page(self, e: PageRoot):
-        # TODO: unused
-        ret = ''
-        for c in e.children:
-            ret += self.format(c)
-        return ret
 
     def _generic_container(self, e: PageElement) -> str:
         ret = ''
@@ -102,11 +98,21 @@ class Formatter(object):
             ret += self.format(c)
         return ret
 
-    # Moinwiki Special Object
-    def smiley(self, smiley: Smiley):
-        # TODO: enableEmoji option?
-        return smiley2emoji[smiley.content]
+    # General Objects
+    def paragraph(self, e: Paragraph) -> str:
+        return self._generic_container(e)
 
+    def text(self, text: str) -> str:
+        # TODO: escape markdown special characters, etc
+        return text
+
+    def text2(self, e: Text) -> str:
+        return e.content
+
+    def raw(self, e: Raw) -> str:
+        return e.content
+
+    # Moinwiki Special Objects
     def macro(self, macro_obj, name, args, markup=None):
         # TODO:
         try:
@@ -122,12 +128,9 @@ class Formatter(object):
             else:
                 return self.text(errmsg)
 
-    def paragraph(self, p: Paragraph):
-        # TODO: p.content?
-        ret = ''
-        for e in p.children:
-            ret += self.format(e)
-        return ret
+    def smiley(self, smiley: Smiley):
+        # TODO: enableEmoji option?
+        return smiley2emoji[smiley.content]
 
     # Codeblock
     def parsed_text(self, e: ParsedText):
@@ -285,12 +288,3 @@ class Formatter(object):
         # TODO
         return "dummy"
 
-    def text(self, text: str) -> str:
-        # TODO: escape markdown special characters, etc
-        return text
-
-    def text2(self, e: Text) -> str:
-        return e.content
-
-    def raw(self, e: Raw) -> str:
-        return e.content
