@@ -59,9 +59,6 @@ smiley2emoji = {
 
 
 class Formatter(object):
-    def __init__(self):
-        self.in_p = False
-
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self._generic_container,
