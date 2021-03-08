@@ -117,7 +117,7 @@ class Formatter(object):
             ret += self.format(c)
         return ret
 
-    def _seperator_line(self, e: PageElement) -> str:
+    def _separator_line(self, e: PageElement) -> str:
         if e.prev_sibling is not None and type(e.prev_sibling) in (
                 Paragraph, ParsedText, BulletList, NumberList, DefinitionList,
                 Heading, HorizontalRule):
@@ -126,7 +126,7 @@ class Formatter(object):
 
     # General Objects
     def paragraph(self, e: Paragraph) -> str:
-        return self._seperator_line(e) + self._generic_container(e)
+        return self._separator_line(e) + self._generic_container(e)
 
     def text(self, text: str) -> str:
         # TODO: escape markdown special characters, etc
@@ -166,7 +166,7 @@ class Formatter(object):
         if lines and not lines[-1].strip():
             lines = lines[:-1]
 
-        ret = self._seperator_line(e)
+        ret = self._separator_line(e)
         if e.parser_name == 'highlight':
             parser_args = e.parser_args or ''
             # TODO: take consideration of indentation
@@ -177,7 +177,7 @@ class Formatter(object):
 
     # Table
     # def table(self, e: Table) -> str:
-    #     ret = self._seperator_line(e)
+    #     ret = self._separator_line(e)
     #     pass
 
     # Heading / Horizontal Rule
@@ -272,29 +272,42 @@ class Formatter(object):
 
     # Itemlist
     def bullet_list(self, e: BulletList) -> str:
-        ret = self._seperator_line(e)
-        ret += "".join(["* %s" % self.format(item) for item in e.children])
-        return ret
+        return self._separator_line(e) + self._generic_container(e)
 
     def number_list(self, e: NumberList) -> str:
-        ret = self._seperator_line(e)
-        ret += "".join(["1. %s" % self.format(item) for item in e.children])
-        return ret
+        return self._separator_line(e) + self._generic_container(e)
 
     def definition_list(self, e: DefinitionList):
         # TODO
-        ret = self._seperator_line(e)
+        ret = self._separator_line(e)
         return ret
 
     def listitem(self, e: Listitem):
-        # TODO: indent?
         ret = ""
+        if isinstance(e.parent, BulletList):
+            marker = "* "
+        elif isinstance(e.parent, NumberList):
+            marker = "1. "
+        else:
+            raise Exception("Invalid Page Tree Structure")
+
+        paragraph_indent = " " * len(marker)
+        first_line = True
         for c in e.children:
+            text = self.format(c)
             if isinstance(c, BulletList) or isinstance(c, NumberList):
-                text = self.format(c)
-                ret += textwrap.indent(text, "    ")
+                ret += textwrap.indent(text, " " * 4)
+            elif isinstance(c, ParsedText):
+                ret += "\n"
+                ret += textwrap.indent(text, paragraph_indent)
+                ret += "\n"
             else:
-                ret += self.format(c)
+                for line in text.splitlines(keepends=True):
+                    if first_line:
+                        ret += marker + line
+                        first_line = False
+                    else:
+                        ret += paragraph_indent + line
         return ret
 
     # Image Embedding

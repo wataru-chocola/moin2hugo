@@ -53,15 +53,13 @@ def test_codeblock(formatter_object):
     }}}
     """
     # first line: moin parser makes empty paragraph before preformatted text.
-    # last line: newline following }}} is treated as a start of paragraph.
     expected = """\
 
     ```python
     import sys
     sys.out.write("Hello, World")
     ```
-
-    """
+    """.rstrip()
     page = MoinParser.parse(textwrap.dedent(code_block_text), 'PageName', formatter_object)
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
@@ -206,6 +204,40 @@ def test_itemlists_multi_items(formatter_object):
             1. num2
     * two
     * three
+    """
+    data = textwrap.dedent(moin_text)
+
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    expected = textwrap.dedent(expected)
+    assert formatter_object.format(page) == expected
+
+
+def test_itemlists_containing_paragraph(formatter_object):
+    moin_text = """\
+    Preamble.
+
+     * one.
+       * one-2.
+
+       {{{#!highlight python
+    import sys
+    sys.stdout.write("hello, world")
+    }}}
+       * one-3.
+     * two
+    """
+    expected = """\
+    Preamble.
+
+    * one.
+        * one-2.
+
+          ```python
+          import sys
+          sys.stdout.write("hello, world")
+          ```
+        * one-3.
+    * two
     """
     data = textwrap.dedent(moin_text)
 
