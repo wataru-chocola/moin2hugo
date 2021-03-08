@@ -405,8 +405,8 @@ class MoinParser(object):
                         self.builder.table(False)
                         self.in_table = False
                     # TODO: p should close on every empty line
-                    if self.formatter.in_p:
-                        self.builder.paragraph(False)
+                    if self.builder.in_p:
+                        self.builder.paragraph_end()
                     self.line_is_empty = True
                     continue
 
@@ -424,8 +424,8 @@ class MoinParser(object):
                         self.builder.listitem(True)
                         self.in_li = True
 
-                    if self.formatter.in_p:
-                        self.builder.paragraph(False)
+                    if self.builder.in_p:
+                        self.builder.paragraph_end()
                     attrs = _getTableAttrs(tmp_line[2:])
                     self.builder.table(True, attrs)
                     self.in_table = True
@@ -442,7 +442,7 @@ class MoinParser(object):
         self._undent()
         # TODO: preformatted?
         if self.builder.in_pre: self.builder.preformatted(False)
-        if self.formatter.in_p: self.builder.paragraph(False)
+        if self.builder.in_p: self.builder.paragraph_end()
         if self.in_table: self.builder.table(False)
 
         return self.builder.page_root
@@ -463,8 +463,8 @@ class MoinParser(object):
                     if not (lastpos > 0 and remainder == ''):
                         self._parser_content(remainder)
                 elif remainder:
-                    if not (self.builder.in_pre or self.formatter.in_p or self.in_li or self.in_dd):
-                        self.builder.paragraph(True)
+                    if not (self.builder.in_pre or self.builder.in_p or self.in_li or self.in_dd):
+                        self.builder.paragraph_start()
                     self.builder.text(remainder)
                 break
 
@@ -474,13 +474,13 @@ class MoinParser(object):
                 if self.builder.in_pre:
                     self._parser_content(line[lastpos:start])
                 else:
-                    if not (self.builder.in_pre or self.formatter.in_p):
-                        self.builder.paragraph(True)
+                    if not self.builder.in_p:
+                        self.builder.paragraph_start()
                     self.builder.text(line[lastpos:start])
 
             # Replace match with markup
-            if not (self.builder.in_pre or self.formatter.in_p or self.in_table or self.in_list):
-                self.builder.paragraph(True)
+            if not (self.builder.in_pre or self.builder.in_p or self.in_table or self.in_list):
+                self.builder.paragraph_start()
             self._process_markup(match)
             end = match.end()
             lastpos = end
@@ -583,8 +583,8 @@ class MoinParser(object):
         for _type, hit in match.groupdict().items():
             if hit is not None and _type not in ["hmarker", ]:
                 # Open p for certain types
-                if not (self.formatter.in_p or self.builder.in_pre or (_type in no_new_p_before)):
-                    self.builder.paragraph(True)
+                if not (self.builder.in_p or self.builder.in_pre or (_type in no_new_p_before)):
+                    self.builder.paragraph_start()
 
                 dispatcher[_type](hit, match.groupdict())
                 return
@@ -955,8 +955,8 @@ class MoinParser(object):
         """Handle table row end."""
         if self.in_table:
             result = ''
-            if self.formatter.in_p:
-                result = self.formatter.paragraph(0)
+            if self.builder.in_p:
+                result = self.builder.paragraph_end()
             result += self.formatter.table_cell(0) + self.formatter.table_row(0)
             return result
         else:
@@ -974,8 +974,8 @@ class MoinParser(object):
                 result.append(self.formatter.table_row(1, attrs))
             else:
                 # Close table cell, first closing open p
-                if self.formatter.in_p:
-                    result.append(self.formatter.paragraph(0))
+                if self.builder.in_p:
+                    result.append(self.builder.paragraph_end())
                 result.append(self.formatter.table_cell(0))
 
             # check for adjacent cell markers
@@ -1080,8 +1080,8 @@ class MoinParser(object):
     def _comment_handler(self, word, groups):
         # if we are in a paragraph, we must close it so that normal text following
         # in the line below the comment will reopen a new paragraph.
-        if self.formatter.in_p:
-            self.formatter.paragraph(0)
+        if self.builder.in_p:
+            self.builder.paragraph_end()
         self.line_is_empty = True  # markup following comment lines treats them as if they were empty
         return self.formatter.comment(word)
 
@@ -1160,8 +1160,8 @@ class MoinParser(object):
                 self.builder.table(False)
                 self.in_table = False
 
-            if self.formatter.in_p:
-                self.builder.paragraph(False)
+            if self.builder.in_p:
+                self.builder.paragraph_end()
 
             if list_type == 'ol':
                 self.builder.number_list(True, numtype, numstart)
@@ -1195,18 +1195,18 @@ class MoinParser(object):
             self.in_table = False
         if self.in_li:
             self.in_li = 0
-            if self.formatter.in_p:
-                self.builder.paragraph(False)
+            if self.builder.in_p:
+                self.builder.paragraph_end()
             self.builder.listitem(False)
         if self.in_dd:
             self.in_dd = 0
-            if self.formatter.in_p:
-                self.builder.paragraph(False)
+            if self.builder.in_p:
+                self.builder.paragraph_end()
             self.formatter.definition_desc(False)
 
     def _closeP(self):
-        if self.formatter.in_p:
-            self.builder.paragraph(False)
+        if self.builder.in_p:
+            self.builder.paragraph_end()
 
     def _get_params(self, paramstring: str, acceptable_attrs: List[str] = []
                     ) -> Tuple[Dict[str, str], Dict[str, str]]:
