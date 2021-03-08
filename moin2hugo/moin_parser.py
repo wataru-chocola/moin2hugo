@@ -307,7 +307,7 @@ class MoinParser(object):
 )|(?P<indent>
     ^\s+  # indented by some spaces
 )|(?P<tableZ>
-    \|\|\ $  # the right end of a table row
+    \|\|\n?$  # the right end of a table row
 )|(?P<table>
     (?:\|\|)+(?:<(?!<)[^>]*?>)?(?!\|?\s$) # a table
 )|(?P<rule>
@@ -353,8 +353,6 @@ class MoinParser(object):
         self.is_small = False
         self.is_remark = False
 
-        self.in_table: bool = False
-
         # holds the nesting level (in chars) of open lists
         self.list_indents: List[int] = []
 
@@ -385,9 +383,8 @@ class MoinParser(object):
             if not self.builder.in_pre:
                 # Paragraph break on empty lines
                 if not line.strip():
-                    if self.in_table:
-                        self.builder.table(False)
-                        self.in_table = False
+                    if self.builder.in_table:
+                        self.builder.table_end()
                     # TODO: p should close on every empty line
                     if self.builder.in_p:
                         self.builder.paragraph_end()
@@ -398,10 +395,10 @@ class MoinParser(object):
                 self._indent_to(indlen, indtype, numtype, numstart)
 
                 # Table start / break
-                tmp_line = line.lstrip()
-                is_table_line = tmp_line.startswith("||") and tmp_line.endswith("|| ") \
+                tmp_line = line.strip()
+                is_table_line = tmp_line.startswith("||") and tmp_line.endswith("||") \
                     and len(tmp_line) >= 5
-                if not self.in_table and is_table_line:
+                if not self.builder.in_table and is_table_line:
                     # start table
                     if self.builder.list_types and not self.builder.in_li_of_current_list:
                         self.builder.listitem_start()
@@ -409,13 +406,10 @@ class MoinParser(object):
                     if self.builder.in_p:
                         self.builder.paragraph_end()
                     attrs = _getTableAttrs(tmp_line[2:])
-                    self.builder.table(True, attrs)
-                    self.in_table = True
-                elif self.in_table and (not is_table_line) and (not line.startswith("##")):
-                    # close table
+                    self.builder.table_start(attrs)
+                elif self.builder.in_table and not (is_table_line or line.startswith("##")):
                     # intra-table comments should not break a table
-                    self.builder.table(False)
-                    self.in_table = False
+                    self.builder.table_end()
 
             # Scan line, format and write
             self._format_line(line)
@@ -425,7 +419,7 @@ class MoinParser(object):
         # TODO: preformatted?
         if self.builder.in_pre: self.builder.preformatted(False)
         if self.builder.in_p: self.builder.paragraph_end()
-        if self.in_table: self.builder.table(False)
+        if self.builder.in_table: self.builder.table_end()
 
         return self.builder.page_root
 
@@ -464,7 +458,7 @@ class MoinParser(object):
 
             # TODO: this makes unneccesary paragraph some cases
             # Replace match with markup
-            if not (self.builder.in_pre or self.builder.in_p or self.in_table
+            if not (self.builder.in_pre or self.builder.in_p or self.builder.in_table
                     or self.builder.in_list):
                 self.builder.paragraph_start()
             self._process_markup(match)
@@ -935,32 +929,30 @@ class MoinParser(object):
             desc = self._transclude_description(desc, target)
             return self.formatter.text('{{%s|%s|%s}}' % (target, desc, params))
 
-    def _tableZ_handler(self, word, groups):
+    def _tableZ_handler(self, word: str, groups: Dict[str, str]):
         """Handle table row end."""
-        if self.in_table:
-            result = ''
+        if self.builder.in_table:
             if self.builder.in_p:
-                result = self.builder.paragraph_end()
-            result += self.formatter.table_cell(0) + self.formatter.table_row(0)
-            return result
+                self.builder.paragraph_end()
+            self.builder.table_cell_end()
+            self.builder.table_row_end()
         else:
-            return self.formatter.text(word)
+            self.builder.text(word)
 
-    def _table_handler(self, word, groups):
+    def _table_handler(self, word: str, groups: Dict[str, str]):
         """Handle table cell separator."""
-        if self.in_table:
-            result = []
+        if self.builder.in_table:
             attrs = _getTableAttrs(word)
 
             # start the table row?
             if self.table_rowstart:
                 self.table_rowstart = 0
-                result.append(self.formatter.table_row(1, attrs))
+                self.builder.table_row_start(attrs)
             else:
                 # Close table cell, first closing open p
                 if self.builder.in_p:
-                    result.append(self.builder.paragraph_end())
-                result.append(self.formatter.table_cell(0))
+                    self.builder.paragraph_end()
+                self.builder.table_cell_end()
 
             # check for adjacent cell markers
             if word.count("|") > 2:
@@ -971,11 +963,9 @@ class MoinParser(object):
                 if 'colspan' not in attrs:
                     attrs['colspan'] = '"%d"' % (word.count("|")/2)
 
-            # return the complete cell markup
-            result.append(self.formatter.table_cell(1, attrs))
-            return ''.join(result)
+            self.builder.table_cell_start(attrs)
         else:
-            return self.formatter.text(word)
+            self.builder.text(word)
 
     # Heading / Horizontal Rule
     def _heading_handler(self, word: str, groups: Dict[str, str]):
@@ -1106,14 +1096,12 @@ class MoinParser(object):
 
     def _indent_to(self, new_level, list_type, numtype, numstart):
         """Close and open lists."""
-        if self._indent_level() != new_level and self.in_table:
-            self.builder.table(False)
-            self.in_table = False
+        if self._indent_level() != new_level and self.builder.in_table:
+            self.builder.table_end()
 
         while self._indent_level() > new_level:
-            if self.in_table:
-                self.builder.table(False)
-                self.in_table = False
+            if self.builder.in_table:
+                self.builder.table_end()
 
             self._close_item()
             if self.builder.list_types[-1] == 'ol':
@@ -1129,9 +1117,8 @@ class MoinParser(object):
         if self._indent_level() < new_level:
             self.list_indents.append(new_level)
 
-            if self.in_table:
-                self.builder.table(False)
-                self.in_table = False
+            if self.builder.in_table:
+                self.builder.table_end()
 
             if self.builder.in_p:
                 self.builder.paragraph_end()
@@ -1156,9 +1143,8 @@ class MoinParser(object):
         self.list_indents = []
 
     def _close_item(self):
-        if self.in_table:
-            self.builder.table(False)
-            self.in_table = False
+        if self.builder.in_table:
+            self.builder.table_end()
         if self.builder.in_li_of_current_list:
             if self.builder.in_p:
                 self.builder.paragraph_end()

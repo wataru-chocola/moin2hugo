@@ -1,16 +1,17 @@
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley,
+    ParsedText,
+    Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
-    ParsedText,
     Link, Pagelink, Url, AttachmentLink,
     Paragraph, Text, Raw
 )
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Type
 
 
 class PageBuilder(object):
@@ -19,7 +20,7 @@ class PageBuilder(object):
         self.cur = self.page_root
 
     # Page Bulding Status
-    def _in_x(self, x: List[PageElement], upper_bound: List[PageElement] = []) -> bool:
+    def _in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
         above_me = [self.cur] + self.cur.parents
         for e in above_me:
             if isinstance(e, tuple(upper_bound)):
@@ -35,6 +36,10 @@ class PageBuilder(object):
     @property
     def in_pre(self) -> bool:
         return isinstance(self.cur, ParsedText)
+
+    @property
+    def in_table(self) -> bool:
+        return self._in_x([Table])
 
     @property
     def is_found_parser(self) -> bool:
@@ -123,14 +128,23 @@ class PageBuilder(object):
         pass
 
     # Table
-    def table(self, on, attrs):
-        pass
+    def table_start(self, attrs: Dict[str, str] = {}):
+        self._start_new_elem(Table(attrs=attrs))
 
-    def table_row(self):
-        pass
+    def table_end(self):
+        self._end_current_elem()
 
-    def table_cell(self):
-        pass
+    def table_row_start(self, attrs: Dict[str, str] = {}):
+        self._start_new_elem(TableRow(attrs=attrs))
+
+    def table_row_end(self):
+        self._end_current_elem()
+
+    def table_cell_start(self, attrs: Dict[str, str] = {}):
+        self._start_new_elem(TableCell(attrs=attrs))
+
+    def table_cell_end(self):
+        self._end_current_elem()
 
     # Heading / Horizontal Rule
     def heading(self, depth: int, text: str):
