@@ -1,6 +1,6 @@
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Macro, Smiley,
+    Macro, Comment, Smiley,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm,
@@ -71,8 +71,8 @@ class PageBuilder(object):
     def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
         self._add_new_elem(Macro(macro_name=macro_name, macro_args=macro_args, markup=markup))
 
-    def comment(self):
-        pass
+    def comment(self, text: str):
+        self._add_new_elem(Comment(content=text))
 
     def smiley(self, smiley: str):
         self._add_new_elem(Smiley(content=smiley))

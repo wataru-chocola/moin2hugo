@@ -1009,7 +1009,6 @@ class MoinParser(object):
 
     def _parser_handler(self, word: str, groups: Dict[str, str]):
         """Handle parsed code displays."""
-        self.builder.parsed_text_start()
         self.parser_lines = []
 
         parser_name = groups.get('parser_name', None)
@@ -1025,6 +1024,9 @@ class MoinParser(object):
             parser_name = 'text'
         if parser_name is None and parser_nothing is None:
             parser_name = 'text'
+
+        self._closeP()
+        self.builder.parsed_text_start()
 
         if parser_name:
             if parser_name not in self.available_parsers:
@@ -1066,7 +1068,6 @@ class MoinParser(object):
         """ when we reach the end of a parser/pre section,
             we call the parser with the lines we collected
         """
-        self._closeP()
         if not self.builder.is_found_parser:
             self.builder.parsed_text_parser('text')
         self.builder.parsed_text_end(self.parser_lines)
@@ -1078,12 +1079,10 @@ class MoinParser(object):
         return
 
     def _comment_handler(self, word, groups):
-        # if we are in a paragraph, we must close it so that normal text following
-        # in the line below the comment will reopen a new paragraph.
         if self.builder.in_p:
             self.builder.paragraph_end()
-        self.line_is_empty = True  # markup following comment lines treats them as if they were empty
-        return self.formatter.comment(word)
+        self.line_is_empty = True
+        return self.builder.comment(word)
 
     def _macro_handler(self, word: str, groups: Dict[str, str]):
         """Handle macros."""

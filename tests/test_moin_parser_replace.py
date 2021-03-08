@@ -26,6 +26,18 @@ def test_macro(data, expected, formatter_object):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
+        ("## this is comment", ''),
+    ]
+)
+def test_comment(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    # TODO: remove trailing space
+    ret = formatter_object.format(page).rstrip()
+    assert ret == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
         (":)", ":simple_smile:"),
     ]
 )
@@ -91,22 +103,21 @@ def test_horizontal_rules(data, expected, formatter_object):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        # TODO: remove trailing spaces
-        ("__underlined text__", "__underlined text __"),
-        ("__underlined\ntext__", "__underlined text __"),
-        ("--(stroke)--", "~~stroke ~~"),
-        ("''italic''", "*italic *"),
-        ("'''strong'''", "**strong **"),
-        ("'''''italic and strong'''''", "***italic and strong ***"),
-        ("''this is italic and '''this is strong'''''", "*this is italic and **this is strong ***"),
-        ("'''this is strong and ''this is italic'''''", "**this is strong and *this is italic ***"),
-        ("~-smaller-~", "<small>smaller </small>"),   # TODO
-        ("~+larger+~", "<big>larger </big>"),   # TODO
+        ("__underlined text__", "__underlined text__"),
+        ("__underlined\ntext__", "__underlined text__"),
+        ("--(stroke)--", "~~stroke~~"),
+        ("''italic''", "*italic*"),
+        ("'''strong'''", "**strong**"),
+        ("'''''italic and strong'''''", "***italic and strong***"),
+        ("''this is italic and '''this is strong'''''", "*this is italic and **this is strong***"),
+        ("'''this is strong and ''this is italic'''''", "**this is strong and *this is italic***"),
+        ("~-smaller-~", "<small>smaller</small>"),
+        ("~+larger+~", "<big>larger</big>"),
     ]
 )
 def test_decorations_ml(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    assert formatter_object.format(page) == expected
+    assert formatter_object.format(page).rstrip() == expected
 
 
 @pytest.mark.parametrize(
