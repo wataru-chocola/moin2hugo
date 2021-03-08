@@ -553,20 +553,20 @@ class MoinParser(object):
             'word_bang': self._word_handler,
             'word_name': self._word_handler,
             'word_anchor': self._word_handler,
-            'url': self._url_handler,
-            'url_target': self._url_handler,
-            'url_schema': self._url_handler,
             'link': self._link_handler,
             'link_target': self._link_handler,
             'link_desc': self._link_handler,
             'link_params': self._link_handler,
+            'url': self._url_handler,
+            'url_target': self._url_handler,
+            'url_schema': self._url_handler,
             'email': self._email_handler,
 
             # SGML entities
             'entity': self._entity_handler,
             'sgml_entity': self._sgml_entity_handler,
 
-            # List
+            # Itemlist
             'indent': self._indent_handler,
             'li_none': self._li_handler,
             'li': self._li_handler,
@@ -825,7 +825,7 @@ class MoinParser(object):
     def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle SGML entities: [<>&]"""
         # TODO
-        return self.formatter.text(word)
+        self.builder.text(word)
 
     def _indent_handler(self, word: str, groups: Dict[str, str]):
         """Handle pure indentation (no - * 1. markup)."""
@@ -1087,9 +1087,9 @@ class MoinParser(object):
 
     def _macro_handler(self, word: str, groups: Dict[str, str]):
         """Handle macros."""
-        macro_name = groups.get('macro_name')
+        macro_name = groups.get('macro_name', '')
         macro_args = groups.get('macro_args')
-        self.builder.macro(macro_name, macro_args, markup=groups.get('macro'))
+        self.builder.macro(macro_name, macro_args, markup=groups.get('macro', ''))
 
     # Private helpers ------------------------------------------------------------
     def _parse_indentinfo(self, line: str) -> Tuple[int, str, Optional[str], Optional[int]]:

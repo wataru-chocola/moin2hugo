@@ -48,6 +48,9 @@ class PageBuilder(object):
     def text(self, text: str):
         self._add_new_elem(Text(content=text))
 
+    def raw(self, text: str):
+        self._add_new_elem(Raw(content=text))
+
     # Moinwiki Special Objects
     def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
         self._add_new_elem(Macro(macro_name=macro_name, macro_args=macro_args, markup=markup))
@@ -59,23 +62,42 @@ class PageBuilder(object):
         self._add_new_elem(Smiley(content=smiley))
 
     def span(self):
+        # TODO: needed?
         pass
 
-    def attachment_image(self):
+    # Codeblock / ParsedText
+    def parsed_text(self, parser_name: str, parser_args: Optional[str], lines: List[str]):
+        self.cur.add_child(ParsedText(parser_name=parser_name, parser_args=parser_args,
+                                      content="\n".join(lines)))
+
+    def parsed_text_start(self):
+        e = ParsedText()
+        self._start_new_elem(e)
+
+    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str]):
+        assert isinstance(self.cur, ParsedText)
+        self.cur.parser_name = parser_name
+        self.cur.parser_args = parser_args
+
+    def parsed_text_end(self, lines: List[str]):
+        self.cur.content = '\n'.join(lines)
+        self._end_current_elem()
+
+    def preformatted(self, on):
+        # TODO: needed?
         pass
 
-    def attachment_inlined(self):
+    # Table
+    def table(self, on, attrs):
         pass
 
-    def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
-                              queryargs: Optional[Dict[str, str]] = None):
-        e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
-        self.cur.add_child(e)
-        self.cur = e
+    def table_row(self):
+        pass
 
-    def attachment_link_end(self):
-        self.cur = self.cur.parent
+    def table_cell(self):
+        pass
 
+    # Heading / Horizontal Rule
     def heading(self, depth: int, text: str):
         self.cur.add_child(Heading(depth=depth, content=text))
 
@@ -83,17 +105,17 @@ class PageBuilder(object):
         self.cur.add_child(HorizontalRule())
 
     # Decoration
-    def strike(self, on: bool):
+    def underline(self, on: bool):
         if on:
-            e = Strike()
+            e = Underline()
             self.cur.add_child(e)
             self.cur = e
         else:
             self.cur = self.cur.parent
 
-    def underline(self, on: bool):
+    def strike(self, on: bool):
         if on:
-            e = Underline()
+            e = Strike()
             self.cur.add_child(e)
             self.cur = e
         else:
@@ -140,9 +162,37 @@ class PageBuilder(object):
     def code(self, text: str):
         self.cur.add_child(Code(content=text))
 
-    def image(self):
-        pass
+    # Link
+    def link_start(self, target: str, title: Optional[str] = None):
+        e = Link(target=target, title=title)
+        self.cur.add_child(e)
+        self.cur = e
 
+    def link_end(self):
+        self.cur = self.cur.parent
+
+    def pagelink(self, on: bool, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
+                 anchor: Optional[str] = None):
+        if on:
+            e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
+            self.cur.add_child(e)
+            self.cur = e
+        else:
+            self.cur = self.cur.parent
+
+    def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
+                              queryargs: Optional[Dict[str, str]] = None):
+        e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
+        self.cur.add_child(e)
+        self.cur = e
+
+    def attachment_link_end(self):
+        self.cur = self.cur.parent
+
+    def url(self, text: str):
+        self.cur.add_child(Url(content=text))
+
+    # Itemlist
     def bullet_list(self, on: bool):
         if on:
             e = BulletList()
@@ -182,58 +232,15 @@ class PageBuilder(object):
     def definition_desc(self):
         pass
 
-    def link_start(self, target: str, title: Optional[str] = None):
-        e = Link(target=target, title=title)
-        self.cur.add_child(e)
-        self.cur = e
-
-    def link_end(self):
-        self.cur = self.cur.parent
-
-    def pagelink(self, on: bool, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
-                 anchor: Optional[str] = None):
-        if on:
-            e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
-
-    # TODO
-    def parsed_text(self, parser_name: str, parser_args: Optional[str], lines: List[str]):
-        self.cur.add_child(ParsedText(parser_name=parser_name, parser_args=parser_args,
-                                      content="\n".join(lines)))
-
-    def parsed_text_start(self):
-        e = ParsedText()
-        self._start_new_elem(e)
-
-    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str]):
-        assert isinstance(self.cur, ParsedText)
-        self.cur.parser_name = parser_name
-        self.cur.parser_args = parser_args
-
-    def parsed_text_end(self, lines: List[str]):
-        self.cur.content = '\n'.join(lines)
-        self._end_current_elem()
-
-    def preformatted(self, on):
-        pass
-
-    def raw(self, text: str):
-        self.cur.add_child(Raw(content=text))
-
-    def table(self, on, attrs):
-        pass
-
-    def table_cell(self):
-        pass
-
-    def table_row(self):
-        pass
-
+    # Transclude (Image Embedding)
     def transclusion(self):
         pass
 
-    def url(self, text: str):
-        self.cur.add_child(Url(content=text))
+    def attachment_image(self):
+        pass
+
+    def attachment_inlined(self):
+        pass
+
+    def image(self):
+        pass
