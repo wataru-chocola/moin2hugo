@@ -19,10 +19,18 @@ class PageBuilder(object):
         self.cur = self.page_root
 
     # Page Bulding Status
+    def _in_x(self, x: List[PageElement], upper_bound: List[PageElement] = []) -> bool:
+        above_me = [self.cur] + self.cur.parents
+        for e in above_me:
+            if isinstance(e, tuple(upper_bound)):
+                return False
+            if isinstance(e, tuple(x)):
+                return True
+        return False
+
     @property
     def in_p(self) -> bool:
-        above_me = [self.cur, ] + self.cur.parents
-        return any((isinstance(tmp, Paragraph) for tmp in above_me))
+        return self._in_x([Paragraph])
 
     @property
     def in_pre(self) -> bool:
@@ -35,23 +43,28 @@ class PageBuilder(object):
 
     @property
     def in_li_of_current_list(self) -> bool:
-        above_me = [self.cur] + self.cur.parents
-        for e in above_me:
-            if isinstance(e, (BulletList, NumberList, DefinitionTerm)):
-                return False
-            if isinstance(e, Listitem):
-                return True
-        return False
+        return self._in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
 
     @property
     def in_dd_of_current_list(self) -> bool:
+        return self._in_x([DefinitionDesc], upper_bound=[BulletList, NumberList, DefinitionList])
+
+    @property
+    def in_list(self) -> bool:
+        return self._in_x([BulletList, NumberList, DefinitionList])
+
+    @property
+    def list_types(self) -> List[str]:
+        list_types = []
         above_me = [self.cur] + self.cur.parents
-        for e in above_me:
-            if isinstance(e, (BulletList, NumberList, DefinitionTerm)):
-                return False
-            if isinstance(e, DefinitionDesc):
-                return True
-        return False
+        for e in reversed(above_me):
+            if isinstance(e, BulletList):
+                list_types.append('ul')
+            elif isinstance(e, NumberList):
+                list_types.append('ol')
+            elif isinstance(e, DefinitionList):
+                list_types.append('dl')
+        return list_types
 
     # Helpers
     def _add_new_elem(self, e: PageElement):
@@ -179,13 +192,13 @@ class PageBuilder(object):
     def link_end(self):
         self._end_current_elem()
 
-    def pagelink(self, on: bool, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
-                 anchor: Optional[str] = None):
-        if on:
-            e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
-            self._start_new_elem(e)
-        else:
-            self._end_current_elem()
+    def pagelink_start(self, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
+                       anchor: Optional[str] = None):
+        e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
+        self._start_new_elem(e)
+
+    def pagelink_end(self):
+        self._end_current_elem()
 
     def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
                               queryargs: Optional[Dict[str, str]] = None):

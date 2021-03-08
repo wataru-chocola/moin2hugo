@@ -345,9 +345,6 @@ class MoinParser(object):
 
         self.parser_lines: List[str] = []
 
-        self.line_is_empty = False
-        self.line_was_empty = False
-
         self.is_em = 0  # must be int
         self.is_b = 0  # must be int
         self.is_u = False
@@ -356,12 +353,10 @@ class MoinParser(object):
         self.is_small = False
         self.is_remark = False
 
-        self.in_list: bool = False  # between <ul/ol/dl> and </ul/ol/dl>
         self.in_table: bool = False
 
         # holds the nesting level (in chars) of open lists
         self.list_indents: List[int] = []
-        self.list_types: List[str] = []
 
     # Public Method ----------------------------------------------------------
     @classmethod
@@ -374,13 +369,10 @@ class MoinParser(object):
         """ For each line, scan through looking for magic
             strings, outputting verbatim any intervening text.
         """
-        self.line_is_empty = False
         in_processing_instructions = 1
 
         for line in self.lines:
             self.table_rowstart = 1
-            self.line_was_empty = self.line_is_empty
-            self.line_is_empty = False
 
             # ignore processing instructions
             processing_instructions = ["##", "#format", "#refresh", "#redirect", "#deprecated",
@@ -399,7 +391,6 @@ class MoinParser(object):
                     # TODO: p should close on every empty line
                     if self.builder.in_p:
                         self.builder.paragraph_end()
-                    self.line_is_empty = True
                     continue
 
                 # Handle Indentation
@@ -412,7 +403,7 @@ class MoinParser(object):
                     and len(tmp_line) >= 5
                 if not self.in_table and is_table_line:
                     # start table
-                    if self.list_types and not self.builder.in_li_of_current_list:
+                    if self.builder.list_types and not self.builder.in_li_of_current_list:
                         self.builder.listitem_start()
 
                     if self.builder.in_p:
@@ -473,7 +464,8 @@ class MoinParser(object):
 
             # TODO: this makes unneccesary paragraph some cases
             # Replace match with markup
-            if not (self.builder.in_pre or self.builder.in_p or self.in_table or self.in_list):
+            if not (self.builder.in_pre or self.builder.in_p or self.in_table
+                    or self.builder.in_list):
                 self.builder.paragraph_start()
             self._process_markup(match)
             end = match.end()
@@ -724,9 +716,9 @@ class MoinParser(object):
             self.builder.text(word)
             return
         abs_name, anchor = wikiutil.split_anchor(abs_name)
-        self.builder.pagelink(True, abs_name, anchor=anchor)
+        self.builder.pagelink_start(abs_name, anchor=anchor)
         self.builder.text(word)
-        self.builder.pagelink(False)
+        self.builder.pagelink_end()
 
     def _url_handler(self, word: str, groups: Dict[str, str]):
         """Handle literal URLs."""
@@ -779,10 +771,10 @@ class MoinParser(object):
             if not page_name:
                 page_name = current_page
             abs_page_name = wikiutil.AbsPageName(current_page, page_name)
-            self.builder.pagelink(True, abs_page_name, anchor=anchor,
-                                  queryargs=query_args, **tag_attrs)
+            self.builder.pagelink_start(abs_page_name, anchor=anchor,
+                                        queryargs=query_args, **tag_attrs)
             self._link_description(desc, target, page_name_and_anchor)
-            self.builder.pagelink(False)
+            self.builder.pagelink_end()
 
         elif mt.group('extern_addr'):
             target = mt.group('extern_addr')
@@ -1073,7 +1065,6 @@ class MoinParser(object):
     def _comment_handler(self, word, groups):
         if self.builder.in_p:
             self.builder.paragraph_end()
-        self.line_is_empty = True
         return self.builder.comment(word)
 
     def _macro_handler(self, word: str, groups: Dict[str, str]):
@@ -1111,8 +1102,7 @@ class MoinParser(object):
         """Return current char-wise indent level."""
         if not self.list_indents:
             return 0
-        else:
-            return self.list_indents[-1]
+        return self.list_indents[-1]
 
     def _indent_to(self, new_level, list_type, numtype, numstart):
         """Close and open lists."""
@@ -1126,20 +1116,18 @@ class MoinParser(object):
                 self.in_table = False
 
             self._close_item()
-            if self.list_types[-1] == 'ol':
+            if self.builder.list_types[-1] == 'ol':
                 self.builder.number_list_end()
-            elif self.list_types[-1] == 'dl':
+            elif self.builder.list_types[-1] == 'dl':
                 self.builder.definition_list_end()
             else:
                 self.builder.bullet_list_end()
 
             del self.list_indents[-1]
-            del self.list_types[-1]
 
         # Open new list, if necessary
         if self._indent_level() < new_level:
             self.list_indents.append(new_level)
-            self.list_types.append(list_type)
 
             if self.in_table:
                 self.builder.table(False)
@@ -1155,12 +1143,10 @@ class MoinParser(object):
             else:
                 self.builder.bullet_list_start()
 
-        self.in_list = self.list_types != []
-
     def _undent(self):
         """Close all open lists."""
         self._close_item()
-        for _type in self.list_types[::-1]:
+        for _type in self.builder.list_types[::-1]:
             if _type == 'ol':
                 self.builder.number_list_end()
             elif _type == 'dl':
@@ -1168,7 +1154,6 @@ class MoinParser(object):
             else:
                 self.builder.bullet_list_end()
         self.list_indents = []
-        self.list_types = []
 
     def _close_item(self):
         if self.in_table:
