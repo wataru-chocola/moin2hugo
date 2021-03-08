@@ -6,7 +6,7 @@ from moin2hugo.page_tree import (
     Macro, Comment, Smiley,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
-    DefinitionList, DefinitionTerm,
+    DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     ParsedText,
     Link, Pagelink, Url, AttachmentLink,
@@ -105,6 +105,9 @@ class Formatter(object):
             BulletList: self.bullet_list,
             NumberList: self.number_list,
             Listitem: self.listitem,
+            DefinitionList: self.definition_list,
+            DefinitionTerm: self.definition_term,
+            DefinitionDesc: self.definition_desc,
 
             # Transclude (Image Embedding)
             # Image: self.image,
@@ -277,12 +280,7 @@ class Formatter(object):
     def number_list(self, e: NumberList) -> str:
         return self._separator_line(e) + self._generic_container(e)
 
-    def definition_list(self, e: DefinitionList):
-        # TODO
-        ret = self._separator_line(e)
-        return ret
-
-    def listitem(self, e: Listitem):
+    def listitem(self, e: Listitem) -> str:
         ret = ""
         if isinstance(e.parent, BulletList):
             marker = "* "
@@ -300,6 +298,40 @@ class Formatter(object):
             elif isinstance(c, ParsedText):
                 ret += "\n"
                 ret += textwrap.indent(text, paragraph_indent)
+                ret += "\n"
+            else:
+                for line in text.splitlines(keepends=True):
+                    if first_line:
+                        ret += marker + line
+                        first_line = False
+                    else:
+                        ret += paragraph_indent + line
+        return ret
+
+    def definition_list(self, e: DefinitionList) -> str:
+        return self._separator_line(e) + self._generic_container(e)
+
+    def definition_term(self, e: DefinitionTerm) -> str:
+        dt = self._generic_container(e)
+        if not dt:
+            return ""
+        preceding_newline = ""
+        if e.prev_sibling is not None:
+            preceding_newline = "\n"
+        return preceding_newline + dt + "\n"
+
+    def definition_desc(self, e: DefinitionDesc) -> str:
+        ret = ""
+        marker = ": "
+        paragraph_indent = " " * len(marker)
+        first_line = True
+        for c in e.children:
+            text = self.format(c)
+            if isinstance(c, BulletList) or isinstance(c, NumberList):
+                ret += textwrap.indent(text, " " * 4)
+            elif isinstance(c, ParsedText):
+                ret += "\n"
+                ret += textwrap.indent(text, " " * 4)
                 ret += "\n"
             else:
                 for line in text.splitlines(keepends=True):

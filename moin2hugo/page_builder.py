@@ -3,7 +3,7 @@ from moin2hugo.page_tree import (
     Macro, Comment, Smiley,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
-    DefinitionList, DefinitionTerm,
+    DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     ParsedText,
     Link, Pagelink, Url, AttachmentLink,
@@ -183,18 +183,17 @@ class PageBuilder(object):
         self._add_new_elem(Url(content=text))
 
     # Itemlist
-    def bullet_list(self, on: bool):
-        if on:
-            self._start_new_elem(BulletList())
-        else:
-            self._end_current_elem()
+    def bullet_list_start(self):
+        self._start_new_elem(BulletList())
 
-    def number_list(self, on: bool, numtype: str = '1', numstart: str = '1'):
-        # TODO
-        if on:
-            self._start_new_elem(NumberList())
-        else:
-            self._end_current_elem()
+    def bullet_list_end(self):
+        self._end_current_elem()
+
+    def number_list_start(self, numtype: str = '1', numstart: str = '1'):
+        self._start_new_elem(NumberList())
+
+    def number_list_end(self):
+        self._end_current_elem()
 
     def listitem_start(self):
         self._start_new_elem(Listitem())
@@ -202,17 +201,23 @@ class PageBuilder(object):
     def listitem_end(self):
         self._end_current_elem()
 
-    def definition_list(self, on: bool):
-        if on:
-            self._start_new_elem(DefinitionList())
-        else:
-            self._end_current_elem()
+    def definition_list_start(self):
+        self._start_new_elem(DefinitionList())
 
-    def definition_term(self):
-        pass
+    def definition_list_end(self):
+        self._end_current_elem()
 
-    def definition_desc(self):
-        pass
+    def definition_term_start(self):
+        self._start_new_elem(DefinitionTerm())
+
+    def definition_term_end(self):
+        self._end_current_elem()
+
+    def definition_desc_start(self):
+        self._start_new_elem(DefinitionDesc())
+
+    def definition_desc_end(self):
+        self._end_current_elem()
 
     # Transclude (Image Embedding)
     def transclusion(self):
