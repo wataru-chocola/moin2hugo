@@ -1,4 +1,5 @@
 import re
+import textwrap
 
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
@@ -102,6 +103,7 @@ class Formatter(object):
 
             # Itemlist
             BulletList: self.bullet_list,
+            NumberList: self.number_list,
             Listitem: self.listitem,
 
             # Transclude (Image Embedding)
@@ -115,9 +117,16 @@ class Formatter(object):
             ret += self.format(c)
         return ret
 
+    def _seperator_line(self, e: PageElement) -> str:
+        if e.prev_sibling is not None and type(e.prev_sibling) in (
+                Paragraph, ParsedText, BulletList, NumberList, DefinitionList,
+                Heading, HorizontalRule):
+            return "\n"
+        return ''
+
     # General Objects
     def paragraph(self, e: Paragraph) -> str:
-        return self._generic_container(e)
+        return self._seperator_line(e) + self._generic_container(e)
 
     def text(self, text: str) -> str:
         # TODO: escape markdown special characters, etc
@@ -157,7 +166,7 @@ class Formatter(object):
         if lines and not lines[-1].strip():
             lines = lines[:-1]
 
-        ret = ''
+        ret = self._seperator_line(e)
         if e.parser_name == 'highlight':
             parser_args = e.parser_args or ''
             # TODO: take consideration of indentation
@@ -168,6 +177,7 @@ class Formatter(object):
 
     # Table
     # def table(self, e: Table) -> str:
+    #     ret = self._seperator_line(e)
     #     pass
 
     # Heading / Horizontal Rule
@@ -181,44 +191,27 @@ class Formatter(object):
 
     # Decoration (can be multilined)
     def underline(self, e: Strike) -> str:
-        return "__%s__" % self._generic_container(e)
+        # TODO: unsafe
+        return "<u>%s</u>" % self._generic_container(e)
 
     def strike(self, e: Strike) -> str:
         return "~~%s~~" % self._generic_container(e)
 
     def small(self, e: Small) -> str:
-        ret = ''
-        ret += "<small>"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "</small>"
-        return ret
+        # TODO: unsafe
+        return "<small>%s</small>" % self._generic_container(e)
 
     def big(self, e: Big) -> str:
-        ret = ''
-        ret += "<big>"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "</big>"
-        return ret
+        # TODO: unsafe
+        return "<big>%s</big>" % self._generic_container(e)
 
     def strong(self, e: Strong) -> str:
-        # TODO: want to handle _ or *, but how?
-        ret = ''
-        ret += "**"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "**"
-        return ret
+        # TODO: want to handle _ or * within content, but how?
+        return "**%s**" % self._generic_container(e)
 
     def emphasis(self, e: Emphasis) -> str:
         # TODO: want to handle _ or *, but how?
-        ret = ''
-        ret += "*"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "*"
-        return ret
+        return "*%s*" % self._generic_container(e)
 
     # Decoration (cannot be multilined)
     def sup(self, e: Sup) -> str:
@@ -278,26 +271,30 @@ class Formatter(object):
         return self._link(link_path, description, e.title)
 
     # Itemlist
-    def bullet_list(self, bullet_list):
-        ret = ""
-        for item in bullet_list.children:
-            ret += "* %s\n" % self.format(item)
+    def bullet_list(self, e: BulletList) -> str:
+        ret = self._seperator_line(e)
+        ret += "".join(["* %s" % self.format(item) for item in e.children])
         return ret
 
-    def number_list(self):
-        # TODO
-        return "dummy"
+    def number_list(self, e: NumberList) -> str:
+        ret = self._seperator_line(e)
+        ret += "".join(["1. %s" % self.format(item) for item in e.children])
+        return ret
 
-    def definition_list(self):
+    def definition_list(self, e: DefinitionList):
         # TODO
-        return "dummy"
+        ret = self._seperator_line(e)
+        return ret
 
     def listitem(self, e: Listitem):
-        # TODO: unused?
         # TODO: indent?
         ret = ""
         for c in e.children:
-            ret += self.format(c)
+            if isinstance(c, BulletList) or isinstance(c, NumberList):
+                text = self.format(c)
+                ret += textwrap.indent(text, "    ")
+            else:
+                ret += self.format(c)
         return ret
 
     # Image Embedding
@@ -308,4 +305,3 @@ class Formatter(object):
     def attachment_image(self, src: str, alt: str, title: str) -> str:
         # TODO
         return "dummy"
-

@@ -19,8 +19,7 @@ def formatter_object():
 )
 def test_macro(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove trailing space
-    ret = formatter_object.format(page).rstrip()
+    ret = formatter_object.format(page)
     assert ret == expected
 
 
@@ -31,8 +30,7 @@ def test_macro(data, expected, formatter_object):
 )
 def test_comment(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove trailing space
-    ret = formatter_object.format(page).rstrip()
+    ret = formatter_object.format(page)
     assert ret == expected
 
 
@@ -43,8 +41,7 @@ def test_comment(data, expected, formatter_object):
 )
 def test_smiley(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove trailing space
-    ret = formatter_object.format(page).rstrip()
+    ret = formatter_object.format(page)
     assert ret == expected
 
 
@@ -55,14 +52,18 @@ def test_codeblock(formatter_object):
     sys.out.write("Hello, World")
     }}}
     """
+    # first line: moin parser makes empty paragraph before preformatted text.
+    # last line: newline following }}} is treated as a start of paragraph.
     expected = """\
+
     ```python
     import sys
     sys.out.write("Hello, World")
     ```
+
     """
     page = MoinParser.parse(textwrap.dedent(code_block_text), 'PageName', formatter_object)
-    expected = textwrap.dedent(expected).rstrip()
+    expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
 
@@ -90,10 +91,9 @@ def test_heading(data, expected, formatter_object):
 
 
 @pytest.mark.parametrize(
-    # TODO: remove trailing spaces
     ("data", "expected"), [
-        ("----", "----\n\n "),
-        ("-----------------", "----\n\n "),
+        ("----", "----\n\n"),
+        ("-----------------", "----\n\n"),
     ]
 )
 def test_horizontal_rules(data, expected, formatter_object):
@@ -103,8 +103,8 @@ def test_horizontal_rules(data, expected, formatter_object):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        ("__underlined text__", "__underlined text__"),
-        ("__underlined\ntext__", "__underlined text__"),
+        ("__underlined text__", "<u>underlined text</u>"),
+        ("__underlined\ntext__", "<u>underlined\ntext</u>"),
         ("--(stroke)--", "~~stroke~~"),
         ("''italic''", "*italic*"),
         ("'''strong'''", "**strong**"),
@@ -117,7 +117,7 @@ def test_horizontal_rules(data, expected, formatter_object):
 )
 def test_decorations_ml(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    assert formatter_object.format(page).rstrip() == expected
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
@@ -130,9 +130,7 @@ def test_decorations_ml(data, expected, formatter_object):
 )
 def test_decorations_sl(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove trailing space
-    ret = formatter_object.format(page).rstrip()
-    assert ret == expected
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
@@ -157,9 +155,7 @@ def test_decorations_sl(data, expected, formatter_object):
 )
 def test_links(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove trailing space
-    ret = formatter_object.format(page).rstrip()
-    assert ret == expected
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
@@ -171,22 +167,50 @@ def test_links(data, expected, formatter_object):
 )
 def test_entities(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove rstrip()
-    assert formatter_object.format(page).rstrip() == expected
+    assert formatter_object.format(page) == expected
 
 
-# TODO:
-# @pytest.mark.skip("not implemented")
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        # (" . hoge", "* hoge"),
-        (" * hoge", "* hoge \n"),
-        # (" 1. hoge", "1. hoge"),
-        # (" a. hoge", "1. hoge"),
+        (" . hoge", "* hoge"),
+        (" * hoge", "* hoge"),
+        (" 1. hoge", "1. hoge"),
+        (" a. hoge", "1. hoge"),
+        (" hoge", "* hoge"),  # indent list
     ]
 )
-def test_itemlists(data, expected, formatter_object):
+def test_itemlists_simple(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
+    assert formatter_object.format(page) == expected
+
+
+def test_itemlists_multi_items(formatter_object):
+    moin_text = """\
+    Preamble.
+
+     * one.
+       * one-2.
+       * one-3.
+         1. num1
+         2. num2
+     * two
+     * three
+    """
+    expected = """\
+    Preamble.
+
+    * one.
+        * one-2.
+        * one-3.
+            1. num1
+            1. num2
+    * two
+    * three
+    """
+    data = textwrap.dedent(moin_text)
+
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
 
@@ -197,5 +221,15 @@ def test_itemlists(data, expected, formatter_object):
 )
 def test_transclude(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName', formatter_object)
-    # TODO: remove rstrip()
-    assert formatter_object.format(page).rstrip() == expected
+    assert formatter_object.format(page) == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("test\ntest", "test\ntest"),
+        ("'''''test'''''\ntest", "***test***\ntest"),
+    ]
+)
+def test_endling_newline(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    assert formatter_object.format(page) == expected

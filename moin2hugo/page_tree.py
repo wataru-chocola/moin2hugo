@@ -7,7 +7,7 @@ from typing import Optional, List, Dict
 @attr.s
 class PageElement(object):
     content: str = attr.ib(default='')
-    parent: Optional[PageElement] = attr.ib(default=None, init=False)
+    parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False)
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
 
     @property

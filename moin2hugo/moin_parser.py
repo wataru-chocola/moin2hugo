@@ -47,7 +47,7 @@ class MoinParser(object):
         (?P<interwiki_wiki>[A-Z][a-zA-Z]+)  # interwiki wiki name
         \:
         (?P<interwiki_page>  # interwiki page name
-         (?=[^ ]*[%(u)s%(l)s0..9][^ ]*\ )  # make sure there is something non-blank with at least one alphanum letter following
+         (?=[^ ]*[%(u)s%(l)s0..9][^ ]*([\s%(punct)s]|\Z))  # make sure there is something non-blank with at least one alphanum letter following
          [^\s%(punct)s]+  # we take all until we hit some blank or punctuation char ...
         )
     ''' % {  # NOQA
@@ -268,7 +268,7 @@ class MoinParser(object):
 )|(?P<smiley>
     (^|(?<=\s))  # we require either beginning of line or some space before a smiley
     (%(smiley)s)  # one of the smileys
-    (?=\s)  # we require some space after the smiley
+    (?=(\s|\Z))  # we require some space after the smiley
 )|(?P<macro>
     <<
     (?P<macro_name>\w+)  # name of the macro
@@ -277,7 +277,7 @@ class MoinParser(object):
 )|(?P<heading>
     ^(?P<hmarker>=+)\s+  # some === at beginning of line, eat trailing blanks
     (?P<heading_text>.*?)  # capture heading text
-    \s+(?P=hmarker)\s$  # some === at end of line (matching amount as we have seen), eat blanks
+    \s+(?P=hmarker)\s?$  # some === at end of line (matching amount as we have seen), eat blanks
 )|(?P<parser>
     \{\{\{  # parser on
     (?P<parser_unique>(\{*|\w*))  # either some more {{{{ or some chars to solve the nesting problem
@@ -340,7 +340,7 @@ class MoinParser(object):
 
     def __init__(self, text: str, page_name: str, formatter):
         self.builder = moin2hugo.page_builder.PageBuilder()
-        self.lines = text.expandtabs().splitlines()
+        self.lines = text.expandtabs().splitlines(keepends=True)
         self.page_name = page_name
         self.formatter = formatter
 
@@ -395,10 +395,6 @@ class MoinParser(object):
                 in_processing_instructions = 0
 
             if not self.builder.in_pre:
-                # TODO: we don't have \n as whitespace any more
-                # This is the space between lines we join to one paragraph
-                line += ' '
-
                 # Paragraph break on empty lines
                 if not line.strip():
                     if self.in_table:
@@ -421,7 +417,7 @@ class MoinParser(object):
                 if not self.in_table and is_table_line:
                     # start table
                     if self.list_types and not self.in_li:
-                        self.builder.listitem(True)
+                        self.builder.listitem_start()
                         self.in_li = True
 
                     if self.builder.in_p:
@@ -478,6 +474,7 @@ class MoinParser(object):
                         self.builder.paragraph_start()
                     self.builder.text(line[lastpos:start])
 
+            # TODO: this makes unneccesary paragraph some cases
             # Replace match with markup
             if not (self.builder.in_pre or self.builder.in_p or self.in_table or self.in_list):
                 self.builder.paragraph_start()
@@ -820,6 +817,7 @@ class MoinParser(object):
 
     def _entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
+        # TODO
         self.builder.raw(word)
 
     def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
@@ -832,13 +830,13 @@ class MoinParser(object):
         if not (self.in_li or self.in_dd):
             self._close_item()
             self.in_li = True
-            self.builder.listitem(True)
+            self.builder.listitem_start()
 
     def _li_handler(self, word: str, groups: Dict[str, str]):
         """Handle bullet (" *") lists."""
         self._close_item()
         self.in_li = True
-        self.builder.listitem(True)
+        self.builder.listitem_start()
 
     def _ol_handler(self, word: str, groups: Dict[str, str]):
         """Handle numbered lists."""
@@ -1196,7 +1194,7 @@ class MoinParser(object):
             self.in_li = 0
             if self.builder.in_p:
                 self.builder.paragraph_end()
-            self.builder.listitem(False)
+            self.builder.listitem_end()
         if self.in_dd:
             self.in_dd = 0
             if self.builder.in_p:
