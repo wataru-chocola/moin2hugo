@@ -11,6 +11,15 @@ class PageElement(object):
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
 
     @property
+    def parents(self) -> List[PageElement]:
+        ret: List[PageElement] = []
+        tmp = self.parent
+        while tmp is not None:
+            ret.append(tmp)
+            tmp = tmp.parent
+        return ret
+
+    @property
     def prev_sibling(self) -> Optional[PageElement]:
         if self.parent is None:
             return None

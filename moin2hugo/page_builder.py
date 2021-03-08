@@ -21,12 +21,8 @@ class PageBuilder(object):
     # Page Bulding Status
     @property
     def in_p(self) -> bool:
-        tmp = self.cur
-        while tmp is not None:
-            if isinstance(tmp, Paragraph):
-                return True
-            tmp = tmp.parent
-        return False
+        above_me = [self.cur, ] + self.cur.parents
+        return any((isinstance(tmp, Paragraph) for tmp in above_me))
 
     @property
     def in_pre(self) -> bool:
@@ -36,6 +32,26 @@ class PageBuilder(object):
     def is_found_parser(self) -> bool:
         assert self.in_pre
         return bool(self.cur.parser_name)
+
+    @property
+    def in_li_of_current_list(self) -> bool:
+        above_me = [self.cur] + self.cur.parents
+        for e in above_me:
+            if isinstance(e, (BulletList, NumberList, DefinitionTerm)):
+                return False
+            if isinstance(e, Listitem):
+                return True
+        return False
+
+    @property
+    def in_dd_of_current_list(self) -> bool:
+        above_me = [self.cur] + self.cur.parents
+        for e in above_me:
+            if isinstance(e, (BulletList, NumberList, DefinitionTerm)):
+                return False
+            if isinstance(e, DefinitionDesc):
+                return True
+        return False
 
     # Helpers
     def _add_new_elem(self, e: PageElement):

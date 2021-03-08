@@ -1,7 +1,6 @@
-import sys
 import re
 import logging
-from typing import List, Dict, Tuple, TextIO, Optional
+from typing import List, Dict, Tuple, Optional
 
 import moin2hugo.page_builder
 import moin2hugo.moinutils as wikiutil
@@ -358,8 +357,6 @@ class MoinParser(object):
         self.is_remark = False
 
         self.in_list: bool = False  # between <ul/ol/dl> and </ul/ol/dl>
-        self.in_li: bool = False  # between <li> and </li>
-        self.in_dd: bool = False  # between <dd> and </dd>
         self.in_table: bool = False
 
         # holds the nesting level (in chars) of open lists
@@ -384,7 +381,6 @@ class MoinParser(object):
             self.table_rowstart = 1
             self.line_was_empty = self.line_is_empty
             self.line_is_empty = False
-            self.first_list_item = 0
 
             # ignore processing instructions
             processing_instructions = ["##", "#format", "#refresh", "#redirect", "#deprecated",
@@ -416,9 +412,8 @@ class MoinParser(object):
                     and len(tmp_line) >= 5
                 if not self.in_table and is_table_line:
                     # start table
-                    if self.list_types and not self.in_li:
+                    if self.list_types and not self.builder.in_li_of_current_list:
                         self.builder.listitem_start()
-                        self.in_li = True
 
                     if self.builder.in_p:
                         self.builder.paragraph_end()
@@ -459,7 +454,9 @@ class MoinParser(object):
                     if not (lastpos > 0 and remainder == ''):
                         self._parser_content(remainder)
                 elif remainder:
-                    if not (self.builder.in_pre or self.builder.in_p or self.in_li or self.in_dd):
+                    if not (self.builder.in_pre or self.builder.in_p or
+                            self.builder.in_li_of_current_list or
+                            self.builder.in_dd_of_current_list):
                         self.builder.paragraph_start()
                     self.builder.text(remainder)
                 break
@@ -827,15 +824,13 @@ class MoinParser(object):
 
     def _indent_handler(self, word: str, groups: Dict[str, str]):
         """Handle pure indentation (no - * 1. markup)."""
-        if not (self.in_li or self.in_dd):
+        if not (self.builder.in_li_of_current_list or self.builder.in_dd_of_current_list):
             self._close_item()
-            self.in_li = True
             self.builder.listitem_start()
 
     def _li_handler(self, word: str, groups: Dict[str, str]):
         """Handle bullet (" *") lists."""
         self._close_item()
-        self.in_li = True
         self.builder.listitem_start()
 
     def _ol_handler(self, word: str, groups: Dict[str, str]):
@@ -845,7 +840,6 @@ class MoinParser(object):
     def _dl_handler(self, word: str, groups: Dict[str, str]):
         """Handle definition lists."""
         self._close_item()
-        self.in_dd = 1
         self.builder.definition_term_start()
         self.builder.text(word[1:-3].lstrip(' '))
         self.builder.definition_term_end()
@@ -1142,12 +1136,6 @@ class MoinParser(object):
             del self.list_indents[-1]
             del self.list_types[-1]
 
-            if self.list_types:  # we are still in a list
-                if self.list_types[-1] == 'dl':
-                    self.in_dd = True
-                else:
-                    self.in_li = True
-
         # Open new list, if necessary
         if self._indent_level() < new_level:
             self.list_indents.append(new_level)
@@ -1166,10 +1154,6 @@ class MoinParser(object):
                 self.builder.definition_list_start()
             else:
                 self.builder.bullet_list_start()
-
-            self.first_list_item = 1
-            self.in_li = False
-            self.in_dd = False
 
         self.in_list = self.list_types != []
 
@@ -1190,13 +1174,11 @@ class MoinParser(object):
         if self.in_table:
             self.builder.table(False)
             self.in_table = False
-        if self.in_li:
-            self.in_li = 0
+        if self.builder.in_li_of_current_list:
             if self.builder.in_p:
                 self.builder.paragraph_end()
             self.builder.listitem_end()
-        if self.in_dd:
-            self.in_dd = 0
+        if self.builder.in_dd_of_current_list:
             if self.builder.in_p:
                 self.builder.paragraph_end()
             self.builder.definition_desc_end()
