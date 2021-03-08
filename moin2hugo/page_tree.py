@@ -76,16 +76,61 @@ class Smiley(PageElement):
 
 @attr.s
 class Span(PageElement):
+    # TODO: needed?
+    pass
+
+
+# Codeblock (Parsed Text)
+#
+@attr.s
+class ParsedText(PageElement):
+    parser_name: str = attr.ib(default='')
+    parser_args: Optional[str] = attr.ib(default=None)
+
+
+# Table
+#
+@attr.s
+class Table(PageElement):
     pass
 
 
 @attr.s
-class AttachmentImage(PageElement):
+class TableRow(PageElement):
     pass
 
 
 @attr.s
-class AttachmentIinline(PageElement):
+class TableCell(PageElement):
+    pass
+
+
+# Heading / Horizontal Rule
+#
+@attr.s
+class Heading(PageElement):
+    depth: int = attr.ib(kw_only=True)
+
+
+@attr.s
+class HorizontalRule(PageElement):
+    pass
+
+
+# Decorations
+#
+@attr.s
+class Underline(PageElement):
+    pass
+
+
+@attr.s
+class Strike(PageElement):
+    pass
+
+
+@attr.s
+class Small(PageElement):
     pass
 
 
@@ -105,21 +150,6 @@ class Strong(PageElement):
 
 
 @attr.s
-class Small(PageElement):
-    pass
-
-
-@attr.s
-class Underline(PageElement):
-    pass
-
-
-@attr.s
-class Strike(PageElement):
-    pass
-
-
-@attr.s
 class Sup(PageElement):
     pass
 
@@ -134,41 +164,7 @@ class Code(PageElement):
     pass
 
 
-@attr.s
-class BulletList(PageElement):
-    pass
-
-
-@attr.s
-class NumberList(PageElement):
-    pass
-
-
-@attr.s
-class DefinitionList(PageElement):
-    pass
-
-
-@attr.s
-class DefinitionTerm(PageElement):
-    pass
-
-
-@attr.s
-class Listitem(PageElement):
-    pass
-
-
-@attr.s
-class Heading(PageElement):
-    depth: int = attr.ib(kw_only=True)
-
-
-@attr.s
-class HorizontalRule(PageElement):
-    pass
-
-
+# Links
 @attr.s
 class Link(PageElement):
     target: str = attr.ib(kw_only=True)
@@ -194,8 +190,44 @@ class Url(PageElement):
     pass
 
 
+# Itemlist
+#
 @attr.s
-class ParsedText(PageElement):
-    parser_name: str = attr.ib(default='')
-    parser_args: Optional[str] = attr.ib(default=None)
+class BulletList(PageElement):
+    pass
 
+
+@attr.s
+class NumberList(PageElement):
+    pass
+
+
+@attr.s
+class DefinitionList(PageElement):
+    pass
+
+
+@attr.s
+class DefinitionTerm(PageElement):
+    pass
+
+
+@attr.s
+class Listitem(PageElement):
+    pass
+
+
+# Transclude (Image Embedding)
+@attr.s
+class AttachmentImage(PageElement):
+    pass
+
+
+@attr.s
+class AttachmentIinline(PageElement):
+    pass
+
+
+@attr.s
+class Image(PageElement):
+    pass

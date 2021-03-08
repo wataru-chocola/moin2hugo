@@ -69,34 +69,45 @@ class Formatter(object):
             # General Objects
             Paragraph: self.paragraph,
             Text: self.text2,
+            Raw: self.raw,
 
             # Moinwiki Special Objects
             Macro: self.macro,
             Smiley: self.smiley,
 
+            # Codeblock / ParsedText
+            ParsedText: self.parsed_text,
+
+            # Table
+            # Table: self.table,
+
+            # Heading / Horizontal Rule
+            Heading: self.heading,
+            HorizontalRule: self.rule,
+
+            # Decorations
             Underline: self.underline,
             Strike: self.strike,
-            Big: self.big,
             Small: self.small,
+            Big: self.big,
             Emphasis: self.emphasis,
             Strong: self.strong,
             Sup: self.sup,
             Sub: self.sub,
             Code: self.code,
 
+            # Links
             Link: self.link,
             Pagelink: self.pagelink,
-            Url: self.url,
             AttachmentLink: self.attachment_link,
+            Url: self.url,
 
-            Heading: self.heading,
-            HorizontalRule: self.rule,
-
-            ParsedText: self.parsed_text,
-            Raw: self.raw,
-
+            # Itemlist
             BulletList: self.bullet_list,
             Listitem: self.listitem,
+
+            # Transclude (Image Embedding)
+            # Image: self.image,
         }
         return dispatch_tbl[type(e)](e)
 
@@ -153,6 +164,10 @@ class Formatter(object):
             ret += "\n".join(lines)
             ret += "\n```"
         return ret
+
+    # Table
+    # def table(self, e: Table) -> str:
+    #     pass
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
