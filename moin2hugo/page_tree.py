@@ -1,29 +1,14 @@
 from __future__ import annotations
 
+import attr
 from typing import Optional, List, Dict
 
 
+@attr.s
 class PageElement(object):
-    def __init__(self, content: str = ''):
-        self.content: str = content
-        self.parent: Optional[PageElement] = None
-        self.children: List[PageElement] = []
-
-    def __eq__(self, y: object) -> bool:
-        if not isinstance(y, PageElement):
-            return False
-        if self.content != y.content:
-            return False
-        if self.children != y.children:
-            return False
-        return True
-
-    def __repr__(self) -> str:
-        x = "{classname}(content='{content}',children={children})".format(
-            classname=self.__class__.__name__,
-            content=self.content,
-            children=self.children)
-        return x
+    content: str = attr.ib(default='')
+    parent: Optional[PageElement] = attr.ib(default=None, init=False)
+    children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
 
     @property
     def prev_sibling(self) -> Optional[PageElement]:
@@ -48,143 +33,167 @@ class PageElement(object):
         element.parent = self
 
 
+# General Objects
+#
+@attr.s
 class PageRoot(PageElement):
     pass
 
 
-class Macro(PageElement):
-    pass
-
-
-class Comment(PageElement):
-    pass
-
-
-class Smiley(PageElement):
-    pass
-
-
-class Span(PageElement):
-    pass
-
-
-class AttachmentImage(PageElement):
-    pass
-
-
-class AttachmentIinline(PageElement):
-    pass
-
-
-class Big(PageElement):
-    pass
-
-
-class Emphasis(PageElement):
-    pass
-
-
-class Strong(PageElement):
-    pass
-
-
-class Small(PageElement):
-    pass
-
-
-class Underline(PageElement):
-    pass
-
-
-class Strike(PageElement):
-    pass
-
-
-class Sup(PageElement):
-    pass
-
-
-class Sub(PageElement):
-    pass
-
-
-class Code(PageElement):
-    pass
-
-
-class BulletList(PageElement):
-    pass
-
-
-class NumberList(PageElement):
-    pass
-
-
-class DefinitionList(PageElement):
-    pass
-
-
-class DefinitionTerm(PageElement):
-    pass
-
-
-class Listitem(PageElement):
-    pass
-
-
-class Heading(PageElement):
-    def __init__(self, depth: int, content: str = ''):
-        self.depth = depth
-        super().__init__(content=content)
-
-
-class HorizontalRule(PageElement):
-    pass
-
-
-class Link(PageElement):
-    def __init__(self, target: str, title: Optional[str] = None):
-        self.target = target
-        self.title = title
-        super().__init__()
-
-
-class Pagelink(PageElement):
-    def __init__(self, page_name: str, queryargs: Optional[Dict[str, str]] = None,
-                 anchor: Optional[str] = None):
-        self.page_name = page_name
-        self.queryargs = queryargs
-        self.anchor = anchor
-        super().__init__()
-
-
-class AttachmentLink(PageElement):
-    def __init__(self, attach_name: str, title: Optional[str],
-                 queryargs: Optional[Dict[str, str]] = None, content: str = ''):
-        self.attach_name = attach_name
-        self.title = title
-        self.queryargs = queryargs
-        super().__init__(content=content)
-
-
-class Url(PageElement):
-    pass
-
-
-class ParsedText(PageElement):
-    def __init__(self, parser_name: str, parser_args: Optional[str] = '', content: str = ''):
-        self.parser_name = parser_name
-        self.parser_args = parser_args
-        super().__init__(content=content)
-
-
+@attr.s
 class Paragraph(PageElement):
     pass
 
 
+@attr.s
 class Text(PageElement):
     pass
 
 
+@attr.s
 class Raw(PageElement):
     pass
+
+
+# Moinwiki Special Objects
+#
+@attr.s
+class Macro(PageElement):
+    pass
+
+
+@attr.s
+class Comment(PageElement):
+    pass
+
+
+@attr.s
+class Smiley(PageElement):
+    pass
+
+
+@attr.s
+class Span(PageElement):
+    pass
+
+
+@attr.s
+class AttachmentImage(PageElement):
+    pass
+
+
+@attr.s
+class AttachmentIinline(PageElement):
+    pass
+
+
+@attr.s
+class Big(PageElement):
+    pass
+
+
+@attr.s
+class Emphasis(PageElement):
+    pass
+
+
+@attr.s
+class Strong(PageElement):
+    pass
+
+
+@attr.s
+class Small(PageElement):
+    pass
+
+
+@attr.s
+class Underline(PageElement):
+    pass
+
+
+@attr.s
+class Strike(PageElement):
+    pass
+
+
+@attr.s
+class Sup(PageElement):
+    pass
+
+
+@attr.s
+class Sub(PageElement):
+    pass
+
+
+@attr.s
+class Code(PageElement):
+    pass
+
+
+@attr.s
+class BulletList(PageElement):
+    pass
+
+
+@attr.s
+class NumberList(PageElement):
+    pass
+
+
+@attr.s
+class DefinitionList(PageElement):
+    pass
+
+
+@attr.s
+class DefinitionTerm(PageElement):
+    pass
+
+
+@attr.s
+class Listitem(PageElement):
+    pass
+
+
+@attr.s
+class Heading(PageElement):
+    depth: int = attr.ib(kw_only=True)
+
+
+@attr.s
+class HorizontalRule(PageElement):
+    pass
+
+
+@attr.s
+class Link(PageElement):
+    target: str = attr.ib(kw_only=True)
+    title: Optional[str] = attr.ib(default=None)
+
+
+@attr.s
+class Pagelink(PageElement):
+    page_name: str = attr.ib(kw_only=True)
+    queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
+    anchor: Optional[str] = attr.ib(default=None)
+
+
+@attr.s
+class AttachmentLink(PageElement):
+    attach_name: str = attr.ib(kw_only=True)
+    queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
+    title: Optional[str] = attr.ib(default=None)
+
+
+@attr.s
+class Url(PageElement):
+    pass
+
+
+@attr.s
+class ParsedText(PageElement):
+    parser_name: str = attr.ib(kw_only=True)
+    parser_args: Optional[str] = attr.ib(default=None)
+

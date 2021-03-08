@@ -1101,7 +1101,7 @@ class MoinParser(object):
 
     def _smiley_handler(self, word: str, groups: Dict[str, str]):
         self.builder.smiley(word)
-        return ''
+        return
 
     def _comment_handler(self, word, groups):
         # if we are in a paragraph, we must close it so that normal text following
