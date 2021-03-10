@@ -1,7 +1,20 @@
 import re
-import sys
 
-from typing import Optional, Dict, List
+from moin2hugo.page_tree import (
+    PageRoot, PageElement,
+    Macro, Smiley,
+    Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
+    BulletList, NumberList, Listitem,
+    DefinitionList, DefinitionTerm,
+    Heading, HorizontalRule,
+    ParsedText,
+    Link, Pagelink, Url, AttachmentLink,
+    Paragraph, Text, Raw
+)
+
+from typing import Optional, Dict, Callable, TypeVar, Type, Any
+
+T_PageElement = TypeVar("T_PageElement", bound=PageElement)
 
 smiley2emoji = {
     'X-(': ':angry:',
@@ -49,95 +62,175 @@ class Formatter(object):
     def __init__(self):
         self.in_p = False
 
-    # Moinwiki Special Object
-    def smiley(self, smiley: str):
-        # TODO: enableEmoji option?
-        return smiley2emoji[smiley]
+    def format(self, e: PageElement):
+        dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
+            PageRoot: self._generic_container,
 
-    def macro(self, macro_obj, name, args, markup=None):
-        # TODO:
-        try:
-            return macro_obj.execute(name, args)
-        except ImportError as err:
-            errmsg = str(err)
-            if name not in errmsg:
-                raise
-            if markup:
-                return (self.span(1, title=errmsg) +
-                        self.text(markup) +
-                        self.span(0))
-            else:
-                return self.text(errmsg)
+            # General Objects
+            Paragraph: self.paragraph,
+            Text: self.text2,
+            Raw: self.raw,
 
-    # XXX:
-    def paragraph(self, _open):
+            # Moinwiki Special Objects
+            Macro: self.macro,
+            Smiley: self.smiley,
+
+            # Codeblock / ParsedText
+            ParsedText: self.parsed_text,
+
+            # Table
+            # Table: self.table,
+
+            # Heading / Horizontal Rule
+            Heading: self.heading,
+            HorizontalRule: self.rule,
+
+            # Decorations
+            Underline: self.underline,
+            Strike: self.strike,
+            Small: self.small,
+            Big: self.big,
+            Emphasis: self.emphasis,
+            Strong: self.strong,
+            Sup: self.sup,
+            Sub: self.sub,
+            Code: self.code,
+
+            # Links
+            Link: self.link,
+            Pagelink: self.pagelink,
+            AttachmentLink: self.attachment_link,
+            Url: self.url,
+
+            # Itemlist
+            BulletList: self.bullet_list,
+            Listitem: self.listitem,
+
+            # Transclude (Image Embedding)
+            # Image: self.image,
+        }
+        return dispatch_tbl[type(e)](e)
+
+    def _generic_container(self, e: PageElement) -> str:
+        ret = ''
+        for c in e.children:
+            ret += self.format(c)
+        return ret
+
+    # General Objects
+    def paragraph(self, e: Paragraph) -> str:
+        return self._generic_container(e)
+
+    def text(self, text: str) -> str:
+        # TODO: escape markdown special characters, etc
+        return text
+
+    def text2(self, e: Text) -> str:
+        return e.content
+
+    def raw(self, e: Raw) -> str:
+        return e.content
+
+    # Moinwiki Special Objects
+    def macro(self, e: Macro) -> str:
+        if e.macro_name == 'BR':
+            # TODO:
+            return '<br />'
+        elif e.macro_name == 'TableOfContents':
+            # TODO
+            return ''
+        else:
+            if e.markup:
+                return self.text(e.markup)
         return ''
 
+    def smiley(self, smiley: Smiley):
+        # TODO: enableEmoji option?
+        return smiley2emoji[smiley.content]
+
     # Codeblock
-    def parser(self, parser_name: str, parser_args: str, lines: List[str]):
+    def parsed_text(self, e: ParsedText):
+        lines = e.content.splitlines()
         if lines and not lines[0]:
             lines = lines[1:]
         if lines and not lines[-1].strip():
             lines = lines[:-1]
 
         ret = ''
-        if parser_name == 'highlight':
-            parser_args = parser_args or ''
+        if e.parser_name == 'highlight':
+            parser_args = e.parser_args or ''
             # TODO: take consideration of indentation
             ret += "```%s\n" % parser_args
             ret += "\n".join(lines)
             ret += "\n```"
         return ret
 
-    # Heading / Horizontal Rule
-    def heading(self, depth: int, text: str) -> str:
-        # TODO: support _id ?
-        assert depth >= 1 and depth <= 6
-        return '#' * depth + ' ' + text + "\n\n"
+    # Table
+    # def table(self, e: Table) -> str:
+    #     pass
 
-    def rule(self) -> str:
+    # Heading / Horizontal Rule
+    def heading(self, e: Heading) -> str:
+        # TODO: support _id ?
+        assert e.depth >= 1 and e.depth <= 6
+        return '#' * e.depth + ' ' + e.content + "\n\n"
+
+    def rule(self, e: HorizontalRule) -> str:
         return '-' * 4 + "\n\n"
 
     # Decoration (can be multilined)
-    def underline(self, on: bool) -> str:
-        return "__"
+    def underline(self, e: Strike) -> str:
+        return "__%s__" % self._generic_container(e)
 
-    def strike(self, on: bool) -> str:
-        return "~~"
+    def strike(self, e: Strike) -> str:
+        return "~~%s~~" % self._generic_container(e)
 
-    def small(self, on: bool) -> str:
-        # TODO: unsafe option?
-        if on:
-            return "<small>"
-        else:
-            return "</small>"
+    def small(self, e: Small) -> str:
+        ret = ''
+        ret += "<small>"
+        for c in e.children:
+            ret += self.format(c)
+        ret += "</small>"
+        return ret
 
-    def big(self, on: bool) -> str:
-        # TODO: unsafe option?
-        if on:
-            return "<big>"
-        else:
-            return "</big>"
+    def big(self, e: Big) -> str:
+        ret = ''
+        ret += "<big>"
+        for c in e.children:
+            ret += self.format(c)
+        ret += "</big>"
+        return ret
 
-    def strong(self, on: bool) -> str:
+    def strong(self, e: Strong) -> str:
         # TODO: want to handle _ or *, but how?
-        return "**"
+        ret = ''
+        ret += "**"
+        for c in e.children:
+            ret += self.format(c)
+        ret += "**"
+        return ret
 
-    def emphasis(self, on: bool) -> str:
+    def emphasis(self, e: Emphasis) -> str:
         # TODO: want to handle _ or *, but how?
-        return "*"
+        ret = ''
+        ret += "*"
+        for c in e.children:
+            ret += self.format(c)
+        ret += "*"
+        return ret
 
     # Decoration (cannot be multilined)
-    def sup(self, text: str) -> str:
+    def sup(self, e: Sup) -> str:
         # TODO: unsafe option?
-        return "<sup>%s</sup>" % text
+        return "<sup>%s</sup>" % e.content
 
-    def sub(self, text: str) -> str:
+    def sub(self, e: Sub) -> str:
         # TODO: unsafe option?
-        return "<sub>%s</sub>" % text
+        return "<sub>%s</sub>" % e.content
 
-    def code(self, text: str) -> str:
+    def code(self, e: Code) -> str:
         # noqa: refer: https://meta.stackexchange.com/questions/82718/how-do-i-escape-a-backtick-within-in-line-code-in-markdown
+        text = e.content
         if text.startswith("`"):
             text = " " + text
         if text.endswith("`"):
@@ -150,39 +243,45 @@ class Formatter(object):
         return "%s%s%s" % (delimiter, text, delimiter)
 
     # Links
-    def url(self, target: str) -> str:
-        return "<%s>" % (target)
+    def url(self, e: Url) -> str:
+        return "<%s>" % (e.content)
 
-    def link(self, target: str, description: str, title: Optional[str] = None) -> str:
+    def link(self, e: Link) -> str:
+        description = self._generic_container(e)
+        return self._link(e.target, description, title=e.title)
+
+    def _link(self, target: str, description: str, title: Optional[str] = None) -> str:
         if title is not None:
             return '[%s](%s "%s")' % (description, target, title)
         else:
             return "[%s](%s)" % (description, target)
 
-    def pagelink(self, page_name: str, description: str,
-                 queryargs: Optional[Dict[str, str]] = None, anchor: Optional[str] = None) -> str:
+    def pagelink(self, e: Pagelink) -> str:
         # TODO: convert page_name to link path
-        link_path = page_name
-        if queryargs:
+        link_path = e.page_name
+        if e.queryargs:
             # TODO: maybe useless
             pass
-        if anchor:
-            link_path += "#%s" % anchor
-        return self.link(link_path, description)
+        if e.anchor:
+            link_path += "#%s" % e.anchor
+        description = self._generic_container(e)
+        return self._link(link_path, description)
 
-    def attachment_link(self, attach_name: str, description: str, title: Optional[str] = None,
-                        queryargs: Optional[Dict[str, str]] = None) -> str:
+    def attachment_link(self, e: AttachmentLink) -> str:
         # TODO: convert attach_name to link path
-        link_path = attach_name
-        if queryargs:
+        link_path = e.attach_name
+        if e.queryargs:
             # TODO: maybe useless
             pass
-        return self.link(link_path, description, title)
+        description = self._generic_container(e)
+        return self._link(link_path, description, e.title)
 
     # Itemlist
-    def bullet_list(self):
-        # TODO
-        return "dummy"
+    def bullet_list(self, bullet_list):
+        ret = ""
+        for item in bullet_list.children:
+            ret += "* %s\n" % self.format(item)
+        return ret
 
     def number_list(self):
         # TODO
@@ -192,9 +291,13 @@ class Formatter(object):
         # TODO
         return "dummy"
 
-    def listitem(self, css_class, style):
-        # TODO
-        return "dummy"
+    def listitem(self, e: Listitem):
+        # TODO: unused?
+        # TODO: indent?
+        ret = ""
+        for c in e.children:
+            ret += self.format(c)
+        return ret
 
     # Image Embedding
     def image(self, src: str, alt: str, title: str) -> str:
@@ -205,9 +308,3 @@ class Formatter(object):
         # TODO
         return "dummy"
 
-    def text(self, text: str) -> str:
-        # TODO: escape markdown special characters, etc
-        return text
-
-    def raw(self, text: str) -> str:
-        return text
