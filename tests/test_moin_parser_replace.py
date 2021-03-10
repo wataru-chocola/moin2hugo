@@ -1,4 +1,5 @@
 import pytest
+import textwrap
 
 from moin2hugo.moin_parser import MoinParser, _getTableAttrs
 from moin2hugo.formatter import Formatter
@@ -11,28 +12,46 @@ def formatter_object():
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
+        ("<<TableOfContents>>", ''),
+        ("<<BR>>", '<br />'),
+        ("<<UnsupportedMacro>>", '<<UnsupportedMacro>>'),
+    ]
+)
+def test_macro(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    # TODO: remove trailing space
+    ret = formatter_object.format(page).rstrip()
+    assert ret == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
         (":)", ":simple_smile:"),
     ]
 )
-def test_smiley(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    # TODO: remove rstrip()
-    assert captured.out.rstrip(' ') == expected
+def test_smiley(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    # TODO: remove trailing space
+    ret = formatter_object.format(page).rstrip()
+    assert ret == expected
 
 
-def test_codeblock(formatter_object, capsys):
-    code_block_text = """{{{#!highlight python
-import sys
-sys.out.write("Hello, World")
-}}}"""
-    expected = """```python
-import sys
-sys.out.write("Hello, World")
-```"""
-    MoinParser.format(code_block_text, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    assert captured.out.rstrip(' ') == expected
+def test_codeblock(formatter_object):
+    code_block_text = """\
+    {{{#!highlight python
+    import sys
+    sys.out.write("Hello, World")
+    }}}
+    """
+    expected = """\
+    ```python
+    import sys
+    sys.out.write("Hello, World")
+    ```
+    """
+    page = MoinParser.parse(textwrap.dedent(code_block_text), 'PageName', formatter_object)
+    expected = textwrap.dedent(expected).rstrip()
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
@@ -53,44 +72,41 @@ def test_getTableAttrs(data, expected, formatter_object):
         ("====== head5 ======", "##### head5\n\n"),
     ]
 )
-def test_heading(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    assert captured.out == expected
+def test_heading(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    assert formatter_object.format(page) == expected
+
+
+@pytest.mark.parametrize(
+    # TODO: remove trailing spaces
+    ("data", "expected"), [
+        ("----", "----\n\n "),
+        ("-----------------", "----\n\n "),
+    ]
+)
+def test_horizontal_rules(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        ("----", "----\n\n"),
-        ("-----------------", "----\n\n"),
+        # TODO: remove trailing spaces
+        ("__underlined text__", "__underlined text __"),
+        ("__underlined\ntext__", "__underlined text __"),
+        ("--(stroke)--", "~~stroke ~~"),
+        ("''italic''", "*italic *"),
+        ("'''strong'''", "**strong **"),
+        ("'''''italic and strong'''''", "***italic and strong ***"),
+        ("''this is italic and '''this is strong'''''", "*this is italic and **this is strong ***"),
+        ("'''this is strong and ''this is italic'''''", "**this is strong and *this is italic ***"),
+        ("~-smaller-~", "<small>smaller </small>"),   # TODO
+        ("~+larger+~", "<big>larger </big>"),   # TODO
     ]
 )
-def test_horizontal_rules(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    # TODO: remove rstrip()
-    assert captured.out.rstrip(' ') == expected
-
-
-@pytest.mark.parametrize(
-    ("data", "expected"), [
-        ("__underlined text__", "__underlined text__"),
-        ("__underlined\ntext__", "__underlined text__"),
-        ("--(stroke)--", "~~stroke~~"),
-        ("''italic''", "*italic*"),
-        ("'''strong'''", "**strong**"),
-        ("'''''italic and strong'''''", "***italic and strong***"),
-        ("''this is italic and '''this is strong'''''", "*this is italic and **this is strong***"),
-        ("'''this is strong and ''this is italic'''''", "**this is strong and *this is italic***"),
-        ("~-smaller-~", "<small>smaller</small>"),   # TODO
-        ("~+larger+~", "<big>larger</big>"),   # TODO
-    ]
-)
-def test_decorations_ml(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    # TODO: remove rstrip()
-    assert captured.out.rstrip() == expected
+def test_decorations_ml(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
@@ -101,11 +117,11 @@ def test_decorations_ml(data, expected, formatter_object, capsys):
         ("{{{this is ``code``}}}", "```this is ``code`` ```"),
     ]
 )
-def test_decorations_sl(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    # TODO: remove rstrip()
-    assert captured.out.rstrip() == expected
+def test_decorations_sl(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    # TODO: remove trailing space
+    ret = formatter_object.format(page).rstrip()
+    assert ret == expected
 
 
 @pytest.mark.parametrize(
@@ -128,11 +144,11 @@ def test_decorations_sl(data, expected, formatter_object, capsys):
         ('[[otherwiki:somepage]]', 'otherwiki:somepage'),
     ]
 )
-def test_links(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    # TODO: remove rstrip()
-    assert captured.out.rstrip() == expected
+def test_links(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    # TODO: remove trailing space
+    ret = formatter_object.format(page).rstrip()
+    assert ret == expected
 
 
 @pytest.mark.parametrize(
@@ -142,28 +158,25 @@ def test_links(data, expected, formatter_object, capsys):
         ("&#x42;", "&#x42;"),
     ]
 )
-def test_entities(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
+def test_entities(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
     # TODO: remove rstrip()
-    assert captured.out.rstrip() == expected
+    assert formatter_object.format(page).rstrip() == expected
 
 
 # TODO:
-@pytest.mark.skip("not implemented")
+# @pytest.mark.skip("not implemented")
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        (" . hoge", "* hoge"),
-        (" * hoge", "* hoge"),
-        (" 1. hoge", "1. hoge"),
-        (" a. hoge", "1. hoge"),
+        # (" . hoge", "* hoge"),
+        (" * hoge", "* hoge \n"),
+        # (" 1. hoge", "1. hoge"),
+        # (" a. hoge", "1. hoge"),
     ]
 )
-def test_item_lists(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
-    # TODO: remove rstrip()
-    assert captured.out.rstrip() == expected
+def test_itemlists(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
+    assert formatter_object.format(page) == expected
 
 
 @pytest.mark.parametrize(
@@ -171,8 +184,7 @@ def test_item_lists(data, expected, formatter_object, capsys):
         ("{{drawing:twikitest.tdraw}}", "{{drawing:twikitest.tdraw}}"),
     ]
 )
-def test_transclude(data, expected, formatter_object, capsys):
-    MoinParser.format(data, 'PageName', formatter_object)
-    captured = capsys.readouterr()
+def test_transclude(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName', formatter_object)
     # TODO: remove rstrip()
-    assert captured.out.rstrip() == expected
+    assert formatter_object.format(page).rstrip() == expected
