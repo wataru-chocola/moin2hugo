@@ -5,7 +5,7 @@ import collections
 from moin2hugo.moin_parser import MoinParser
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Macro, Comment, Smiley,
+    Macro, Comment, Smiley, Remark,
     ParsedText,
     Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
@@ -78,6 +78,7 @@ class Formatter(object):
             Macro: self.macro,
             Comment: self.comment,
             Smiley: self.smiley,
+            Remark: self.remark,
 
             # Codeblock / ParsedText
             ParsedText: self.parsed_text,
@@ -171,6 +172,9 @@ class Formatter(object):
     def smiley(self, smiley: Smiley) -> str:
         # TODO: enableEmoji option?
         return smiley2emoji[smiley.content]
+
+    def remark(self, remark: Remark) -> str:
+        return ''
 
     # Codeblock
     def parsed_text(self, e: ParsedText) -> str:

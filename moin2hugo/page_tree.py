@@ -84,8 +84,7 @@ class Smiley(PageElement):
 
 
 @attr.s
-class Span(PageElement):
-    # TODO: needed?
+class Remark(PageElement):
     pass
 
 
