@@ -1,6 +1,8 @@
 import re
 import textwrap
+import collections
 
+from moin2hugo.moin_parser import MoinParser
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley,
@@ -11,7 +13,9 @@ from moin2hugo.page_tree import (
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw
+    Paragraph, Text, Raw,
+    AttachmentTransclude, Transclude,
+    AttachmentInlined, AttachmentImage, Image
 )
 
 from typing import Optional, Dict, Callable, TypeVar, Type, Any
@@ -113,7 +117,11 @@ class Formatter(object):
             DefinitionDesc: self.definition_desc,
 
             # Transclude (Image Embedding)
-            # Image: self.image,
+            AttachmentTransclude: self.attachment_transclude,
+            Transclude: self.transclude,
+            AttachmentInlined: self.attachment_inlined,
+            AttachmentImage: self.attachment_image,
+            Image: self.image,
         }
         return dispatch_tbl[type(e)](e)
 
@@ -177,6 +185,10 @@ class Formatter(object):
             parser_args = e.parser_args or ''
             # TODO: take consideration of indentation
             ret += "```%s\n" % parser_args
+            ret += "\n".join(lines)
+            ret += "\n```"
+        elif e.parser_name == "text":
+            ret += "```\n"
             ret += "\n".join(lines)
             ret += "\n```"
         return ret
@@ -354,11 +366,62 @@ class Formatter(object):
                         ret += paragraph_indent + line
         return ret
 
-    # Image Embedding
-    def image(self, src: str, alt: str, title: str) -> str:
-        # TODO
-        return "dummy"
+    # Image / Object Embedding
+    def attachment_transclude(self, e: AttachmentTransclude) -> str:
+        # TODO: unsafe
+        url = "url/" + e.pagename + "/" + e.filename
+        tag_attrs = collections.OrderedDict([('data', url)])
+        if e.mimetype:
+            tag_attrs['type'] = e.mimetype
+        if e.title:
+            tag_attrs['name'] = e.title
+        tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
+        ret = "<object %s>" % tag_attrs_str
+        ret += self._generic_container(e)
+        ret += "</object>"
+        return ret
 
-    def attachment_image(self, src: str, alt: str, title: str) -> str:
+    def transclude(self, e: Transclude) -> str:
+        # TODO: unsafe
+        url = "url/" + e.pagename
+        tag_attrs = collections.OrderedDict([('data', url)])
+        if e.mimetype:
+            tag_attrs['type'] = e.mimetype
+        if e.title:
+            tag_attrs['name'] = e.title
+        tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
+        ret = "<object %s>" % tag_attrs_str
+        ret += self._generic_container(e)
+        ret += "</object>"
+        return ret
+
+    def attachment_inlined(self, e: AttachmentInlined) -> str:
+        ret = ""
         # TODO
-        return "dummy"
+        url = "url/" + e.pagename + "/" + e.filename
+        filepath = "filepath/" + e.pagename + "/" + e.filename
+        with open(filepath, 'r') as f:
+            attachment_content = f.read()
+        # TODO: parse content with corresponding parser
+        # _, ext = os.path.splitext(e.filename)
+        # Parser = wikiutil.getParserForExtension(self.request.cfg, ext)
+        ret += self.format(ParsedText(parser_name="text", content=attachment_content))
+        ret += "\n\n"
+        ret += self._link(url, e.link_text)
+        return ret
+
+    def _image(self, src: str, alt: Optional[str] = None, title: Optional[str] = None) -> str:
+        if alt is None:
+            alt = ''
+        if title is not None:
+            return '![{alt}]({src} "{title}")'.format(alt=alt, src=src, title=title)
+        else:
+            return '![{alt}]({src})'.format(alt=alt, src=src)
+
+    def image(self, e: Image) -> str:
+        return self._image(e.src, e.alt, e.title)
+
+    def attachment_image(self, e: AttachmentImage) -> str:
+        # TODO
+        filepath = "filepath/" + e.pagename + "/" + e.filename
+        return self._image(filepath, e.alt, e.title)

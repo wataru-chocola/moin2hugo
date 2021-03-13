@@ -3,6 +3,7 @@ import urllib.parse
 import html
 import shlex
 import logging
+import mimetypes
 
 from io import StringIO
 from typing import Tuple
@@ -71,6 +72,7 @@ class ParserPrefix:
 def parse_quoted_separated_ext(args, separator=None, name_value_separator=None,
                                brackets=None, seplimit=0, multikey=False,
                                prefixes=None, quotes='"'):
+    # TODO
     idx = 0
     assert name_value_separator is None or name_value_separator != separator
     assert name_value_separator is None or len(name_value_separator) == 1
@@ -232,10 +234,10 @@ def parse_quoted_separated(args, separator=',', name_value=True, seplimit=0):
     else:
         name_value_separator = None
 
-    l = parse_quoted_separated_ext(args, separator=separator,
-                                   name_value_separator=name_value_separator,
-                                   seplimit=seplimit)
-    for item in l:
+    items = parse_quoted_separated_ext(args, separator=separator,
+                                       name_value_separator=name_value_separator,
+                                       seplimit=seplimit)
+    for item in items:
         if isinstance(item, tuple):
             key, value = item
             if key is None:
@@ -250,37 +252,45 @@ def parse_quoted_separated(args, separator=',', name_value=True, seplimit=0):
     return result
 
 
-def makeQueryString(qstr=None, want_unicode=None, **kw):
-    # TODO
-    raise NotImplementedError()
+def filename2mimetype(filename: str) -> Tuple[str, str, str]:
+    moin_mimetype_mapping = {
+        'application/docbook+xml': 'text/docbook',
+        'application/x-latex': 'text/latex',
+        'application/x-tex': 'text/tex',
+        'application/javascript': 'text/javascript',
+    }
+    mtype, _encode = mimetypes.guess_type(filename)
+    if mtype is None:
+        mtype = 'application/octet-stream'
+    tmp_mtype = moin_mimetype_mapping.get(mtype, mtype)
+    assert tmp_mtype is not None
+    majortype, subtype = tmp_mtype.split('/')
+    return (mtype.lower(), majortype.lower(), subtype.lower())
 
 
-class MimeType(object):
-    # TODO
-    def __init__(self, mimestr=None, filename=None):
-        # TODO
-        raise NotImplementedError()
+def attachment_abs_name(url, pagename):
+    url = abs_page(pagename, url)
+    pieces = url.split('/')
+    if len(pieces) == 1:
+        return pagename, pieces[0]
+    else:
+        return "/".join(pieces[:-1]), pieces[-1]
 
 
-def AbsPageName(context, pagename):
-    # TODO
-    """
-    Return the absolute pagename for a (possibly) relative pagename.
-    @param context: name of the page where "pagename" appears on
-    @param pagename: the (possibly relative) page name
-    @rtype: string
-    @return: the absolute page name
-    """
-    if pagename.startswith(PARENT_PREFIX):
-        while context and pagename.startswith(PARENT_PREFIX):
-            context = '/'.join(context.split('/')[:-1])
-            pagename = pagename[len(PARENT_PREFIX):]
-        pagename = '/'.join(filter(None, [context, pagename, ]))
-    elif pagename.startswith(CHILD_PREFIX):
-        if context:
-            pagename = context + '/' + pagename[len(CHILD_PREFIX):]
+def abs_page(base_page: str, target_page: str) -> str:
+    pagename = target_page
+    if target_page.startswith(PARENT_PREFIX):
+        base_path_elems = base_page.split('/')
+        while base_path_elems and target_page.startswith(PARENT_PREFIX):
+            base_path_elems = base_path_elems[:-1]
+            target_page = target_page[len(PARENT_PREFIX):]
+        path_elems = base_path_elems + [target_page]
+        pagename = '/'.join([elem for elem in path_elems if elem])
+    elif target_page.startswith(CHILD_PREFIX):
+        if base_page:
+            pagename = base_page + '/' + target_page[len(CHILD_PREFIX):]
         else:
-            pagename = pagename[len(CHILD_PREFIX):]
+            pagename = target_page[len(CHILD_PREFIX):]
     return pagename
 
 
