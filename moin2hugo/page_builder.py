@@ -1,6 +1,6 @@
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Macro, Comment, Smiley,
+    Macro, Comment, Smiley, Remark,
     ParsedText,
     Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
@@ -107,9 +107,11 @@ class PageBuilder(object):
     def smiley(self, smiley: str):
         self._add_new_elem(Smiley(content=smiley))
 
-    def span(self):
-        # TODO: needed?
-        pass
+    def remark(self, on: bool):
+        if on:
+            self._start_new_elem(Remark())
+        else:
+            self._end_current_elem()
 
     # Codeblock / ParsedText
     def parsed_text_start(self):

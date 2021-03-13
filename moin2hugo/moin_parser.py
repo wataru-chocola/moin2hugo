@@ -586,7 +586,7 @@ class MoinParser(object):
             self.builder.text(word)
             return
         self.is_remark = not self.is_remark
-        self.builder.span(self.is_remark)
+        self.builder.remark(self.is_remark)
 
     def _strike_handler(self, word: str, groups: Dict[str, str]):
         """Handle strikethrough."""
