@@ -1,16 +1,19 @@
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Macro, Smiley,
+    Macro, Comment, Smiley, Remark,
+    ParsedText,
+    Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
-    DefinitionList, DefinitionTerm,
+    DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
-    ParsedText,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw
+    Paragraph, Text, Raw,
+    AttachmentTransclude, Transclude,
+    AttachmentInlined, AttachmentImage, Image
 )
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Type
 
 
 class PageBuilder(object):
@@ -19,13 +22,56 @@ class PageBuilder(object):
         self.cur = self.page_root
 
     # Page Bulding Status
+    def _in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
+        above_me = [self.cur] + self.cur.parents
+        for e in above_me:
+            if isinstance(e, tuple(upper_bound)):
+                return False
+            if isinstance(e, tuple(x)):
+                return True
+        return False
+
+    @property
+    def in_p(self) -> bool:
+        return self._in_x([Paragraph])
+
     @property
     def in_pre(self) -> bool:
         return isinstance(self.cur, ParsedText)
 
+    @property
+    def in_table(self) -> bool:
+        return self._in_x([Table])
+
+    @property
     def is_found_parser(self) -> bool:
         assert self.in_pre
         return bool(self.cur.parser_name)
+
+    @property
+    def in_li_of_current_list(self) -> bool:
+        return self._in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
+
+    @property
+    def in_dd_of_current_list(self) -> bool:
+        return self._in_x([DefinitionDesc], upper_bound=[BulletList, NumberList, DefinitionList])
+
+    @property
+    def in_list(self) -> bool:
+        return self._in_x([BulletList, NumberList, DefinitionList])
+
+    @property
+    def list_types(self) -> List[str]:
+        list_types = []
+        above_me = [self.cur] + self.cur.parents
+        for e in reversed(above_me):
+            if isinstance(e, BulletList):
+                list_types.append('ul')
+            elif isinstance(e, NumberList):
+                list_types.append('ol')
+            elif isinstance(e, DefinitionList):
+                list_types.append('dl')
+        return list_types
 
     # Helpers
     def _add_new_elem(self, e: PageElement):
@@ -39,11 +85,11 @@ class PageBuilder(object):
         self.cur = self.cur.parent
 
     # General Objects
-    def paragraph(self, on: bool):
-        if on:
-            self._start_new_elem(Paragraph())
-        else:
-            self._end_current_elem()
+    def paragraph_start(self):
+        self._start_new_elem(Paragraph())
+
+    def paragraph_end(self):
+        self._end_current_elem()
 
     def text(self, text: str):
         self._add_new_elem(Text(content=text))
@@ -55,32 +101,30 @@ class PageBuilder(object):
     def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
         self._add_new_elem(Macro(macro_name=macro_name, macro_args=macro_args, markup=markup))
 
-    def comment(self):
-        pass
+    def comment(self, text: str):
+        self._add_new_elem(Comment(content=text))
 
     def smiley(self, smiley: str):
         self._add_new_elem(Smiley(content=smiley))
 
-    def span(self):
-        # TODO: needed?
-        pass
+    def remark(self, on: bool):
+        if on:
+            self._start_new_elem(Remark())
+        else:
+            self._end_current_elem()
 
     # Codeblock / ParsedText
-    def parsed_text(self, parser_name: str, parser_args: Optional[str], lines: List[str]):
-        self.cur.add_child(ParsedText(parser_name=parser_name, parser_args=parser_args,
-                                      content="\n".join(lines)))
-
     def parsed_text_start(self):
         e = ParsedText()
         self._start_new_elem(e)
 
-    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str]):
+    def parsed_text_parser(self, parser_name: str, parser_args: Optional[str] = None):
         assert isinstance(self.cur, ParsedText)
         self.cur.parser_name = parser_name
         self.cur.parser_args = parser_args
 
     def parsed_text_end(self, lines: List[str]):
-        self.cur.content = '\n'.join(lines)
+        self.cur.content = ''.join(lines)
         self._end_current_elem()
 
     def preformatted(self, on):
@@ -88,159 +132,169 @@ class PageBuilder(object):
         pass
 
     # Table
-    def table(self, on, attrs):
-        pass
+    def table_start(self, attrs: Dict[str, str] = {}):
+        self._start_new_elem(Table(attrs=attrs))
 
-    def table_row(self):
-        pass
+    def table_end(self):
+        self._end_current_elem()
 
-    def table_cell(self):
-        pass
+    def table_row_start(self, attrs: Dict[str, str] = {}):
+        self._start_new_elem(TableRow(attrs=attrs))
+
+    def table_row_end(self):
+        self._end_current_elem()
+
+    def table_cell_start(self, attrs: Dict[str, str] = {}):
+        self._start_new_elem(TableCell(attrs=attrs))
+
+    def table_cell_end(self):
+        self._end_current_elem()
 
     # Heading / Horizontal Rule
     def heading(self, depth: int, text: str):
-        self.cur.add_child(Heading(depth=depth, content=text))
+        self._add_new_elem(Heading(depth=depth, content=text))
 
     def rule(self):
-        self.cur.add_child(HorizontalRule())
+        self._add_new_elem(HorizontalRule())
 
     # Decoration
     def underline(self, on: bool):
         if on:
-            e = Underline()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Underline())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def strike(self, on: bool):
         if on:
-            e = Strike()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Strike())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def big(self, on: bool):
         if on:
-            e = Big()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Big())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def small(self, on: bool):
         if on:
-            e = Small()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Small())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def strong(self, on: bool):
         if on:
-            e = Strong()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Strong())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def emphasis(self, on: bool):
         if on:
-            e = Emphasis()
-            self.cur.add_child(e)
-            self.cur = e
+            self._start_new_elem(Emphasis())
         else:
-            self.cur = self.cur.parent
+            self._end_current_elem()
 
     def sup(self, text: str):
-        self.cur.add_child(Sup(content=text))
+        self._add_new_elem(Sup(content=text))
 
     def sub(self, text: str):
-        self.cur.add_child(Sub(content=text))
+        self._add_new_elem(Sub(content=text))
 
     def code(self, text: str):
-        self.cur.add_child(Code(content=text))
+        self._add_new_elem(Code(content=text))
 
     # Link
     def link_start(self, target: str, title: Optional[str] = None):
-        e = Link(target=target, title=title)
-        self.cur.add_child(e)
-        self.cur = e
+        self._start_new_elem(Link(target=target, title=title))
 
     def link_end(self):
-        self.cur = self.cur.parent
+        self._end_current_elem()
 
-    def pagelink(self, on: bool, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
-                 anchor: Optional[str] = None):
-        if on:
-            e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
+    def pagelink_start(self, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
+                       anchor: Optional[str] = None):
+        e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
+        self._start_new_elem(e)
+
+    def pagelink_end(self):
+        self._end_current_elem()
 
     def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
                               queryargs: Optional[Dict[str, str]] = None):
         e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
-        self.cur.add_child(e)
-        self.cur = e
+        self._start_new_elem(e)
 
     def attachment_link_end(self):
-        self.cur = self.cur.parent
+        self._end_current_elem()
 
     def url(self, text: str):
-        self.cur.add_child(Url(content=text))
+        self._add_new_elem(Url(content=text))
 
     # Itemlist
-    def bullet_list(self, on: bool):
-        if on:
-            e = BulletList()
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
+    def bullet_list_start(self):
+        self._start_new_elem(BulletList())
 
-    def number_list(self, on: bool, numtype: str = '1', numstart: str = '1'):
-        # TODO
-        if on:
-            e = NumberList()
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
+    def bullet_list_end(self):
+        self._end_current_elem()
 
-    def listitem(self, on: bool):
-        if on:
-            e = Listitem()
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
+    def number_list_start(self, numtype: str = '1', numstart: str = '1'):
+        self._start_new_elem(NumberList())
 
-    def definition_list(self, on: bool):
-        if on:
-            e = DefinitionList()
-            self.cur.add_child(e)
-            self.cur = e
-        else:
-            self.cur = self.cur.parent
+    def number_list_end(self):
+        self._end_current_elem()
 
-    def definition_term(self):
-        pass
+    def listitem_start(self):
+        self._start_new_elem(Listitem())
 
-    def definition_desc(self):
-        pass
+    def listitem_end(self):
+        self._end_current_elem()
+
+    def definition_list_start(self):
+        self._start_new_elem(DefinitionList())
+
+    def definition_list_end(self):
+        self._end_current_elem()
+
+    def definition_term_start(self):
+        self._start_new_elem(DefinitionTerm())
+
+    def definition_term_end(self):
+        self._end_current_elem()
+
+    def definition_desc_start(self):
+        self._start_new_elem(DefinitionDesc())
+
+    def definition_desc_end(self):
+        self._end_current_elem()
 
     # Transclude (Image Embedding)
-    def transclusion(self):
-        pass
+    def transclusion_start(self, pagename: str, mimetype: str, title: Optional[str] = None,
+                           width: Optional[str] = None):
+        e = Transclude(pagename=pagename, mimetype=mimetype, title=title, width=width)
+        self._start_new_elem(e)
 
-    def attachment_image(self):
-        pass
+    def transclusion_end(self):
+        self._end_current_elem()
 
-    def attachment_inlined(self):
-        pass
+    def attachment_transclusion_start(self, pagename: str, filename: str, mimetype: str,
+                                      title: Optional[str] = None, width: Optional[str] = None):
+        e = AttachmentTransclude(pagename=pagename, filename=filename, mimetype=mimetype,
+                                 title=title, width=width)
+        self._start_new_elem(e)
 
-    def image(self):
-        pass
+    def attachment_transclusion_end(self):
+        self._end_current_elem()
+
+    def attachment_image(self, pagename: str, filename: str, title: Optional[str] = None,
+                         width: Optional[str] = None, height: Optional[str] = None,
+                         alt: Optional[str] = '', align: Optional[str] = None):
+        e = AttachmentImage(pagename=pagename, filename=filename, title=title,
+                            width=width, height=height, align=align)
+        self._add_new_elem(e)
+
+    def attachment_inlined(self, pagename: str, filename: str, link_text: str):
+        self._add_new_elem(AttachmentInlined(pagename=pagename, filename=filename,
+                                             link_text=link_text))
+
+    def image(self, src: str, alt: str = '', title: Optional[str] = None,
+              align: Optional[str] = None):
+        self._add_new_elem(Image(src=src, alt=alt, title=title, align=align))

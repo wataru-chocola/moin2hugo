@@ -1,15 +1,21 @@
 import re
+import textwrap
+import collections
 
+from moin2hugo.moin_parser import MoinParser
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
-    Macro, Smiley,
+    Macro, Comment, Smiley, Remark,
+    ParsedText,
+    Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
-    DefinitionList, DefinitionTerm,
+    DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
-    ParsedText,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw
+    Paragraph, Text, Raw,
+    AttachmentTransclude, Transclude,
+    AttachmentInlined, AttachmentImage, Image
 )
 
 from typing import Optional, Dict, Callable, TypeVar, Type, Any
@@ -59,9 +65,6 @@ smiley2emoji = {
 
 
 class Formatter(object):
-    def __init__(self):
-        self.in_p = False
-
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self._generic_container,
@@ -73,13 +76,17 @@ class Formatter(object):
 
             # Moinwiki Special Objects
             Macro: self.macro,
+            Comment: self.comment,
             Smiley: self.smiley,
+            Remark: self.remark,
 
             # Codeblock / ParsedText
             ParsedText: self.parsed_text,
 
             # Table
-            # Table: self.table,
+            Table: self.table,
+            TableRow: self.table_row,
+            TableCell: self.table_cell,
 
             # Heading / Horizontal Rule
             Heading: self.heading,
@@ -104,10 +111,18 @@ class Formatter(object):
 
             # Itemlist
             BulletList: self.bullet_list,
+            NumberList: self.number_list,
             Listitem: self.listitem,
+            DefinitionList: self.definition_list,
+            DefinitionTerm: self.definition_term,
+            DefinitionDesc: self.definition_desc,
 
             # Transclude (Image Embedding)
-            # Image: self.image,
+            AttachmentTransclude: self.attachment_transclude,
+            Transclude: self.transclude,
+            AttachmentInlined: self.attachment_inlined,
+            AttachmentImage: self.attachment_image,
+            Image: self.image,
         }
         return dispatch_tbl[type(e)](e)
 
@@ -117,9 +132,16 @@ class Formatter(object):
             ret += self.format(c)
         return ret
 
+    def _separator_line(self, e: PageElement) -> str:
+        if e.prev_sibling is not None and type(e.prev_sibling) in (
+                Paragraph, ParsedText, BulletList, NumberList, DefinitionList,
+                Heading, HorizontalRule):
+            return "\n"
+        return ''
+
     # General Objects
     def paragraph(self, e: Paragraph) -> str:
-        return self._generic_container(e)
+        return self._separator_line(e) + self._generic_container(e)
 
     def text(self, text: str) -> str:
         # TODO: escape markdown special characters, etc
@@ -144,30 +166,50 @@ class Formatter(object):
                 return self.text(e.markup)
         return ''
 
-    def smiley(self, smiley: Smiley):
+    def comment(self, comment: Comment) -> str:
+        return ''
+
+    def smiley(self, smiley: Smiley) -> str:
         # TODO: enableEmoji option?
         return smiley2emoji[smiley.content]
 
+    def remark(self, remark: Remark) -> str:
+        return ''
+
     # Codeblock
-    def parsed_text(self, e: ParsedText):
+    def parsed_text(self, e: ParsedText) -> str:
         lines = e.content.splitlines()
         if lines and not lines[0]:
             lines = lines[1:]
         if lines and not lines[-1].strip():
             lines = lines[:-1]
 
-        ret = ''
+        ret = self._separator_line(e)
         if e.parser_name == 'highlight':
             parser_args = e.parser_args or ''
             # TODO: take consideration of indentation
             ret += "```%s\n" % parser_args
             ret += "\n".join(lines)
             ret += "\n```"
+        elif e.parser_name == "text":
+            ret += "```\n"
+            ret += "\n".join(lines)
+            ret += "\n```"
         return ret
 
     # Table
-    # def table(self, e: Table) -> str:
-    #     pass
+    def table(self, e: Table) -> str:
+        return self._separator_line(e) + self._generic_container(e)
+
+    def table_row(self, e: Table) -> str:
+        ret = []
+        for c in e.children:
+            assert isinstance(c, TableCell)
+            ret.append(self.format(c))
+        return "|" + "|".join(ret) + "|\n"
+
+    def table_cell(self, e: Table) -> str:
+        return " %s " % self._generic_container(e).strip()
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
@@ -180,44 +222,27 @@ class Formatter(object):
 
     # Decoration (can be multilined)
     def underline(self, e: Strike) -> str:
-        return "__%s__" % self._generic_container(e)
+        # TODO: unsafe
+        return "<u>%s</u>" % self._generic_container(e)
 
     def strike(self, e: Strike) -> str:
         return "~~%s~~" % self._generic_container(e)
 
     def small(self, e: Small) -> str:
-        ret = ''
-        ret += "<small>"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "</small>"
-        return ret
+        # TODO: unsafe
+        return "<small>%s</small>" % self._generic_container(e)
 
     def big(self, e: Big) -> str:
-        ret = ''
-        ret += "<big>"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "</big>"
-        return ret
+        # TODO: unsafe
+        return "<big>%s</big>" % self._generic_container(e)
 
     def strong(self, e: Strong) -> str:
-        # TODO: want to handle _ or *, but how?
-        ret = ''
-        ret += "**"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "**"
-        return ret
+        # TODO: want to handle _ or * within content, but how?
+        return "**%s**" % self._generic_container(e)
 
     def emphasis(self, e: Emphasis) -> str:
         # TODO: want to handle _ or *, but how?
-        ret = ''
-        ret += "*"
-        for c in e.children:
-            ret += self.format(c)
-        ret += "*"
-        return ret
+        return "*%s*" % self._generic_container(e)
 
     # Decoration (cannot be multilined)
     def sup(self, e: Sup) -> str:
@@ -277,34 +302,130 @@ class Formatter(object):
         return self._link(link_path, description, e.title)
 
     # Itemlist
-    def bullet_list(self, bullet_list):
+    def bullet_list(self, e: BulletList) -> str:
+        return self._separator_line(e) + self._generic_container(e)
+
+    def number_list(self, e: NumberList) -> str:
+        return self._separator_line(e) + self._generic_container(e)
+
+    def listitem(self, e: Listitem) -> str:
         ret = ""
-        for item in bullet_list.children:
-            ret += "* %s\n" % self.format(item)
-        return ret
+        if isinstance(e.parent, BulletList):
+            marker = "* "
+        elif isinstance(e.parent, NumberList):
+            marker = "1. "
+        else:
+            raise Exception("Invalid Page Tree Structure")
 
-    def number_list(self):
-        # TODO
-        return "dummy"
-
-    def definition_list(self):
-        # TODO
-        return "dummy"
-
-    def listitem(self, e: Listitem):
-        # TODO: unused?
-        # TODO: indent?
-        ret = ""
+        paragraph_indent = " " * len(marker)
+        first_line = True
         for c in e.children:
-            ret += self.format(c)
+            text = self.format(c)
+            if isinstance(c, BulletList) or isinstance(c, NumberList):
+                ret += textwrap.indent(text, " " * 4)
+            elif isinstance(c, ParsedText):
+                ret += "\n"
+                ret += textwrap.indent(text, paragraph_indent)
+                ret += "\n"
+            else:
+                for line in text.splitlines(keepends=True):
+                    if first_line:
+                        ret += marker + line
+                        first_line = False
+                    else:
+                        ret += paragraph_indent + line
         return ret
 
-    # Image Embedding
-    def image(self, src: str, alt: str, title: str) -> str:
-        # TODO
-        return "dummy"
+    def definition_list(self, e: DefinitionList) -> str:
+        return self._separator_line(e) + self._generic_container(e)
 
-    def attachment_image(self, src: str, alt: str, title: str) -> str:
-        # TODO
-        return "dummy"
+    def definition_term(self, e: DefinitionTerm) -> str:
+        dt = self._generic_container(e)
+        if not dt:
+            return ""
+        preceding_newline = ""
+        if e.prev_sibling is not None:
+            preceding_newline = "\n"
+        return preceding_newline + dt + "\n"
 
+    def definition_desc(self, e: DefinitionDesc) -> str:
+        ret = ""
+        marker = ": "
+        paragraph_indent = " " * len(marker)
+        first_line = True
+        for c in e.children:
+            text = self.format(c)
+            if isinstance(c, BulletList) or isinstance(c, NumberList):
+                ret += textwrap.indent(text, " " * 4)
+            elif isinstance(c, ParsedText):
+                ret += "\n"
+                ret += textwrap.indent(text, " " * 4)
+                ret += "\n"
+            else:
+                for line in text.splitlines(keepends=True):
+                    if first_line:
+                        ret += marker + line
+                        first_line = False
+                    else:
+                        ret += paragraph_indent + line
+        return ret
+
+    # Image / Object Embedding
+    def attachment_transclude(self, e: AttachmentTransclude) -> str:
+        # TODO: unsafe
+        url = "url/" + e.pagename + "/" + e.filename
+        tag_attrs = collections.OrderedDict([('data', url)])
+        if e.mimetype:
+            tag_attrs['type'] = e.mimetype
+        if e.title:
+            tag_attrs['name'] = e.title
+        tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
+        ret = "<object %s>" % tag_attrs_str
+        ret += self._generic_container(e)
+        ret += "</object>"
+        return ret
+
+    def transclude(self, e: Transclude) -> str:
+        # TODO: unsafe
+        url = "url/" + e.pagename
+        tag_attrs = collections.OrderedDict([('data', url)])
+        if e.mimetype:
+            tag_attrs['type'] = e.mimetype
+        if e.title:
+            tag_attrs['name'] = e.title
+        tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
+        ret = "<object %s>" % tag_attrs_str
+        ret += self._generic_container(e)
+        ret += "</object>"
+        return ret
+
+    def attachment_inlined(self, e: AttachmentInlined) -> str:
+        ret = ""
+        # TODO
+        url = "url/" + e.pagename + "/" + e.filename
+        filepath = "filepath/" + e.pagename + "/" + e.filename
+        with open(filepath, 'r') as f:
+            attachment_content = f.read()
+        # TODO: parse content with corresponding parser
+        # _, ext = os.path.splitext(e.filename)
+        # Parser = wikiutil.getParserForExtension(self.request.cfg, ext)
+        ret += self.format(ParsedText(parser_name="text", content=attachment_content))
+        ret += "\n\n"
+        ret += self._link(url, e.link_text)
+        return ret
+
+    def _image(self, src: str, alt: Optional[str] = None, title: Optional[str] = None) -> str:
+        if alt is None:
+            alt = ''
+        if title is not None:
+            return '![{alt}]({src} "{title}")'.format(alt=alt, src=src, title=title)
+        else:
+            return '![{alt}]({src})'.format(alt=alt, src=src)
+
+    def image(self, e: Image) -> str:
+        return self._image(e.src, e.alt, e.title)
+
+    def attachment_image(self, e: AttachmentImage) -> str:
+        # TODO
+        filepath = "filepath/" + e.pagename + "/" + e.filename
+        return self._image(filepath, e.alt, e.title)
