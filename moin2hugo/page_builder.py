@@ -8,7 +8,9 @@ from moin2hugo.page_tree import (
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw
+    Paragraph, Text, Raw,
+    AttachmentTransclude, Transclude,
+    AttachmentInlined, AttachmentImage, Image
 )
 
 from typing import List, Dict, Optional, Type
@@ -263,14 +265,34 @@ class PageBuilder(object):
         self._end_current_elem()
 
     # Transclude (Image Embedding)
-    def transclusion(self):
-        pass
+    def transclusion_start(self, pagename: str, mimetype: str, title: Optional[str] = None,
+                           width: Optional[str] = None):
+        e = Transclude(pagename=pagename, mimetype=mimetype, title=title, width=width)
+        self._start_new_elem(e)
 
-    def attachment_image(self):
-        pass
+    def transclusion_end(self):
+        self._end_current_elem()
 
-    def attachment_inlined(self):
-        pass
+    def attachment_transclusion_start(self, pagename: str, filename: str, mimetype: str,
+                                      title: Optional[str] = None, width: Optional[str] = None):
+        e = AttachmentTransclude(pagename=pagename, filename=filename, mimetype=mimetype,
+                                 title=title, width=width)
+        self._start_new_elem(e)
 
-    def image(self):
-        pass
+    def attachment_transclusion_end(self):
+        self._end_current_elem()
+
+    def attachment_image(self, pagename: str, filename: str, title: Optional[str] = None,
+                         width: Optional[str] = None, height: Optional[str] = None,
+                         alt: Optional[str] = '', align: Optional[str] = None):
+        e = AttachmentImage(pagename=pagename, filename=filename, title=title,
+                            width=width, height=height, align=align)
+        self._add_new_elem(e)
+
+    def attachment_inlined(self, pagename: str, filename: str, link_text: str):
+        self._add_new_elem(AttachmentInlined(pagename=pagename, filename=filename,
+                                             link_text=link_text))
+
+    def image(self, src: str, alt: str = '', title: Optional[str] = None,
+              align: Optional[str] = None):
+        self._add_new_elem(Image(src=src, alt=alt, title=title, align=align))

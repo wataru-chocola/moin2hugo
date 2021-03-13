@@ -233,15 +233,51 @@ class Listitem(PageElement):
 
 # Transclude (Image Embedding)
 @attr.s
-class AttachmentImage(PageElement):
-    pass
+class Transclude(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    mimetype: Optional[str] = attr.ib(kw_only=True, default=None)
+
+    title: Optional[str] = attr.ib(kw_only=True, default=None)
+    width: Optional[str] = attr.ib(kw_only=True, default=None)
+    height: Optional[str] = attr.ib(kw_only=True, default=None)
 
 
 @attr.s
-class AttachmentIinline(PageElement):
-    pass
+class AttachmentTransclude(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
+    mimetype: Optional[str] = attr.ib(kw_only=True, default=None)
+
+    title: Optional[str] = attr.ib(kw_only=True, default=None)
+    width: Optional[str] = attr.ib(kw_only=True, default=None)
+    height: Optional[str] = attr.ib(kw_only=True, default=None)
+
+
+@attr.s
+class AttachmentInlined(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
+    link_text: str = attr.ib(kw_only=True)
+
+
+@attr.s
+class AttachmentImage(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
+
+    width: Optional[str] = attr.ib(kw_only=True, default=None)
+    height: Optional[str] = attr.ib(kw_only=True, default=None)
+    title: Optional[str] = attr.ib(kw_only=True, default=None)
+    alt: Optional[str] = attr.ib(kw_only=True, default=None)
+    align: Optional[str] = attr.ib(kw_only=True, default=None)
 
 
 @attr.s
 class Image(PageElement):
-    pass
+    src: str = attr.ib(kw_only=True)
+
+    width: Optional[str] = attr.ib(kw_only=True, default=None)
+    height: Optional[str] = attr.ib(kw_only=True, default=None)
+    title: Optional[str] = attr.ib(kw_only=True, default=None)
+    alt: Optional[str] = attr.ib(kw_only=True, default=None)
+    align: Optional[str] = attr.ib(kw_only=True, default=None)
