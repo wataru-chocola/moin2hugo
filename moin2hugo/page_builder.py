@@ -271,6 +271,7 @@ class PageBuilder(object):
 
     # Link
     def link_start(self, target: str, title: Optional[str] = None):
+        # TODO: extra link attributes
         self._start_new_elem(Link(target=target, title=title))
 
     def link_end(self):
@@ -278,7 +279,9 @@ class PageBuilder(object):
         self._end_current_elem()
 
     def pagelink_start(self, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
-                       anchor: Optional[str] = None):
+                       anchor: Optional[str] = None,
+                       target: Optional[str] = None):
+        # TODO: extra link attributes
         e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
         self._start_new_elem(e)
 
@@ -288,6 +291,7 @@ class PageBuilder(object):
 
     def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
                               queryargs: Optional[Dict[str, str]] = None):
+        # TODO: extra link attributes
         e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
         self._start_new_elem(e)
 
@@ -344,6 +348,7 @@ class PageBuilder(object):
     # Transclude (Image Embedding)
     def transclusion_start(self, pagename: str, mimetype: str, title: Optional[str] = None,
                            width: Optional[str] = None):
+        # TODO: extra object attributes
         e = Transclude(pagename=pagename, mimetype=mimetype, title=title, width=width)
         self._start_new_elem(e)
 
@@ -353,6 +358,7 @@ class PageBuilder(object):
 
     def attachment_transclusion_start(self, pagename: str, filename: str, mimetype: str,
                                       title: Optional[str] = None, width: Optional[str] = None):
+        # TODO: extra object attributes
         e = AttachmentTransclude(pagename=pagename, filename=filename, mimetype=mimetype,
                                  title=title, width=width)
         self._start_new_elem(e)
@@ -364,6 +370,7 @@ class PageBuilder(object):
     def attachment_image(self, pagename: str, filename: str, title: Optional[str] = None,
                          width: Optional[str] = None, height: Optional[str] = None,
                          alt: Optional[str] = '', align: Optional[str] = None):
+        # TODO: extra image attributes
         e = AttachmentImage(pagename=pagename, filename=filename, title=title,
                             width=width, height=height, align=align)
         self._add_new_elem(e)
@@ -374,4 +381,5 @@ class PageBuilder(object):
 
     def image(self, src: str, alt: str = '', title: Optional[str] = None,
               align: Optional[str] = None):
+        # TODO: extra image attributes
         self._add_new_elem(Image(src=src, alt=alt, title=title, align=align))
