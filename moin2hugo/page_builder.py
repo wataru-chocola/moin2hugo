@@ -47,6 +47,10 @@ class PageBuilder(object):
         return isinstance(self.cur, ParsedText)
 
     @property
+    def in_remark(self) -> bool:
+        return isinstance(self.cur, Remark)
+
+    @property
     def in_table(self) -> bool:
         return self._in_x([Table])
 
@@ -114,8 +118,8 @@ class PageBuilder(object):
     def smiley(self, smiley: str):
         self._add_new_elem(Smiley(content=smiley))
 
-    def remark(self, on: bool):
-        if on:
+    def remark_toggle(self):
+        if not self.in_remark:
             self._start_new_elem(Remark())
         else:
             self.assert_cur_elem(Remark)

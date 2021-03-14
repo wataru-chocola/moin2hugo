@@ -28,6 +28,7 @@ def test_macro(data, expected, formatter_object):
     ("data", "expected"), [
         ("## this is comment", ''),
         ("Hello, /* this is comment */ world", 'Hello,  world'),
+        ("Hello, /* ''' comment */ world", 'Hello,  world'),
     ]
 )
 def test_comment(data, expected, formatter_object):
