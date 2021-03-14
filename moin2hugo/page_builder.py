@@ -60,6 +60,50 @@ class PageBuilder(object):
         return bool(self.cur.parser_name)
 
     @property
+    def in_underline(self) -> bool:
+        return self._in_x([Underline])
+
+    @property
+    def in_strike(self) -> bool:
+        return self._in_x([Strike])
+
+    @property
+    def in_small(self) -> bool:
+        return self._in_x([Small])
+
+    @property
+    def in_strong(self) -> bool:
+        return self._in_x([Strong])
+
+    @property
+    def in_emphasis(self) -> bool:
+        return self._in_x([Emphasis])
+
+    @property
+    def is_emphasis_before_strong(self) -> bool:
+        assert self.in_strong
+        assert self.in_emphasis
+        found_strong = False
+        found_emphasis = False
+
+        above_me = [self.cur] + self.cur.parents
+        for e in above_me:
+            if isinstance(e, Strong):
+                if found_emphasis:
+                    return False
+                found_strong = True
+            if isinstance(e, Emphasis):
+                if found_strong:
+                    return True
+                found_emphasis = True
+        else:
+            raise AssertionError("This mustn't be reached")
+
+    @property
+    def in_big(self) -> bool:
+        return self._in_x([Big])
+
+    @property
     def in_li_of_current_list(self) -> bool:
         return self._in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
 
@@ -174,43 +218,43 @@ class PageBuilder(object):
         self._add_new_elem(HorizontalRule())
 
     # Decoration
-    def underline(self, on: bool):
-        if on:
+    def underline_toggle(self):
+        if not self.in_underline:
             self._start_new_elem(Underline())
         else:
             self.assert_cur_elem(Underline)
             self._end_current_elem()
 
-    def strike(self, on: bool):
-        if on:
+    def strike_toggle(self):
+        if not self.in_strike:
             self._start_new_elem(Strike())
         else:
             self.assert_cur_elem(Strike)
             self._end_current_elem()
 
-    def big(self, on: bool):
-        if on:
+    def big_toggle(self):
+        if not self.in_big:
             self._start_new_elem(Big())
         else:
             self.assert_cur_elem(Big)
             self._end_current_elem()
 
-    def small(self, on: bool):
-        if on:
+    def small_toggle(self):
+        if not self.in_small:
             self._start_new_elem(Small())
         else:
             self.assert_cur_elem(Small)
             self._end_current_elem()
 
-    def strong(self, on: bool):
-        if on:
+    def strong_toggle(self):
+        if not self.in_strong:
             self._start_new_elem(Strong())
         else:
             self.assert_cur_elem(Strong)
             self._end_current_elem()
 
-    def emphasis(self, on: bool):
-        if on:
+    def emphasis_toggle(self):
+        if not self.in_emphasis:
             self._start_new_elem(Emphasis())
         else:
             self.assert_cur_elem(Emphasis)
