@@ -338,16 +338,7 @@ class MoinParser(object):
         self.page_name = page_name
 
         self.parser_lines: List[str] = []
-
-        self.is_u = False
-        self.is_strike = False
-        self.is_big = False
-        self.is_small = False
-        self.is_em = 0  # must be int
-        self.is_b = 0  # must be int
-
-        # holds the nesting level (in chars) of open lists
-        self.list_indents: List[int] = []
+        self.list_indents: List[int] = []  # holds the nesting level (in chars) of open lists
 
     # Public Method ----------------------------------------------------------
     @classmethod
@@ -579,11 +570,6 @@ class MoinParser(object):
             ))
 
     # Private Replace Method ----------------------------------------------------------
-    def _u_handler(self, word: str, groups: Dict[str, str]):
-        """Handle underline."""
-        self.is_u = not self.is_u
-        self.builder.underline(self.is_u)
-
     def _remark_handler(self, word: str, groups: Dict[str, str]):
         """Handle remarks: /* ... */"""
         on = groups.get('remark_on')
@@ -593,81 +579,63 @@ class MoinParser(object):
             return
         self.builder.remark_toggle()
 
+    def _u_handler(self, word: str, groups: Dict[str, str]):
+        """Handle underline."""
+        self.builder.underline_toggle()
+
     def _strike_handler(self, word: str, groups: Dict[str, str]):
         """Handle strikethrough."""
         on = groups.get('strike_on')
         off = groups.get('strike_off')
-        if (on and self.is_strike) or (off and not self.is_strike):
+        if (on and self.builder.in_strike) or (off and not self.builder.in_strike):
             self.builder.text(word)
             return
-        self.is_strike = not self.is_strike
-        self.builder.strike(self.is_strike)
+        self.builder.strike_toggle()
 
     def _small_handler(self, word: str, groups: Dict[str, str]):
         """Handle small."""
         on = groups.get('small_on')
         off = groups.get('small_off')
-        if (on and self.is_small) or (off and not self.is_small):
+        if (on and self.builder.in_small) or (off and not self.builder.in_small):
             self.builder.text(word)
             return
-        self.is_small = not self.is_small
-        self.builder.small(self.is_small)
+        self.builder.small_toggle()
 
     def _big_handler(self, word: str, groups: Dict[str, str]):
         """Handle big."""
         on = groups.get('big_on')
         off = groups.get('big_off')
-        if (on and self.is_big) or (off and not self.is_big):
+        if (on and self.builder.in_big) or (off and not self.builder.in_big):
             self.builder.text(word)
             return
-        self.is_big = not self.is_big
-        self.builder.big(self.is_big)
+        self.builder.big_toggle()
 
     def _emph_handler(self, word: str, groups: Dict[str, str]):
         """Handle emphasis, i.e. ''(em) and '''(b)."""
         if len(word) == 3:
-            self.is_b = not self.is_b
-            if self.is_em and self.is_b:
-                self.is_b = 2
-            self.builder.strong(self.is_b)
+            self.builder.strong_toggle()
         else:
-            self.is_em = not self.is_em
-            if self.is_em and self.is_b:
-                self.is_em = 2
-            self.builder.emphasis(self.is_em)
-        return
+            self.builder.emphasis_toggle()
 
     def _emph_ibb_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, i.e. ''''' followed by '''."""
-        self.is_b = not self.is_b
-        self.is_em = not self.is_em
-        if self.is_em and self.is_b:
-            self.is_b = 2
-        self.builder.emphasis(self.is_em)
-        self.builder.strong(self.is_b)
+        self.builder.emphasis_toggle()
+        self.builder.strong_toggle()
 
     def _emph_ibi_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, i.e. ''''' followed by ''."""
-        self.is_b = not self.is_b
-        self.is_em = not self.is_em
-        if self.is_em and self.is_b:
-            self.is_em = 2
-        self.builder.strong(self.is_b)
-        self.builder.emphasis(self.is_em)
+        self.builder.strong_toggle()
+        self.builder.emphasis_toggle()
 
     def _emph_ib_or_bi_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, exactly five '''''."""
-        b_before_em = False
-        if self.is_b and self.is_em:
-            b_before_em = self.is_b > self.is_em
-        self.is_b = not self.is_b
-        self.is_em = not self.is_em
-        if b_before_em:
-            self.builder.strong(self.is_b)
-            self.builder.emphasis(self.is_em)
+        if self.builder.in_emphasis and self.builder.in_strong \
+                and self.builder.is_emphasis_before_strong:
+            self.builder.strong_toggle()
+            self.builder.emphasis_toggle()
         else:
-            self.builder.emphasis(self.is_em)
-            self.builder.strong(self.is_b)
+            self.builder.emphasis_toggle()
+            self.builder.strong_toggle()
 
     def _sup_handler(self, word: str, groups: Dict[str, str]):
         """Handle superscript."""
