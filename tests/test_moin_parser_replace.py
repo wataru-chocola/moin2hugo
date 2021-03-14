@@ -19,7 +19,7 @@ def formatter_object():
     ]
 )
 def test_macro(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     ret = formatter_object.format(page)
     assert ret == expected
 
@@ -31,7 +31,7 @@ def test_macro(data, expected, formatter_object):
     ]
 )
 def test_comment(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     ret = formatter_object.format(page)
     assert ret == expected
 
@@ -42,7 +42,7 @@ def test_comment(data, expected, formatter_object):
     ]
 )
 def test_smiley(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     ret = formatter_object.format(page)
     assert ret == expected
 
@@ -62,7 +62,7 @@ def test_codeblock(formatter_object):
     sys.out.write("Hello, World")
     ```
     """.rstrip()
-    page = MoinParser.parse(textwrap.dedent(code_block_text), 'PageName', formatter_object)
+    page = MoinParser.parse(textwrap.dedent(code_block_text), 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
@@ -76,7 +76,7 @@ def test_table(formatter_object):
     | **A** | **B** | **C** |
     | 1 | 2 | 3 |
     """
-    page = MoinParser.parse(textwrap.dedent(table_text), 'PageName', formatter_object)
+    page = MoinParser.parse(textwrap.dedent(table_text), 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
@@ -100,7 +100,7 @@ def test_getTableAttrs(data, expected, formatter_object):
     ]
 )
 def test_heading(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -111,7 +111,7 @@ def test_heading(data, expected, formatter_object):
     ]
 )
 def test_horizontal_rules(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -130,7 +130,7 @@ def test_horizontal_rules(data, expected, formatter_object):
     ]
 )
 def test_decorations_ml(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -143,7 +143,7 @@ def test_decorations_ml(data, expected, formatter_object):
     ]
 )
 def test_decorations_sl(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -168,7 +168,7 @@ def test_decorations_sl(data, expected, formatter_object):
     ]
 )
 def test_links(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -180,7 +180,7 @@ def test_links(data, expected, formatter_object):
     ]
 )
 def test_entities(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -194,7 +194,7 @@ def test_entities(data, expected, formatter_object):
     ]
 )
 def test_itemlists_simple(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
 
 
@@ -223,7 +223,7 @@ def test_itemlists_multi_items(formatter_object):
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
@@ -257,7 +257,7 @@ def test_itemlists_containing_paragraph(formatter_object):
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
@@ -299,7 +299,7 @@ def test_definition_lists(formatter_object):
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
 
@@ -323,7 +323,7 @@ def test_definition_lists(formatter_object):
 )
 def test_transclude(data, expected, formatter_object):
     mock_io = mock.mock_open(read_data="hello")
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     with mock.patch('moin2hugo.formatter.open', mock_io):
         assert formatter_object.format(page) == expected
 
@@ -335,5 +335,5 @@ def test_transclude(data, expected, formatter_object):
     ]
 )
 def test_endling_newline(data, expected, formatter_object):
-    page = MoinParser.parse(data, 'PageName', formatter_object)
+    page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected

@@ -332,11 +332,10 @@ class MoinParser(object):
 
     available_parsers = ('text', 'highlight')
 
-    def __init__(self, text: str, page_name: str, formatter):
+    def __init__(self, text: str, page_name: str):
         self.builder = moin2hugo.page_builder.PageBuilder()
         self.lines = text.expandtabs().splitlines(keepends=True)
         self.page_name = page_name
-        self.formatter = formatter
 
         self.parser_lines: List[str] = []
 
@@ -353,8 +352,8 @@ class MoinParser(object):
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def parse(cls, text: str, page_name: str, formatter):
-        parser = cls(text, page_name, formatter)
+    def parse(cls, text: str, page_name: str):
+        parser = cls(text, page_name)
         return parser._parse()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
