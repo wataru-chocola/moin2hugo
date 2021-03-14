@@ -196,7 +196,7 @@ class MoinParser(object):
 )|(?P<emph_ibi>
     '''''(?=[^']+'')  # italic on, bold on, ..., italic off
 )|(?P<emph_ib_or_bi>
-    '{5}(?=[^'])  # italic and bold or bold and italic
+    '{5}(?=[^']|$)  # italic and bold or bold and italic
 )|(?P<emph>
     '{2,3}  # italic or bold
 )|(?P<u>
@@ -339,13 +339,12 @@ class MoinParser(object):
 
         self.parser_lines: List[str] = []
 
-        self.is_em = 0  # must be int
-        self.is_b = 0  # must be int
         self.is_u = False
         self.is_strike = False
         self.is_big = False
         self.is_small = False
-        self.is_remark = False
+        self.is_em = 0  # must be int
+        self.is_b = 0  # must be int
 
         # holds the nesting level (in chars) of open lists
         self.list_indents: List[int] = []
@@ -435,7 +434,8 @@ class MoinParser(object):
                 elif remainder:
                     if not (self.builder.in_pre or self.builder.in_p or
                             self.builder.in_li_of_current_list or
-                            self.builder.in_dd_of_current_list):
+                            self.builder.in_dd_of_current_list or
+                            self.builder.in_remark):
                         self.builder.paragraph_start()
                     self.builder.text(remainder)
                 break
@@ -446,14 +446,14 @@ class MoinParser(object):
                 if self.builder.in_pre:
                     self._parser_content(line[lastpos:start])
                 else:
-                    if not self.builder.in_p:
+                    if not (self.builder.in_p or self.builder.in_remark):
                         self.builder.paragraph_start()
                     self.builder.text(line[lastpos:start])
 
             # TODO: this makes unneccesary paragraph some cases
             # Replace match with markup
             if not (self.builder.in_pre or self.builder.in_p or self.builder.in_table
-                    or self.builder.in_list):
+                    or self.builder.in_list or self.builder.in_remark):
                 self.builder.paragraph_start()
             self._process_markup(match)
             end = match.end()
@@ -555,7 +555,14 @@ class MoinParser(object):
         }
 
         for _type, hit in match.groupdict().items():
-            if hit is not None and _type not in ["hmarker", ]:
+            if hit is None:
+                continue
+            if self.builder.in_remark and _type not in ["remark"]:
+                # original moin-1.9 parser parses even inside inline comments.
+                # it breaks tree structure, so we avoid it..
+                self.builder.text(hit)
+                return
+            if _type not in ["hmarker", ]:
                 # Open p for certain types
                 if not (self.builder.in_p or self.builder.in_pre or (_type in no_new_p_before)):
                     self.builder.paragraph_start()
@@ -581,11 +588,10 @@ class MoinParser(object):
         """Handle remarks: /* ... */"""
         on = groups.get('remark_on')
         off = groups.get('remark_off')
-        if (on and self.is_remark) or (off and not self.is_remark):
+        if (on and self.builder.in_remark) or (off and not self.builder.in_remark):
             self.builder.text(word)
             return
-        self.is_remark = not self.is_remark
-        self.builder.remark(self.is_remark)
+        self.builder.remark_toggle()
 
     def _strike_handler(self, word: str, groups: Dict[str, str]):
         """Handle strikethrough."""
@@ -662,7 +668,6 @@ class MoinParser(object):
         else:
             self.builder.emphasis(self.is_em)
             self.builder.strong(self.is_b)
-        return
 
     def _sup_handler(self, word: str, groups: Dict[str, str]):
         """Handle superscript."""
