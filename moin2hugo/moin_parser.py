@@ -714,10 +714,7 @@ class MoinParser(object):
         mt = self.link_target_re.match(target)
         if not mt:
             return
-
-        # TODO: don't support all attrs actually
-        acceptable_attrs = ['class', 'title', 'target', 'accesskey', 'rel', ]
-        tag_attrs, query_args = self._get_params(params, acceptable_attrs=acceptable_attrs)
+        tag_attrs, query_args = _get_link_params(params)
 
         if mt.group('page_name'):
             page_name_and_anchor = mt.group('page_name')
@@ -817,11 +814,6 @@ class MoinParser(object):
 
         desc = groups.get('transclude_desc', '') or ''
         params = groups.get('transclude_params', '')
-        # TODO: which attrs should i support?
-        # TODO: longdesc is deprecated in HTML5
-        acceptable_attrs_img = ['class', 'title', 'longdesc', 'width', 'height', 'align', ]
-        # TODO: standby is deprecated in HTML5
-        acceptable_attrs_object = ['class', 'title', 'width', 'height', 'type', 'standby', ]
 
         if m.group('extern_addr'):
             target = m.group('extern_addr')
@@ -829,8 +821,7 @@ class MoinParser(object):
             tag_attrs = {}
             if trans_desc:
                 tag_attrs = {'alt': trans_desc, 'title': trans_desc, }
-            tmp_tag_attrs, query_args = self._get_params(params,
-                                                         acceptable_attrs=acceptable_attrs_img)
+            tmp_tag_attrs, query_args = _get_image_params(params)
             tag_attrs.update(tmp_tag_attrs)
             self.builder.image(src=target, **tag_attrs)
 
@@ -850,16 +841,14 @@ class MoinParser(object):
                     tag_attrs = {}
                     if trans_desc:
                         tag_attrs = {'alt': trans_desc, 'title': trans_desc, }
-                    tmp_tag_attrs, query_args = \
-                        self._get_params(params, acceptable_attrs=acceptable_attrs_img)
+                    tmp_tag_attrs, query_args = _get_image_params(params)
                     tag_attrs.update(tmp_tag_attrs)
                     self.builder.attachment_image(pagename=pagename, filename=filename,
                                                   **tag_attrs)
                 else:
                     # non-text, unsupported images, or other filetypes
                     tag_attrs = {'title': desc, }
-                    tmp_tag_attrs, query_args = \
-                        self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+                    tmp_tag_attrs, query_args = _get_object_params(params)
                     tag_attrs.update(tmp_tag_attrs)
                     if 'type' in tag_attrs:
                         tag_attrs['mimetype'] = tag_attrs['type']
@@ -886,8 +875,7 @@ class MoinParser(object):
                 return
 
             tag_attrs = {'type': 'text/html', 'width': '100%'}
-            tmp_tag_attrs, query_args = \
-                self._get_params(params, acceptable_attrs=acceptable_attrs_object)
+            tmp_tag_attrs, query_args = _get_object_params(params)
             tag_attrs.update(tmp_tag_attrs)
             # TODO
             if 'action' not in query_args:
@@ -1139,26 +1127,46 @@ class MoinParser(object):
         if self.builder.in_p:
             self.builder.paragraph_end()
 
-    def _get_params(self, paramstring: str, acceptable_attrs: List[str] = []
-                    ) -> Tuple[Dict[str, str], Dict[str, str]]:
-        """ parse the parameters of link/transclusion markup,
-            defaults can be a dict with some default key/values
-            that will be in the result as given, unless overriden
-            by the params.
-        """
-        tag_attrs = {}
-        query_args = {}
-        if paramstring:
-            fixed, kw, trailing = wikiutil.parse_quoted_separated(paramstring)
-            # we ignore fixed and trailing args and only use kw args:
-            for key, val in kw.items():
-                if key in acceptable_attrs:
-                    # tag attributes must be string type
-                    tag_attrs[str(key)] = val
-                elif key.startswith('&'):
-                    key = key[1:]
-                    query_args[key] = val
-        return tag_attrs, query_args
+
+def _get_image_params(paramstring: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+    # TODO: which attrs should i support?
+    # TODO: longdesc is deprecated in HTML5
+    acceptable_attrs_img = ['class', 'title', 'longdesc', 'width', 'height', 'align', ]
+    return _get_params(paramstring, acceptable_attrs=acceptable_attrs_img)
+
+
+def _get_object_params(paramstring: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+    # TODO: standby is deprecated in HTML5
+    acceptable_attrs_object = ['class', 'title', 'width', 'height', 'type', 'standby', ]
+    return _get_params(paramstring, acceptable_attrs=acceptable_attrs_object)
+
+
+def _get_link_params(paramstring: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+    # TODO: don't support all attrs actually
+    acceptable_attrs_link = ['class', 'title', 'target', 'accesskey', 'rel', ]
+    return _get_params(paramstring, acceptable_attrs=acceptable_attrs_link)
+
+
+def _get_params(paramstring: str, acceptable_attrs: List[str] = []
+                ) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """ parse the parameters of link/transclusion markup,
+        defaults can be a dict with some default key/values
+        that will be in the result as given, unless overriden
+        by the params.
+    """
+    tag_attrs = {}
+    query_args = {}
+    if paramstring:
+        fixed, kw, trailing = wikiutil.parse_quoted_separated(paramstring)
+        # we ignore fixed and trailing args and only use kw args:
+        for key, val in kw.items():
+            if key in acceptable_attrs:
+                # tag attributes must be string type
+                tag_attrs[str(key)] = val
+            elif key.startswith('&'):
+                key = key[1:]
+                query_args[key] = val
+    return tag_attrs, query_args
 
 
 def _getTableAttrs(attrdef: str) -> Dict[str, str]:
