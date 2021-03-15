@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import attr
+import textwrap
 from typing import Optional, List, Dict
 
 
@@ -40,6 +41,19 @@ class PageElement(object):
     def add_child(self, element: PageElement):
         self.children.append(element)
         element.parent = self
+
+    def print_structure(self) -> str:
+        ret = ""
+        classname = self.__class__.__name__
+        if self.content:
+            summary = textwrap.shorten(self.content, 40)
+            ret += '{classname}: content="{summary}"'.format(classname=classname, summary=summary)
+        else:
+            ret += '{classname}:'.format(classname=classname)
+        for e in self.children:
+            ret += "\n"
+            ret += textwrap.indent(e.print_structure(), "    ")
+        return ret
 
 
 # General Objects
