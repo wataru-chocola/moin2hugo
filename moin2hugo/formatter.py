@@ -1,6 +1,7 @@
 import re
 import textwrap
 import collections
+import copy
 
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
@@ -66,11 +67,11 @@ smiley2emoji = {
 class Formatter(object):
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
-            PageRoot: self._generic_container,
+            PageRoot: self.page_root,
 
             # General Objects
             Paragraph: self.paragraph,
-            Text: self.text2,
+            Text: self.text,
             Raw: self.raw,
 
             # Moinwiki Special Objects
@@ -138,16 +139,79 @@ class Formatter(object):
             return "\n"
         return ''
 
+    def _consolidate(self, e: PageElement) -> PageElement:
+        new_e = copy.deepcopy(e)
+        new_e.children = []
+        for c in e.children:
+            if isinstance(c, Remark):
+                continue
+            if isinstance(c, Text):
+                if len(new_e.children) > 0 and isinstance(new_e.children[-1], Text):
+                    new_e.children[-1].content += c.content
+                    continue
+            new_c = self._consolidate(c)
+            new_e.add_child(new_c)
+        return new_e
+
     # General Objects
+    def page_root(self, e: Paragraph) -> str:
+        new_e = self._consolidate(e)
+        return self._generic_container(new_e)
+
     def paragraph(self, e: Paragraph) -> str:
         return self._separator_line(e) + self._generic_container(e)
 
-    def text(self, text: str) -> str:
-        # TODO: escape markdown special characters, etc
-        return text
+    def _is_at_beginning_of_line(self, e: Text) -> bool:
+        prev = e.prev_sibling
+        while prev:
+            if isinstance(prev, Remark):
+                prev = prev.prev_sibling
+                continue
+            if isinstance(prev, Text):
+                if not prev.content:
+                    prev = prev.prev_sibling
+                    continue
+                return self.format(prev).endswith("\n")
+            else:
+                return False
+            break
 
-    def text2(self, e: Text) -> str:
-        return e.content
+        return True
+
+    def text(self, e: Text) -> str:
+        text = e.content
+        # escape backslashes at first
+        text = re.sub(r'\\', r'\\\\', text)
+
+        lines = text.splitlines(keepends=True)
+        new_lines = []
+        first_line = True
+        for line in lines:
+            # remove trailing whitespaces pattern which means line break in markdown
+            line = re.sub(r'\s+(?=\n)', '', line)
+
+            if (first_line and self._is_at_beginning_of_line(e)) or \
+                    not first_line:
+                # remove leading whitespaces
+                line = line.lstrip()
+                # avoid unintended listitem
+                line = re.sub(r'^(\d)\.(?=\s)', r'\1\.', line)   # numbered list
+                line = re.sub(r'^([-+])(?=\s)', r'\\\1', line)   # bullet list
+                # horizontal rule or headling
+                m = re.match(r'^([-=])\1*$', line)
+                if m:
+                    symbol = m.group(1)
+                    line = line.replace(symbol, "\\" + symbol)
+
+            # escape markdown syntax
+            line = re.sub(r'\!(?=\[)', r'\!', line)   # image: ![title](image)
+
+            # escape markdown special symbols
+            line = re.sub(r'([\[\]\{\}\(\)*_:`~<>|#])', r'\\\1', line)
+
+            new_lines.append(line)
+            first_line = False
+        return "".join(new_lines)
 
     def raw(self, e: Raw) -> str:
         return e.content
@@ -162,7 +226,7 @@ class Formatter(object):
             return ''
         else:
             if e.markup:
-                return self.text(e.markup)
+                return self.text(Text(e.markup))
         return ''
 
     def comment(self, comment: Comment) -> str:
@@ -275,6 +339,9 @@ class Formatter(object):
         return self._link(e.target, description, title=e.title)
 
     def _link(self, target: str, description: str, title: Optional[str] = None) -> str:
+        # TODO:
+        # not [link](https://www.example.com/my great page)
+        # ok [link](https://www.example.com/my%20great%20page)
         if title is not None:
             return '[%s](%s "%s")' % (description, target, title)
         else:

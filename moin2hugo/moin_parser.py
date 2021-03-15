@@ -941,13 +941,13 @@ class MoinParser(object):
         """Handle section headings.: == =="""
         heading_text = groups.get('heading_text', '')
         depth = min(len(groups.get('hmarker', '')), 5)
-        self._closeP()
+        self._close_paragraph()
         self.builder.heading(depth, heading_text),
 
     def _rule_handler(self, word: str, groups: Dict[str, str]):
         """Handle sequences of dashes (Horizontal Rule)."""
         self._undent()
-        self._closeP()
+        self._close_paragraph()
         self.builder.rule()
 
     def _parser_handler(self, word: str, groups: Dict[str, str]):
@@ -968,7 +968,7 @@ class MoinParser(object):
         if parser_name is None and parser_nothing is None:
             parser_name = 'text'
 
-        self._closeP()
+        self._close_paragraph()
         self.builder.parsed_text_start()
 
         if parser_name:
@@ -1115,15 +1115,13 @@ class MoinParser(object):
         if self.builder.in_table:
             self.builder.table_end()
         if self.builder.in_li_of_current_list:
-            if self.builder.in_p:
-                self.builder.paragraph_end()
+            self._close_paragraph()
             self.builder.listitem_end()
-        if self.builder.in_dd_of_current_list:
-            if self.builder.in_p:
-                self.builder.paragraph_end()
+        elif self.builder.in_dd_of_current_list:
+            self._close_paragraph()
             self.builder.definition_desc_end()
 
-    def _closeP(self):
+    def _close_paragraph(self):
         if self.builder.in_p:
             self.builder.paragraph_end()
 

@@ -15,10 +15,25 @@ def test_endling_newline(data, expected, formatter_object):
 
 
 @pytest.mark.parametrize(
+    # all markdown escaping are located in test_formatter.py
+    ("data", "expected"), [
+        ("line with spaces  \ntest", "line with spaces\ntest"),
+        ("line1\n/* xyz */    line2", "line1\nline2"),
+        ("line1  /* xyz */  \nline2", "line1\nline2"),
+        ("_test_", r"\_test\_"),
+        ("'''***'''", r"**\*\*\***"),
+    ]
+)
+def test_escape(data, expected, formatter_object):
+    page = MoinParser.parse(data, 'PageName')
+    assert formatter_object.format(page) == expected
+
+
+@pytest.mark.parametrize(
     ("data", "expected"), [
         ("<<TableOfContents>>", ''),
         ("<<BR>>", '<br />'),
-        ("<<UnsupportedMacro>>", '<<UnsupportedMacro>>'),
+        ("<<UnsupportedMacro>>", r'\<\<UnsupportedMacro\>\>'),
     ]
 )
 def test_macro(data, expected, formatter_object):
