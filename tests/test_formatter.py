@@ -1,7 +1,8 @@
 from moin2hugo.formatter import Formatter
-from moin2hugo.page_tree import PageRoot, Text, Paragraph, Remark, Strong
+from moin2hugo.page_tree import PageRoot, Text, ParsedText, Paragraph, Remark, Strong
 
 import pytest
+import textwrap
 
 
 @pytest.mark.parametrize(
@@ -97,3 +98,39 @@ def test_text_escape(data, expected):
     formatter = Formatter()
     text = Text(data)
     assert formatter.format(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("""\
+         line 1
+         <>!{}()*_-
+         """,
+         """\
+         ```
+         line 1
+         <>!{}()*_-
+         ```
+         """),
+        ("""\
+         line 1
+         ```
+         <>!{}()*_-
+         """,
+         """\
+         ````
+         line 1
+         ```
+         <>!{}()*_-
+         ````
+         """),
+
+    ]
+)
+def test_codeblock(data, expected):
+    data = textwrap.dedent(data)
+    expected = textwrap.dedent(expected).rstrip()
+
+    formatter = Formatter()
+    e = ParsedText(content=data)
+    assert formatter.format(e) == expected
