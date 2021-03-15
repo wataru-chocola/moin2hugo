@@ -37,6 +37,8 @@ def test_links(data, expected, formatter_object):
         ('{{attachment:image.png|title|width=100 height=150 xxx=11}}', '![](filepath/PageName/image.png "title")'),  # noqa
         ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](url/PageName/image.txt)"),
         ("{{attachment:image.pdf}}", '<object data="url/PageName/image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
+        ("{{attachment:*a*.pdf}}", '<object data="url/PageName/%2Aa%2A.pdf" type="application/pdf">*a*.pdf</object>'),  # noqa
+        ("{{attachment:<a>.pdf}}", '<object data="url/PageName/%3Ca%3E.pdf" type="application/pdf">&lt;a&gt;.pdf</object>'),  # noqa
         # page
         ("{{pagename}}", '<object data="url/pagename" type="text/html">pagename</object>'),
         # drawing
