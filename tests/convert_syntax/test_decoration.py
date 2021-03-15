@@ -15,6 +15,10 @@ import pytest
         ("'''this is strong and ''this is italic'''''", "**this is strong and *this is italic***"),
         ("~-smaller-~", "<small>smaller</small>"),
         ("~+larger+~", "<big>larger</big>"),
+
+        ("__underlined<x /> text__", "<u>underlined&lt;x /&gt; text</u>"),
+        ("~-smal<x />ler-~", "<small>smal&lt;x /&gt;ler</small>"),
+        ("~+larg<x />er+~", "<big>larg&lt;x /&gt;er</big>"),
     ]
 )
 def test_decorations_ml(data, expected, formatter_object):
@@ -28,10 +32,11 @@ def test_decorations_ml(data, expected, formatter_object):
         (",,sub,,script", "<sub>sub</sub>script"),   # TODO
         ("`inline code`", "`inline code`"),
         ("{{{this is ``code``}}}", "```this is ``code`` ```"),
+
+        ("^su<x />per^script", "<sup>su&lt;x /&gt;per</sup>script"),   # TODO
+        (",,su<x />b,,script", "<sub>su&lt;x /&gt;b</sub>script"),   # TODO
     ]
 )
 def test_decorations_sl(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
-
-
