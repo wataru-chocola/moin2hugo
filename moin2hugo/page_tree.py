@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import attr
 import textwrap
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 
 @attr.s
@@ -10,6 +10,15 @@ class PageElement(object):
     content: str = attr.ib(default='')
     parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False)
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> PageElement:
+        initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
+        init_args = dict([(k, v) for k, v in data.items() if k in initable_fields])
+        obj = cls(**init_args)
+        for _class, c_init_data in data.get('children', []):
+            obj.add_child(_class.from_dict(c_init_data))
+        return obj
 
     @property
     def parents(self) -> List[PageElement]:
