@@ -2,7 +2,6 @@ import re
 import textwrap
 import collections
 
-from moin2hugo.moin_parser import MoinParser
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley, Remark,
