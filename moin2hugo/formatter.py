@@ -247,17 +247,22 @@ class Formatter(object):
         if lines and not lines[-1].strip():
             lines = lines[:-1]
 
+        codeblock_delimiter = "```"
+        for line in lines:
+            m = re.search(r'^`{3,}', line)
+            if m and len(m.group(0)) >= len(codeblock_delimiter):
+                codeblock_delimiter = "`" * (len(m.group(0)) + 1)
+
         ret = self._separator_line(e)
         if e.parser_name == 'highlight':
             parser_args = e.parser_args or ''
-            # TODO: take consideration of indentation
-            ret += "```%s\n" % parser_args
+            ret += "%s%s\n" % (codeblock_delimiter, parser_args)
             ret += "\n".join(lines)
-            ret += "\n```"
-        elif e.parser_name == "text":
-            ret += "```\n"
+            ret += "\n%s" % codeblock_delimiter
+        elif e.parser_name in ["text", ""]:
+            ret += "%s\n" % codeblock_delimiter
             ret += "\n".join(lines)
-            ret += "\n```"
+            ret += "\n%s" % codeblock_delimiter
         return ret
 
     # Table
