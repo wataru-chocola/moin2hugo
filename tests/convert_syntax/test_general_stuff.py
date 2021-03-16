@@ -71,6 +71,8 @@ def test_smiley(data, expected, formatter_object):
         ("= head1 =", "# head1\n\n"),
         ("===== head5 =====", "##### head5\n\n"),
         ("====== head5 ======", "##### head5\n\n"),
+
+        ("====== *head* #5 ======", "##### \\*head\\* \\#5\n\n"),
     ]
 )
 def test_heading(data, expected, formatter_object):

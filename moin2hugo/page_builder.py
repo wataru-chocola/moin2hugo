@@ -8,7 +8,7 @@ from moin2hugo.page_tree import (
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw,
+    Paragraph, Text, SGMLEntity,
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
@@ -141,8 +141,8 @@ class PageBuilder(object):
     def text(self, text: str):
         self._add_new_elem(Text(content=text))
 
-    def raw(self, text: str):
-        self._add_new_elem(Raw(content=text))
+    def sgml_entity(self, text: str):
+        self._add_new_elem(SGMLEntity(content=text))
 
     # Moinwiki Special Objects
     def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
