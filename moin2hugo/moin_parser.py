@@ -660,7 +660,7 @@ class MoinParser(object):
     def _interwiki_handler(self, word: str, groups: Dict[str, str]):
         """Handle InterWiki links."""
         text = groups.get('interwiki', '')
-        logger.info("unsupported: interwiki_name=%s" % text)
+        logger.warning("unsupported: interwiki_name=%s" % text)
         self.builder.text(text)
 
     def _word_handler(self, word: str, groups: Dict[str, str]):
@@ -720,7 +720,7 @@ class MoinParser(object):
             page_name_and_anchor = mt.group('page_name')
             if ':' in page_name_and_anchor:
                 # interwiki
-                logger.info("unsupported: interwiki_name=%s" % page_name_and_anchor)
+                logger.warning("unsupported: interwiki_name=%s" % page_name_and_anchor)
                 self.builder.text(page_name_and_anchor)
                 return
 
@@ -750,10 +750,10 @@ class MoinParser(object):
                 self._link_description(desc, target, attach_addr)
                 self.builder.attachment_link_end()
             elif scheme == 'drawing':
-                logger.info("unsupported: drawing=%s" % word)
+                logger.warning("unsupported: drawing=%s" % word)
                 self.builder.text(word)
             else:
-                logger.info("unsupported: scheme=%s" % scheme)
+                logger.warning("unsupported: scheme=%s" % scheme)
                 self.builder.text(word)
         else:
             if desc:
@@ -864,13 +864,13 @@ class MoinParser(object):
                     self.builder.attachment_transclusion_end()
 
             elif scheme == 'drawing':
-                logger.info("unsupported: drawing=%s" % word)
+                logger.warning("unsupported: drawing=%s" % word)
                 self.builder.text(word)
 
         elif m.group('page_name'):
             page_name_all = m.group('page_name')
             if ':' in page_name_all:
-                logger.info("unsupported: interwiki_name=%s" % page_name_all)
+                logger.warning("unsupported: interwiki_name=%s" % page_name_all)
                 self.builder.text(word)
                 return
 
