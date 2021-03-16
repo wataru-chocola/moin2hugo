@@ -766,12 +766,10 @@ class MoinParser(object):
 
     def _entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
-        # TODO
-        self.builder.raw(word)
+        self.builder.sgml_entity(word)
 
     def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle SGML entities: [<>&]"""
-        # TODO
         self.builder.text(word)
 
     def _indent_handler(self, word: str, groups: Dict[str, str]):

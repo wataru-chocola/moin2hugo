@@ -92,7 +92,7 @@ class Text(PageElement):
 
 
 @attr.s
-class Raw(PageElement):
+class SGMLEntity(PageElement):
     pass
 
 

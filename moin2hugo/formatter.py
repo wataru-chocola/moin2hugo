@@ -15,7 +15,7 @@ from moin2hugo.page_tree import (
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw,
+    Paragraph, Text, SGMLEntity,
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
@@ -106,7 +106,7 @@ class Formatter(object):
             # General Objects
             Paragraph: self.paragraph,
             Text: self.text,
-            Raw: self.raw,
+            SGMLEntity: self.sgml_entity,
 
             # Moinwiki Special Objects
             Macro: self.macro,
@@ -266,8 +266,7 @@ class Formatter(object):
         else:
             return self._escape_markdown_text(e)
 
-    def raw(self, e: Raw) -> str:
-        # TODO: escape
+    def sgml_entity(self, e: SGMLEntity) -> str:
         return e.content
 
     # Moinwiki Special Objects
@@ -335,10 +334,8 @@ class Formatter(object):
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
-        # TODO: support _id ?
-        # TODO: escape
         assert e.depth >= 1 and e.depth <= 6
-        return '#' * e.depth + ' ' + e.content + "\n\n"
+        return '#' * e.depth + ' ' + escape_markdown_all(e.content) + "\n\n"
 
     def rule(self, e: HorizontalRule) -> str:
         return '-' * 4 + "\n\n"
@@ -360,11 +357,9 @@ class Formatter(object):
         return "<big>%s</big>" % html.escape(self._generic_container(e))
 
     def strong(self, e: Strong) -> str:
-        # TODO: want to handle _ or * within content, but how?
         return "**%s**" % self._generic_container(e)
 
     def emphasis(self, e: Emphasis) -> str:
-        # TODO: want to handle _ or *, but how?
         return "*%s*" % self._generic_container(e)
 
     # Decoration (cannot be multilined)
