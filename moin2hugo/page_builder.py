@@ -29,18 +29,9 @@ class PageBuilder(object):
             raise AssertionError(emsg)
 
     # Page Bulding Status
-    def _in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
-        above_me = [self.cur] + self.cur.parents
-        for e in above_me:
-            if isinstance(e, tuple(upper_bound)):
-                return False
-            if isinstance(e, tuple(x)):
-                return True
-        return False
-
     @property
     def in_p(self) -> bool:
-        return self._in_x([Paragraph])
+        return self.cur.in_x([Paragraph])
 
     @property
     def in_pre(self) -> bool:
@@ -52,7 +43,7 @@ class PageBuilder(object):
 
     @property
     def in_table(self) -> bool:
-        return self._in_x([Table])
+        return self.cur.in_x([Table])
 
     @property
     def is_found_parser(self) -> bool:
@@ -61,23 +52,23 @@ class PageBuilder(object):
 
     @property
     def in_underline(self) -> bool:
-        return self._in_x([Underline])
+        return self.cur.in_x([Underline])
 
     @property
     def in_strike(self) -> bool:
-        return self._in_x([Strike])
+        return self.cur.in_x([Strike])
 
     @property
     def in_small(self) -> bool:
-        return self._in_x([Small])
+        return self.cur.in_x([Small])
 
     @property
     def in_strong(self) -> bool:
-        return self._in_x([Strong])
+        return self.cur.in_x([Strong])
 
     @property
     def in_emphasis(self) -> bool:
-        return self._in_x([Emphasis])
+        return self.cur.in_x([Emphasis])
 
     @property
     def is_emphasis_before_strong(self) -> bool:
@@ -101,19 +92,20 @@ class PageBuilder(object):
 
     @property
     def in_big(self) -> bool:
-        return self._in_x([Big])
+        return self.cur.in_x([Big])
 
     @property
     def in_li_of_current_list(self) -> bool:
-        return self._in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
+        return self.cur.in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
 
     @property
     def in_dd_of_current_list(self) -> bool:
-        return self._in_x([DefinitionDesc], upper_bound=[BulletList, NumberList, DefinitionList])
+        return self.cur.in_x([DefinitionDesc],
+                             upper_bound=[BulletList, NumberList, DefinitionList])
 
     @property
     def in_list(self) -> bool:
-        return self._in_x([BulletList, NumberList, DefinitionList])
+        return self.cur.in_x([BulletList, NumberList, DefinitionList])
 
     @property
     def list_types(self) -> List[str]:
