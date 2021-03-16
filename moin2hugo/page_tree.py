@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import attr
 import textwrap
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Type
 
 
 @attr.s
@@ -46,6 +46,15 @@ class PageElement(object):
         if idx == len(self.parent.children) - 1:
             return None
         return self.parent.children[idx+1]
+
+    def in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
+        above_me = [self] + self.parents
+        for e in above_me:
+            if isinstance(e, tuple(upper_bound)):
+                return False
+            if isinstance(e, tuple(x)):
+                return True
+        return False
 
     def add_child(self, element: PageElement):
         self.children.append(element)

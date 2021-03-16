@@ -68,46 +68,6 @@ class MarkdownEscapedText(str):
     pass
 
 
-def escape_markdown(text: str, is_at_beginning_of_line: bool = True) -> MarkdownEscapedText:
-    '''escape markdown symbols in the way not to spoil naturalness as possible.
-    '''
-    # escape backslashes at first
-    text = re.sub(r'\\', r'\\\\', text)
-
-    # target symbols of which all occurences are escaped
-    targets = set(['[', ']', '{', '}', '(', ')', '*', '_', ':', '`', '~', '<', '>', '|', '#'])
-    symbol_re = re.compile('([%s])' % re.escape("".join(targets)))
-
-    lines = text.splitlines(keepends=True)
-    new_lines = []
-    first_line = True
-    for line in lines:
-        # remove trailing whitespaces pattern which means line break in markdown
-        line = re.sub(r'\s+(?=\n)', '', line)
-
-        if (first_line and is_at_beginning_of_line) or not first_line:
-            # remove leading whitespaces
-            line = line.lstrip()
-            # avoid unintended listitem
-            line = re.sub(r'^(\d)\.(?=\s)', r'\1\.', line)   # numbered list
-            line = re.sub(r'^([-+])(?=\s)', r'\\\1', line)   # bullet list
-            # horizontal rule or headling
-            m = re.match(r'^([-=])\1*$', line)
-            if m:
-                symbol = m.group(1)
-                line = line.replace(symbol, "\\" + symbol)
-
-        # escape markdown syntax
-        line = re.sub(r'\!(?=\[)', r'\!', line)   # image: ![title](image)
-
-        # escape markdown special symbols
-        line = re.sub(symbol_re, r'\\\1', line)
-
-        new_lines.append(line)
-        first_line = False
-    return MarkdownEscapedText("".join(new_lines))
-
-
 def escape_markdown_symbols(text: str, symbols: List[str] = [],
                             all_symbols: bool = False) -> MarkdownEscapedText:
     '''escape all occurences of these symbols no matter which context they are on.
@@ -256,14 +216,58 @@ class Formatter(object):
 
         return True
 
+    def _escape_markdown_text(self, e: Text) -> MarkdownEscapedText:
+        '''escape markdown symbols depending on context.
+        '''
+        # escape backslashes at first
+        text = e.content
+        text = re.sub(r'\\', r'\\\\', text)
+
+        # target symbols of which all occurences are escaped
+        targets = set(['[', ']', '{', '}', '(', ')', '*', '_', ':', '`', '~', '<', '>', '|', '#'])
+        symbol_re = re.compile('([%s])' % re.escape("".join(targets)))
+
+        is_at_beginning_of_line = self._is_at_beginning_of_line(e)
+
+        lines = text.splitlines(keepends=True)
+        new_lines = []
+        first_line = True
+        for line in lines:
+            # remove trailing whitespaces pattern which means line break in markdown
+            line = re.sub(r'\s+(?=\n)', '', line)
+
+            if e.in_x([TableCell]):
+                line = re.sub(r'([-])', r'\\\1', line)
+            elif (first_line and is_at_beginning_of_line) or not first_line:
+                # remove leading whitespaces
+                line = line.lstrip()
+                # avoid unintended listitem
+                line = re.sub(r'^(\d)\.(?=\s)', r'\1\.', line)   # numbered list
+                line = re.sub(r'^([-+])(?=\s)', r'\\\1', line)   # bullet list
+                # horizontal rule or headling
+                m = re.match(r'^([-=])\1*$', line)
+                if m:
+                    symbol = m.group(1)
+                    line = line.replace(symbol, "\\" + symbol)
+
+            # escape markdown syntax
+            line = re.sub(r'\!(?=\[)', r'\!', line)   # image: ![title](image)
+
+            # escape markdown special symbols
+            line = re.sub(symbol_re, r'\\\1', line)
+
+            new_lines.append(line)
+            first_line = False
+        return MarkdownEscapedText("".join(new_lines))
+
     def text(self, e: Text) -> str:
         if self._is_in_raw_html(e):
             return e.content
         else:
-            return escape_markdown(e.content, self._is_at_beginning_of_line(e))
+            return self._escape_markdown_text(e)
 
     def raw(self, e: Raw) -> str:
-        # TODO
+        # TODO: escape
         return e.content
 
     # Moinwiki Special Objects
@@ -320,7 +324,6 @@ class Formatter(object):
         return self._separator_line(e) + self._generic_container(e)
 
     def table_row(self, e: Table) -> str:
-        # TODO: escape
         ret = []
         for c in e.children:
             assert isinstance(c, TableCell)
@@ -328,7 +331,6 @@ class Formatter(object):
         return "|" + "|".join(ret) + "|\n"
 
     def table_cell(self, e: Table) -> str:
-        # TODO: escape
         return " %s " % self._generic_container(e).strip()
 
     # Heading / Horizontal Rule
