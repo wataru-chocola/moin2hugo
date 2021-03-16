@@ -204,14 +204,15 @@ class Link(PageElement):
 
 @attr.s
 class Pagelink(PageElement):
-    page_name: str = attr.ib(kw_only=True)
+    pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     anchor: Optional[str] = attr.ib(default=None)
 
 
 @attr.s
 class AttachmentLink(PageElement):
-    attach_name: str = attr.ib(kw_only=True)
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     title: Optional[str] = attr.ib(default=None)
 

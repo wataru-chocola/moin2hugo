@@ -278,21 +278,21 @@ class PageBuilder(object):
         self.assert_cur_elem(Link)
         self._end_current_elem()
 
-    def pagelink_start(self, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
+    def pagelink_start(self, pagename: str = '', queryargs: Optional[Dict[str, str]] = None,
                        anchor: Optional[str] = None,
                        target: Optional[str] = None):
         # TODO: extra link attributes
-        e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
+        e = Pagelink(pagename=pagename, queryargs=queryargs, anchor=anchor)
         self._start_new_elem(e)
 
     def pagelink_end(self):
         self.assert_cur_elem(Pagelink)
         self._end_current_elem()
 
-    def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
+    def attachment_link_start(self, pagename: str, filename: str, title: Optional[str] = None,
                               queryargs: Optional[Dict[str, str]] = None):
         # TODO: extra link attributes
-        e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
+        e = AttachmentLink(pagename=pagename, filename=filename, title=title, queryargs=queryargs)
         self._start_new_elem(e)
 
     def attachment_link_end(self):

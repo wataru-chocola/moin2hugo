@@ -743,8 +743,10 @@ class MoinParser(object):
         elif mt.group('attach_scheme'):
             scheme = mt.group('attach_scheme')
             attach_addr = wikiutil.url_unquote(mt.group('attach_addr'))
+            pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
             if scheme == 'attachment':
-                self.builder.attachment_link_start(attach_addr, queryargs=query_args, **tag_attrs)
+                self.builder.attachment_link_start(pagename=pagename, filename=filename,
+                                                   queryargs=query_args, **tag_attrs)
                 self._link_description(desc, target, attach_addr)
                 self.builder.attachment_link_end()
             elif scheme == 'drawing':
@@ -827,14 +829,14 @@ class MoinParser(object):
 
         elif m.group('attach_scheme'):
             scheme = m.group('attach_scheme')
-            url = wikiutil.url_unquote(m.group('attach_addr'))
-            pagename, filename = wikiutil.attachment_abs_name(url, self.page_name)
+            attach_addr = wikiutil.url_unquote(m.group('attach_addr'))
+            pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
             if scheme == 'attachment':
-                mtype, majortype, subtype = wikiutil.filename2mimetype(filename=url)
+                mtype, majortype, subtype = wikiutil.filename2mimetype(filename=filename)
                 if majortype == 'text':
                     trans_desc = self._transclude_description(desc)
                     if trans_desc is None:
-                        trans_desc = url
+                        trans_desc = attach_addr
                     self.builder.attachment_inlined(pagename, filename, trans_desc)
                 elif majortype == 'image' and subtype in config.browser_supported_images:
                     trans_desc = self._transclude_description(desc)
@@ -856,7 +858,7 @@ class MoinParser(object):
 
                     trans_desc = self._transclude_description(desc)
                     if trans_desc is None:
-                        trans_desc = url
+                        trans_desc = attach_addr
 
                     self.builder.attachment_transclusion_start(
                         pagename=pagename, filename=filename, mimetype=mtype, **tag_attrs)
