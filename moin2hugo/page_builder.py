@@ -181,10 +181,13 @@ class PageBuilder(object):
         self.cur.parser_name = parser_name
         self.cur.parser_args = parser_args
 
-    def parsed_text_end(self, lines: List[str], source_text: str = ''):
+    def add_parsed_text(self, content: str):
+        self._assert_cur_elem(ParsedText)
+        self.cur.add_content(content)
+
+    def parsed_text_end(self, source_text: str = ''):
         self._assert_cur_elem(ParsedText)
         self.feed_src(source_text)
-        self.cur.content = ''.join(lines)
         self._end_current_elem()
 
     # Table
