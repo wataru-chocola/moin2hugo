@@ -20,7 +20,7 @@ from moin2hugo.page_tree import (
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
-from moin2hugo.hugo_config import HugoConfig
+from moin2hugo.config import HugoConfig
 
 from typing import Optional, List, Dict, Callable, Type, Any
 
@@ -103,9 +103,11 @@ def urlquote(text: str) -> str:
 
 
 class Formatter(object):
-    def __init__(self):
-        # TODO: self.config = config
-        self.config = HugoConfig()
+    def __init__(self, config: Optional[HugoConfig] = None):
+        if config:
+            self.config = config
+        else:
+            self.config = HugoConfig()
 
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {

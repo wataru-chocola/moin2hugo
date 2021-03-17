@@ -19,7 +19,7 @@ class PageElement(object):
         init_args = dict([(k, v) for k, v in data.items() if k in initable_fields])
         obj = cls(**init_args)
         for _class, c_init_data in data.get('children', []):
-            obj.add_child(_class.from_dict(c_init_data))
+            obj.add_child(_class.from_dict(c_init_data), propagate_source_text=False)
         return obj
 
     @property

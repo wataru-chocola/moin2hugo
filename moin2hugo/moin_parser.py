@@ -4,8 +4,8 @@ from typing import List, Dict, Tuple, Optional
 
 import moin2hugo.page_builder
 import moin2hugo.moinutils as wikiutil
-import moin2hugo.moin_config as config
-import moin2hugo.moin_site_config as site_config
+import moin2hugo.moin_settings as settings
+from moin2hugo.config import MoinSiteConfig
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class MoinParser(object):
     PARENT_PREFIX = wikiutil.PARENT_PREFIX
 
     punct_pattern = re.escape('''"\'}]|:,.)?!''')
-    url_scheme = '|'.join(config.url_schemas)
+    url_scheme = '|'.join(settings.url_schemas)
 
     # some common rules
     url_rule = r'''
@@ -45,8 +45,8 @@ class MoinParser(object):
          [^\s%(punct)s]+  # we take all until we hit some blank or punctuation char ...
         )
     ''' % {  # NOQA
-        'u': config.chars_upper,
-        'l': config.chars_lower,
+        'u': settings.chars_upper,
+        'l': settings.chars_lower,
         'punct': punct_pattern,
     }
 
@@ -78,8 +78,8 @@ class MoinParser(object):
          $  # ... or end of line
         )
     ''' % {  # NOQA
-        'u': config.chars_upper,
-        'l': config.chars_lower,
+        'u': settings.chars_upper,
+        'l': settings.chars_lower,
         'child': re.escape(CHILD_PREFIX),
         'parent': re.escape(PARENT_PREFIX),
     }
@@ -325,14 +325,18 @@ class MoinParser(object):
         'word_rule': word_rule,
         'link_rule': link_rule,
         'transclude_rule': transclude_rule,
-        'u': config.chars_upper,
-        'l': config.chars_lower,
-        'smiley': '|'.join([re.escape(s) for s in config.smileys])}
+        'u': settings.chars_upper,
+        'l': settings.chars_lower,
+        'smiley': '|'.join([re.escape(s) for s in settings.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
     available_parsers = ('text', 'highlight')
 
-    def __init__(self, text: str, page_name: str):
+    def __init__(self, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None):
+        if site_config:
+            self.site_config = site_config
+        else:
+            self.site_config = MoinSiteConfig()
         self.builder = moin2hugo.page_builder.PageBuilder()
         self.lines = text.expandtabs().splitlines(keepends=True)
         self.page_name = page_name
@@ -342,8 +346,8 @@ class MoinParser(object):
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def parse(cls, text: str, page_name: str):
-        parser = cls(text, page_name)
+    def parse(cls, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None):
+        parser = cls(text, page_name, site_config=site_config)
         return parser._parse()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
@@ -666,7 +670,7 @@ class MoinParser(object):
     def _word_handler(self, word: str, groups: Dict[str, str]):
         """Handle WikiNames."""
         if groups.get('word_bang'):
-            if site_config.bang_meta:
+            if self.site_config.bang_meta:
                 self.builder.text(word, source_text=word)
                 return
         current_page = self.page_name
@@ -840,7 +844,7 @@ class MoinParser(object):
                         trans_desc = attach_addr
                     self.builder.attachment_inlined(pagename, filename, trans_desc,
                                                     source_text=word)
-                elif majortype == 'image' and subtype in config.browser_supported_images:
+                elif majortype == 'image' and subtype in settings.browser_supported_images:
                     trans_desc = self._transclude_description(desc)
                     tag_attrs = {}
                     if trans_desc:
