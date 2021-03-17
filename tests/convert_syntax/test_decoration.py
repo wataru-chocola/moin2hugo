@@ -24,6 +24,7 @@ import pytest
 def test_decorations_ml(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -40,6 +41,7 @@ def test_decorations_ml(data, expected, formatter_object):
 def test_decorations_sl(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -55,17 +57,18 @@ def test_decorations_not_fully_work(data, expected, formatter_object, caplog):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        ("__underlined '''x''' text__", r"\_\_underlined **x** text\_\_"),
-        ("~-smaller-~", r"\~\-smaller\~\-"),
+        ("__underlined '''x''' text__", r"\_\_underlined '''x''' text\_\_"),
+        ("~-smaller-~", r"\~\-smaller\-\~"),
         ("~+larger+~", r"\~\+larger\+\~"),
 
-        ("^super^script", r"\^super\^script"),
+        ("^super^script", r"^super^script"),
         (",,sub,,script", r",,sub,,script"),
-        ("^su<x />per^script", r"\^su&lt;x /&gt;per\^script"),
-        (",,su<x />b,,script", r",,su&lt;x /&gt;b,,script"),
+        ("^su<x />per^script", r"^su\<x /\>per^script"),
+        (",,su<x />b,,script", r",,su\<x /\>b,,script"),
     ]
 )
 def test_decorations_without_unsafe(data, expected, formatter_without_unsafe_object, caplog):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_without_unsafe_object.format(page) == expected
+    assert formatter_without_unsafe_object.format(page) == expected, \
+        page.print_structure(include_src=True)
     assert 'goldmark_unsafe' in caplog.text

@@ -16,6 +16,7 @@ import textwrap
 def test_itemlists_simple(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 def test_itemlists_multi_items(formatter_object):
@@ -46,6 +47,7 @@ def test_itemlists_multi_items(formatter_object):
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 def test_itemlists_containing_paragraph(formatter_object):
@@ -80,6 +82,7 @@ def test_itemlists_containing_paragraph(formatter_object):
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 def test_definition_lists(formatter_object):
@@ -122,5 +125,4 @@ def test_definition_lists(formatter_object):
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
-
-
+    assert page.source_text == data

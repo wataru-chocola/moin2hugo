@@ -35,6 +35,7 @@ from unittest import mock
 def test_links(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -65,3 +66,4 @@ def test_transclude(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     with mock.patch('moin2hugo.formatter.open', mock_io):
         assert formatter_object.format(page) == expected
+    assert page.source_text == data
