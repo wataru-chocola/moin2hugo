@@ -15,7 +15,7 @@ from moin2hugo.page_tree import (
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
-    Link, Pagelink, Url, AttachmentLink,
+    Link, Pagelink, Interwikilink, Url, AttachmentLink,
     Paragraph, Text, SGMLEntity,
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
@@ -150,6 +150,7 @@ class Formatter(object):
             # Links
             Link: self.link,
             Pagelink: self.pagelink,
+            Interwikilink: self.interwikilink,
             AttachmentLink: self.attachment_link,
             Url: self.url,
 
@@ -440,6 +441,10 @@ class Formatter(object):
         escaped_link_path = escape_markdown_symbols(link_path, symbols=['(', ')', '[', ']', '"'])
         description = MarkdownEscapedText(self._generic_container(e))
         return self._link(escaped_link_path, description)
+
+    def interwikilink(self, e: Interwikilink) -> str:
+        logger.warning("unsupported: interwiki=%s" % e.source_text)
+        return escape_markdown_all(e.source_text)
 
     def attachment_link(self, e: AttachmentLink) -> str:
         link_path = attachment_url(e.pagename, e.filename)

@@ -252,6 +252,14 @@ class Pagelink(PageElement):
 
 
 @attr.s
+class Interwikilink(PageElement):
+    wikiname: str = attr.ib(kw_only=True)
+    pagename: str = attr.ib(kw_only=True)
+    queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
+    anchor: Optional[str] = attr.ib(default=None)
+
+
+@attr.s
 class AttachmentLink(PageElement):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)

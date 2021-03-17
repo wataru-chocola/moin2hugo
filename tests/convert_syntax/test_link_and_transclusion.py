@@ -21,7 +21,7 @@ from unittest import mock
         ('[[attachment:SomePage/image.png|image.png|title="png"]]', '[image.png](url/SomePage/image.png "png")'),  # noqa
         ('[[drawing:SomePage/image.png]]', r'\[\[drawing\:SomePage/image.png\]\]'),
         ('[[http://example.net/|example site]]', '[example site](http://example.net/)'),
-        ('[[otherwiki:somepage]]', r'otherwiki\:somepage'),
+        ('[[otherwiki:somepage]]', r'\[\[otherwiki\:somepage\]\]'),
 
         # escape
         ('[[SomePage|Some[x]Page]]', '[Some\\[x\\]Page](url/SomePage)'),

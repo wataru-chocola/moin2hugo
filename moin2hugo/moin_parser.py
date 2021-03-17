@@ -663,9 +663,13 @@ class MoinParser(object):
 
     def _interwiki_handler(self, word: str, groups: Dict[str, str]):
         """Handle InterWiki links."""
-        text = groups.get('interwiki', '')
-        logger.warning("unsupported: interwiki_name=%s" % text)
-        self.builder.text(text, source_text=word)
+        wikiname = groups.get('interwiki_wiki', '')
+        pagename = groups.get('interwiki_page', '')
+        pagename, anchor = wikiutil.split_anchor(pagename)
+        self.builder.interwikilink_start(wikiname, pagename, anchor=anchor,
+                                         source_text=word, freeze_source=True)
+        self.builder.text(word, source_text=word)
+        self.builder.interwikilink_end()
 
     def _word_handler(self, word: str, groups: Dict[str, str]):
         """Handle WikiNames."""
@@ -721,13 +725,16 @@ class MoinParser(object):
 
         if mt.group('page_name'):
             page_name_and_anchor = mt.group('page_name')
-            if ':' in page_name_and_anchor:
-                # interwiki
-                logger.warning("unsupported: interwiki_name=%s" % page_name_and_anchor)
+            page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
+            if ':' in page_name:
+                wikiname, pagename = page_name.split(':', 1)
+                self.builder.interwikilink_start(wikiname, page_name, queryargs=query_args,
+                                                 anchor=anchor, **tag_attrs,
+                                                 source_text=word, freeze_source=True)
                 self.builder.text(page_name_and_anchor, source_text=word)
+                self.builder.interwikilink_end()
                 return
 
-            page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
             current_page = self.page_name
             if not page_name:
                 page_name = current_page
