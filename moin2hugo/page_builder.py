@@ -134,6 +134,14 @@ class PageBuilder(object):
     def _end_current_elem(self):
         self.cur = self.cur.parent
 
+    def _toggle_elem(self, cls: Type[PageElement], source_text: str = ''):
+        if not self.cur.in_x([cls]):
+            self._start_new_elem(cls(source_text=source_text))
+        else:
+            self._assert_cur_elem(cls)
+            self.feed_src(source_text)
+            self._end_current_elem()
+
     # Building Source
     def feed_src(self, source_text: str):
         self.cur.add_source_text(source_text)
@@ -143,6 +151,7 @@ class PageBuilder(object):
         self._start_new_elem(Paragraph())
 
     def paragraph_end(self):
+        self._assert_cur_elem(Paragraph)
         self._end_current_elem()
 
     def text(self, text: str, source_text: str = ''):
@@ -164,12 +173,7 @@ class PageBuilder(object):
         self._add_new_elem(Smiley(content=smiley, source_text=source_text))
 
     def remark_toggle(self, source_text: str = ''):
-        if not self.in_remark:
-            self._start_new_elem(Remark(source_text=source_text))
-        else:
-            self._assert_cur_elem(Remark)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Remark, source_text=source_text)
 
     # Codeblock / ParsedText
     def parsed_text_start(self, source_text: str = ''):
@@ -221,52 +225,22 @@ class PageBuilder(object):
 
     # Decoration
     def underline_toggle(self, source_text: str = ''):
-        if not self.in_underline:
-            self._start_new_elem(Underline(source_text=source_text))
-        else:
-            self._assert_cur_elem(Underline)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Underline, source_text=source_text)
 
     def strike_toggle(self, source_text: str = ''):
-        if not self.in_strike:
-            self._start_new_elem(Strike(source_text=source_text))
-        else:
-            self._assert_cur_elem(Strike)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Strike, source_text=source_text)
 
     def big_toggle(self, source_text: str = ''):
-        if not self.in_big:
-            self._start_new_elem(Big(source_text=source_text))
-        else:
-            self._assert_cur_elem(Big)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Big, source_text=source_text)
 
     def small_toggle(self, source_text: str = ''):
-        if not self.in_small:
-            self._start_new_elem(Small(source_text=source_text))
-        else:
-            self._assert_cur_elem(Small)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Small, source_text=source_text)
 
     def strong_toggle(self, source_text: str = ''):
-        if not self.in_strong:
-            self._start_new_elem(Strong(source_text=source_text))
-        else:
-            self._assert_cur_elem(Strong)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Strong, source_text=source_text)
 
     def emphasis_toggle(self, source_text: str = ''):
-        if not self.in_emphasis:
-            self._start_new_elem(Emphasis(source_text=source_text))
-        else:
-            self._assert_cur_elem(Emphasis)
-            self.feed_src(source_text)
-            self._end_current_elem()
+        self._toggle_elem(Emphasis, source_text=source_text)
 
     def sup(self, text: str, source_text: str = ''):
         self._add_new_elem(Sup(content=text, source_text=source_text))
