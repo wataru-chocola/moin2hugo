@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import attr
 import textwrap
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any, Type
 
 
 @attr.s
@@ -10,6 +10,15 @@ class PageElement(object):
     content: str = attr.ib(default='')
     parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False)
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> PageElement:
+        initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
+        init_args = dict([(k, v) for k, v in data.items() if k in initable_fields])
+        obj = cls(**init_args)
+        for _class, c_init_data in data.get('children', []):
+            obj.add_child(_class.from_dict(c_init_data))
+        return obj
 
     @property
     def parents(self) -> List[PageElement]:
@@ -37,6 +46,15 @@ class PageElement(object):
         if idx == len(self.parent.children) - 1:
             return None
         return self.parent.children[idx+1]
+
+    def in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
+        above_me = [self] + self.parents
+        for e in above_me:
+            if isinstance(e, tuple(upper_bound)):
+                return False
+            if isinstance(e, tuple(x)):
+                return True
+        return False
 
     def add_child(self, element: PageElement):
         self.children.append(element)
@@ -74,7 +92,7 @@ class Text(PageElement):
 
 
 @attr.s
-class Raw(PageElement):
+class SGMLEntity(PageElement):
     pass
 
 
@@ -195,14 +213,15 @@ class Link(PageElement):
 
 @attr.s
 class Pagelink(PageElement):
-    page_name: str = attr.ib(kw_only=True)
+    pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     anchor: Optional[str] = attr.ib(default=None)
 
 
 @attr.s
 class AttachmentLink(PageElement):
-    attach_name: str = attr.ib(kw_only=True)
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     title: Optional[str] = attr.ib(default=None)
 

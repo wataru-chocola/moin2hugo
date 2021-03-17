@@ -743,8 +743,10 @@ class MoinParser(object):
         elif mt.group('attach_scheme'):
             scheme = mt.group('attach_scheme')
             attach_addr = wikiutil.url_unquote(mt.group('attach_addr'))
+            pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
             if scheme == 'attachment':
-                self.builder.attachment_link_start(attach_addr, queryargs=query_args, **tag_attrs)
+                self.builder.attachment_link_start(pagename=pagename, filename=filename,
+                                                   queryargs=query_args, **tag_attrs)
                 self._link_description(desc, target, attach_addr)
                 self.builder.attachment_link_end()
             elif scheme == 'drawing':
@@ -764,12 +766,10 @@ class MoinParser(object):
 
     def _entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
-        # TODO
-        self.builder.raw(word)
+        self.builder.sgml_entity(word)
 
     def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle SGML entities: [<>&]"""
-        # TODO
         self.builder.text(word)
 
     def _indent_handler(self, word: str, groups: Dict[str, str]):
@@ -827,14 +827,14 @@ class MoinParser(object):
 
         elif m.group('attach_scheme'):
             scheme = m.group('attach_scheme')
-            url = wikiutil.url_unquote(m.group('attach_addr'))
-            pagename, filename = wikiutil.attachment_abs_name(url, self.page_name)
+            attach_addr = wikiutil.url_unquote(m.group('attach_addr'))
+            pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
             if scheme == 'attachment':
-                mtype, majortype, subtype = wikiutil.filename2mimetype(filename=url)
+                mtype, majortype, subtype = wikiutil.filename2mimetype(filename=filename)
                 if majortype == 'text':
                     trans_desc = self._transclude_description(desc)
                     if trans_desc is None:
-                        trans_desc = url
+                        trans_desc = attach_addr
                     self.builder.attachment_inlined(pagename, filename, trans_desc)
                 elif majortype == 'image' and subtype in config.browser_supported_images:
                     trans_desc = self._transclude_description(desc)
@@ -856,7 +856,7 @@ class MoinParser(object):
 
                     trans_desc = self._transclude_description(desc)
                     if trans_desc is None:
-                        trans_desc = url
+                        trans_desc = attach_addr
 
                     self.builder.attachment_transclusion_start(
                         pagename=pagename, filename=filename, mimetype=mtype, **tag_attrs)
@@ -941,13 +941,13 @@ class MoinParser(object):
         """Handle section headings.: == =="""
         heading_text = groups.get('heading_text', '')
         depth = min(len(groups.get('hmarker', '')), 5)
-        self._closeP()
+        self._close_paragraph()
         self.builder.heading(depth, heading_text),
 
     def _rule_handler(self, word: str, groups: Dict[str, str]):
         """Handle sequences of dashes (Horizontal Rule)."""
         self._undent()
-        self._closeP()
+        self._close_paragraph()
         self.builder.rule()
 
     def _parser_handler(self, word: str, groups: Dict[str, str]):
@@ -968,7 +968,7 @@ class MoinParser(object):
         if parser_name is None and parser_nothing is None:
             parser_name = 'text'
 
-        self._closeP()
+        self._close_paragraph()
         self.builder.parsed_text_start()
 
         if parser_name:
@@ -1115,15 +1115,13 @@ class MoinParser(object):
         if self.builder.in_table:
             self.builder.table_end()
         if self.builder.in_li_of_current_list:
-            if self.builder.in_p:
-                self.builder.paragraph_end()
+            self._close_paragraph()
             self.builder.listitem_end()
-        if self.builder.in_dd_of_current_list:
-            if self.builder.in_p:
-                self.builder.paragraph_end()
+        elif self.builder.in_dd_of_current_list:
+            self._close_paragraph()
             self.builder.definition_desc_end()
 
-    def _closeP(self):
+    def _close_paragraph(self):
         if self.builder.in_p:
             self.builder.paragraph_end()
 
