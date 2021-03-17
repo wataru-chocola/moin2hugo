@@ -8,7 +8,7 @@ from moin2hugo.page_tree import (
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw,
+    Paragraph, Text, SGMLEntity,
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
@@ -29,18 +29,9 @@ class PageBuilder(object):
             raise AssertionError(emsg)
 
     # Page Bulding Status
-    def _in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
-        above_me = [self.cur] + self.cur.parents
-        for e in above_me:
-            if isinstance(e, tuple(upper_bound)):
-                return False
-            if isinstance(e, tuple(x)):
-                return True
-        return False
-
     @property
     def in_p(self) -> bool:
-        return self._in_x([Paragraph])
+        return self.cur.in_x([Paragraph])
 
     @property
     def in_pre(self) -> bool:
@@ -52,7 +43,7 @@ class PageBuilder(object):
 
     @property
     def in_table(self) -> bool:
-        return self._in_x([Table])
+        return self.cur.in_x([Table])
 
     @property
     def is_found_parser(self) -> bool:
@@ -61,23 +52,23 @@ class PageBuilder(object):
 
     @property
     def in_underline(self) -> bool:
-        return self._in_x([Underline])
+        return self.cur.in_x([Underline])
 
     @property
     def in_strike(self) -> bool:
-        return self._in_x([Strike])
+        return self.cur.in_x([Strike])
 
     @property
     def in_small(self) -> bool:
-        return self._in_x([Small])
+        return self.cur.in_x([Small])
 
     @property
     def in_strong(self) -> bool:
-        return self._in_x([Strong])
+        return self.cur.in_x([Strong])
 
     @property
     def in_emphasis(self) -> bool:
-        return self._in_x([Emphasis])
+        return self.cur.in_x([Emphasis])
 
     @property
     def is_emphasis_before_strong(self) -> bool:
@@ -101,19 +92,20 @@ class PageBuilder(object):
 
     @property
     def in_big(self) -> bool:
-        return self._in_x([Big])
+        return self.cur.in_x([Big])
 
     @property
     def in_li_of_current_list(self) -> bool:
-        return self._in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
+        return self.cur.in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
 
     @property
     def in_dd_of_current_list(self) -> bool:
-        return self._in_x([DefinitionDesc], upper_bound=[BulletList, NumberList, DefinitionList])
+        return self.cur.in_x([DefinitionDesc],
+                             upper_bound=[BulletList, NumberList, DefinitionList])
 
     @property
     def in_list(self) -> bool:
-        return self._in_x([BulletList, NumberList, DefinitionList])
+        return self.cur.in_x([BulletList, NumberList, DefinitionList])
 
     @property
     def list_types(self) -> List[str]:
@@ -149,8 +141,8 @@ class PageBuilder(object):
     def text(self, text: str):
         self._add_new_elem(Text(content=text))
 
-    def raw(self, text: str):
-        self._add_new_elem(Raw(content=text))
+    def sgml_entity(self, text: str):
+        self._add_new_elem(SGMLEntity(content=text))
 
     # Moinwiki Special Objects
     def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
@@ -278,21 +270,21 @@ class PageBuilder(object):
         self.assert_cur_elem(Link)
         self._end_current_elem()
 
-    def pagelink_start(self, page_name: str = '', queryargs: Optional[Dict[str, str]] = None,
+    def pagelink_start(self, pagename: str = '', queryargs: Optional[Dict[str, str]] = None,
                        anchor: Optional[str] = None,
                        target: Optional[str] = None):
         # TODO: extra link attributes
-        e = Pagelink(page_name=page_name, queryargs=queryargs, anchor=anchor)
+        e = Pagelink(pagename=pagename, queryargs=queryargs, anchor=anchor)
         self._start_new_elem(e)
 
     def pagelink_end(self):
         self.assert_cur_elem(Pagelink)
         self._end_current_elem()
 
-    def attachment_link_start(self, attach_name: str, title: Optional[str] = None,
+    def attachment_link_start(self, pagename: str, filename: str, title: Optional[str] = None,
                               queryargs: Optional[Dict[str, str]] = None):
         # TODO: extra link attributes
-        e = AttachmentLink(attach_name=attach_name, title=title, queryargs=queryargs)
+        e = AttachmentLink(pagename=pagename, filename=filename, title=title, queryargs=queryargs)
         self._start_new_elem(e)
 
     def attachment_link_end(self):

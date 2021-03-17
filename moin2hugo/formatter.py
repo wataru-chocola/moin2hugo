@@ -1,6 +1,9 @@
 import re
 import textwrap
 import collections
+import copy
+import html
+import urllib.parse
 
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
@@ -12,14 +15,12 @@ from moin2hugo.page_tree import (
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
     Link, Pagelink, Url, AttachmentLink,
-    Paragraph, Text, Raw,
+    Paragraph, Text, SGMLEntity,
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
 
-from typing import Optional, Dict, Callable, TypeVar, Type, Any
-
-T_PageElement = TypeVar("T_PageElement", bound=PageElement)
+from typing import Optional, List, Dict, Callable, Type, Any
 
 smiley2emoji = {
     'X-(': ':angry:',
@@ -63,15 +64,49 @@ smiley2emoji = {
 }
 
 
+class MarkdownEscapedText(str):
+    pass
+
+
+def escape_markdown_symbols(text: str, symbols: List[str] = [],
+                            all_symbols: bool = False) -> MarkdownEscapedText:
+    '''escape all occurences of these symbols no matter which context they are on.
+    '''
+    escapable_chars = set([
+        '\\',
+        '[', ']', '{', '}', '(', ')', '<', '>',
+        '*', '+', '-',
+        '_', ':', '`', '#', '|',
+        '"', '~',    # can be escaped at least with commonmark
+    ])
+    if all_symbols:
+        symbols = list(escapable_chars)
+    assert escapable_chars.issuperset(set(symbols)), "not escapable symbol found: " + str(symbols)
+
+    symbol_re = re.compile('([%s])' % re.escape("".join(symbols)))
+    text = re.sub(symbol_re, r'\\\1', text)
+    return MarkdownEscapedText(text)
+
+
+def escape_markdown_all(text: str) -> MarkdownEscapedText:
+    '''escape all occurences of these symbols no matter which context they are on.
+    '''
+    return escape_markdown_symbols(text, all_symbols=True)
+
+
+def urlquote(text: str) -> str:
+    return urllib.parse.quote(text)
+
+
 class Formatter(object):
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
-            PageRoot: self._generic_container,
+            PageRoot: self.page_root,
 
             # General Objects
             Paragraph: self.paragraph,
-            Text: self.text2,
-            Raw: self.raw,
+            Text: self.text,
+            SGMLEntity: self.sgml_entity,
 
             # Moinwiki Special Objects
             Macro: self.macro,
@@ -138,18 +173,100 @@ class Formatter(object):
             return "\n"
         return ''
 
+    def _consolidate(self, e: PageElement) -> PageElement:
+        new_e = copy.deepcopy(e)
+        new_e.children = []
+        for c in e.children:
+            if isinstance(c, Remark):
+                continue
+            if isinstance(c, Text):
+                if len(new_e.children) > 0 and isinstance(new_e.children[-1], Text):
+                    new_e.children[-1].content += c.content
+                    continue
+            new_c = self._consolidate(c)
+            new_e.add_child(new_c)
+        return new_e
+
     # General Objects
+    def page_root(self, e: Paragraph) -> str:
+        new_e = self._consolidate(e)
+        return self._generic_container(new_e)
+
     def paragraph(self, e: Paragraph) -> str:
         return self._separator_line(e) + self._generic_container(e)
 
-    def text(self, text: str) -> str:
-        # TODO: escape markdown special characters, etc
-        return text
+    def _is_in_raw_html(self, e: Text) -> bool:
+        raw_html_types = (Underline, Sup, Sub, Big, Small, AttachmentTransclude, Transclude)
+        return any((isinstance(p, raw_html_types) for p in e.parents))
 
-    def text2(self, e: Text) -> str:
-        return e.content
+    def _is_at_beginning_of_line(self, e: Text) -> bool:
+        prev = e.prev_sibling
+        while prev:
+            if isinstance(prev, Remark):
+                prev = prev.prev_sibling
+                continue
+            if isinstance(prev, Text):
+                if not prev.content:
+                    prev = prev.prev_sibling
+                    continue
+                return self.format(prev).endswith("\n")
+            else:
+                return False
+            break
 
-    def raw(self, e: Raw) -> str:
+        return True
+
+    def _escape_markdown_text(self, e: Text) -> MarkdownEscapedText:
+        '''escape markdown symbols depending on context.
+        '''
+        # escape backslashes at first
+        text = e.content
+        text = re.sub(r'\\', r'\\\\', text)
+
+        # target symbols of which all occurences are escaped
+        targets = set(['[', ']', '{', '}', '(', ')', '*', '_', ':', '`', '~', '<', '>', '|', '#'])
+        symbol_re = re.compile('([%s])' % re.escape("".join(targets)))
+
+        is_at_beginning_of_line = self._is_at_beginning_of_line(e)
+
+        lines = text.splitlines(keepends=True)
+        new_lines = []
+        first_line = True
+        for line in lines:
+            # remove trailing whitespaces pattern which means line break in markdown
+            line = re.sub(r'\s+(?=\n)', '', line)
+
+            if e.in_x([TableCell]):
+                line = re.sub(r'([-])', r'\\\1', line)
+            elif (first_line and is_at_beginning_of_line) or not first_line:
+                # remove leading whitespaces
+                line = line.lstrip()
+                # avoid unintended listitem
+                line = re.sub(r'^(\d)\.(?=\s)', r'\1\.', line)   # numbered list
+                line = re.sub(r'^([-+])(?=\s)', r'\\\1', line)   # bullet list
+                # horizontal rule or headling
+                m = re.match(r'^([-=])\1*$', line)
+                if m:
+                    symbol = m.group(1)
+                    line = line.replace(symbol, "\\" + symbol)
+
+            # escape markdown syntax
+            line = re.sub(r'\!(?=\[)', r'\!', line)   # image: ![title](image)
+
+            # escape markdown special symbols
+            line = re.sub(symbol_re, r'\\\1', line)
+
+            new_lines.append(line)
+            first_line = False
+        return MarkdownEscapedText("".join(new_lines))
+
+    def text(self, e: Text) -> str:
+        if self._is_in_raw_html(e):
+            return e.content
+        else:
+            return self._escape_markdown_text(e)
+
+    def sgml_entity(self, e: SGMLEntity) -> str:
         return e.content
 
     # Moinwiki Special Objects
@@ -162,7 +279,7 @@ class Formatter(object):
             return ''
         else:
             if e.markup:
-                return self.text(e.markup)
+                return self.text(Text(e.markup))
         return ''
 
     def comment(self, comment: Comment) -> str:
@@ -183,17 +300,22 @@ class Formatter(object):
         if lines and not lines[-1].strip():
             lines = lines[:-1]
 
+        codeblock_delimiter = "```"
+        for line in lines:
+            m = re.search(r'^`{3,}', line)
+            if m and len(m.group(0)) >= len(codeblock_delimiter):
+                codeblock_delimiter = "`" * (len(m.group(0)) + 1)
+
         ret = self._separator_line(e)
         if e.parser_name == 'highlight':
             parser_args = e.parser_args or ''
-            # TODO: take consideration of indentation
-            ret += "```%s\n" % parser_args
+            ret += "%s%s\n" % (codeblock_delimiter, parser_args)
             ret += "\n".join(lines)
-            ret += "\n```"
-        elif e.parser_name == "text":
-            ret += "```\n"
+            ret += "\n%s" % codeblock_delimiter
+        elif e.parser_name in ["text", ""]:
+            ret += "%s\n" % codeblock_delimiter
             ret += "\n".join(lines)
-            ret += "\n```"
+            ret += "\n%s" % codeblock_delimiter
         return ret
 
     # Table
@@ -212,45 +334,42 @@ class Formatter(object):
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
-        # TODO: support _id ?
         assert e.depth >= 1 and e.depth <= 6
-        return '#' * e.depth + ' ' + e.content + "\n\n"
+        return '#' * e.depth + ' ' + escape_markdown_all(e.content) + "\n\n"
 
     def rule(self, e: HorizontalRule) -> str:
         return '-' * 4 + "\n\n"
 
     # Decoration (can be multilined)
-    def underline(self, e: Strike) -> str:
+    def underline(self, e: Underline) -> str:
         # TODO: unsafe
-        return "<u>%s</u>" % self._generic_container(e)
+        return "<u>%s</u>" % html.escape(self._generic_container(e))
 
     def strike(self, e: Strike) -> str:
         return "~~%s~~" % self._generic_container(e)
 
     def small(self, e: Small) -> str:
         # TODO: unsafe
-        return "<small>%s</small>" % self._generic_container(e)
+        return "<small>%s</small>" % html.escape(self._generic_container(e))
 
     def big(self, e: Big) -> str:
         # TODO: unsafe
-        return "<big>%s</big>" % self._generic_container(e)
+        return "<big>%s</big>" % html.escape(self._generic_container(e))
 
     def strong(self, e: Strong) -> str:
-        # TODO: want to handle _ or * within content, but how?
         return "**%s**" % self._generic_container(e)
 
     def emphasis(self, e: Emphasis) -> str:
-        # TODO: want to handle _ or *, but how?
         return "*%s*" % self._generic_container(e)
 
     # Decoration (cannot be multilined)
     def sup(self, e: Sup) -> str:
         # TODO: unsafe option?
-        return "<sup>%s</sup>" % e.content
+        return "<sup>%s</sup>" % html.escape(e.content)
 
     def sub(self, e: Sub) -> str:
         # TODO: unsafe option?
-        return "<sub>%s</sub>" % e.content
+        return "<sub>%s</sub>" % html.escape(e.content)
 
     def code(self, e: Code) -> str:
         # noqa: refer: https://meta.stackexchange.com/questions/82718/how-do-i-escape-a-backtick-within-in-line-code-in-markdown
@@ -268,37 +387,42 @@ class Formatter(object):
 
     # Links
     def url(self, e: Url) -> str:
-        return "<%s>" % (e.content)
+        # e.content must be valid as URL
+        return "<%s>" % (escape_markdown_symbols(e.content, symbols=['<', '>']))
 
-    def link(self, e: Link) -> str:
-        description = self._generic_container(e)
-        return self._link(e.target, description, title=e.title)
-
-    def _link(self, target: str, description: str, title: Optional[str] = None) -> str:
+    def _link(self, target: MarkdownEscapedText, description: MarkdownEscapedText,
+              title: Optional[MarkdownEscapedText] = None) -> str:
         if title is not None:
             return '[%s](%s "%s")' % (description, target, title)
         else:
             return "[%s](%s)" % (description, target)
 
+    def link(self, e: Link) -> str:
+        target = escape_markdown_symbols(e.target, symbols=['(', ')', '[', ']', '"'])
+        description = MarkdownEscapedText(self._generic_container(e))
+        title = None if e.title is None else escape_markdown_all(e.title)
+        return self._link(target, description, title=title)
+
     def pagelink(self, e: Pagelink) -> str:
-        # TODO: convert page_name to link path
-        link_path = e.page_name
+        link_path = page_url(e.pagename)
         if e.queryargs:
-            # TODO: maybe useless
+            # just ignore them
             pass
         if e.anchor:
             link_path += "#%s" % e.anchor
-        description = self._generic_container(e)
-        return self._link(link_path, description)
+        escaped_link_path = escape_markdown_symbols(link_path, symbols=['(', ')', '[', ']', '"'])
+        description = MarkdownEscapedText(self._generic_container(e))
+        return self._link(escaped_link_path, description)
 
     def attachment_link(self, e: AttachmentLink) -> str:
-        # TODO: convert attach_name to link path
-        link_path = e.attach_name
+        link_path = attachment_url(e.pagename, e.filename)
         if e.queryargs:
-            # TODO: maybe useless
+            # just ignore them
             pass
-        description = self._generic_container(e)
-        return self._link(link_path, description, e.title)
+        escaped_link_path = escape_markdown_symbols(link_path, symbols=['(', ')', '[', ']', '"'])
+        description = MarkdownEscapedText(self._generic_container(e))
+        title = None if e.title is None else escape_markdown_all(e.title)
+        return self._link(escaped_link_path, description, title)
 
     # Itemlist
     def bullet_list(self, e: BulletList) -> str:
@@ -370,39 +494,33 @@ class Formatter(object):
         return ret
 
     # Image / Object Embedding
-    def attachment_transclude(self, e: AttachmentTransclude) -> str:
+    def _transclude(self, url: str, e: PageElement, mimetype: Optional[str] = None,
+                    title: Optional[str] = None) -> str:
         # TODO: unsafe
-        url = "url/" + e.pagename + "/" + e.filename
         tag_attrs = collections.OrderedDict([('data', url)])
-        if e.mimetype:
-            tag_attrs['type'] = e.mimetype
-        if e.title:
-            tag_attrs['name'] = e.title
+        if mimetype:
+            tag_attrs['type'] = html.escape(mimetype)
+        if title:
+            tag_attrs['name'] = html.escape(title)
         tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
         ret = "<object %s>" % tag_attrs_str
-        ret += self._generic_container(e)
+        ret += html.escape(self._generic_container(e))
         ret += "</object>"
         return ret
 
+    def attachment_transclude(self, e: AttachmentTransclude) -> str:
+        url = attachment_url(e.pagename, e.filename)
+        return self._transclude(url, e, e.mimetype, e.title)
+
     def transclude(self, e: Transclude) -> str:
-        # TODO: unsafe
-        url = "url/" + e.pagename
-        tag_attrs = collections.OrderedDict([('data', url)])
-        if e.mimetype:
-            tag_attrs['type'] = e.mimetype
-        if e.title:
-            tag_attrs['name'] = e.title
-        tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
-        ret = "<object %s>" % tag_attrs_str
-        ret += self._generic_container(e)
-        ret += "</object>"
-        return ret
+        url = page_url(e.pagename)
+        return self._transclude(url, e, e.mimetype, e.title)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
-        # TODO
-        url = "url/" + e.pagename + "/" + e.filename
-        filepath = "filepath/" + e.pagename + "/" + e.filename
+        url = attachment_url(e.pagename, e.filename)
+        escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
+        filepath = attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
             attachment_content = f.read()
         # TODO: parse content with corresponding parser
@@ -410,21 +528,45 @@ class Formatter(object):
         # Parser = wikiutil.getParserForExtension(self.request.cfg, ext)
         ret += self.format(ParsedText(parser_name="text", content=attachment_content))
         ret += "\n\n"
-        ret += self._link(url, e.link_text)
+        ret += self._link(escaped_url, escape_markdown_all(e.link_text))
         return ret
 
-    def _image(self, src: str, alt: Optional[str] = None, title: Optional[str] = None) -> str:
+    def _image(self, src: MarkdownEscapedText, alt: Optional[MarkdownEscapedText] = None,
+               title: Optional[MarkdownEscapedText] = None) -> str:
         if alt is None:
-            alt = ''
+            alt = MarkdownEscapedText('')
         if title is not None:
             return '![{alt}]({src} "{title}")'.format(alt=alt, src=src, title=title)
         else:
             return '![{alt}]({src})'.format(alt=alt, src=src)
 
     def image(self, e: Image) -> str:
-        return self._image(e.src, e.alt, e.title)
+        src = escape_markdown_symbols(e.src, symbols=['"', '[', ']', '(', ')'])
+        title = None if e.title is None else escape_markdown_all(e.title)
+        alt = None if e.alt is None else escape_markdown_all(e.alt)
+        return self._image(src, alt, title)
 
     def attachment_image(self, e: AttachmentImage) -> str:
-        # TODO
-        filepath = "filepath/" + e.pagename + "/" + e.filename
-        return self._image(filepath, e.alt, e.title)
+        url = escape_markdown_symbols(attachment_url(e.pagename, e.filename),
+                                      symbols=['"', '[', ']', '(', ')'])
+        title = None if e.title is None else escape_markdown_all(e.title)
+        alt = None if e.alt is None else escape_markdown_all(e.alt)
+        return self._image(url, alt, title)
+
+
+def page_url(pagename: str) -> str:
+    # TODO
+    url = urlquote("url/" + pagename)
+    return url
+
+
+def attachment_filepath(pagename: str, filename: str) -> str:
+    # TODO
+    filepath = "filepath/" + pagename + "/" + filename
+    return filepath
+
+
+def attachment_url(pagename: str, filename: str) -> str:
+    # TODO
+    url = urlquote("url/" + pagename + "/" + filename)
+    return url
