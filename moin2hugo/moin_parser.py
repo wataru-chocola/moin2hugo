@@ -1,12 +1,16 @@
 import re
 import logging
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, TypeVar
 
 import moin2hugo.page_builder
 import moin2hugo.moinutils as wikiutil
 import moin2hugo.moin_settings as settings
+from moin2hugo.page_tree import LinkAttrDict, LinkAttrKey
+from moin2hugo.page_tree import ImageAttrDict, ImageAttrKey
+from moin2hugo.page_tree import ObjectAttrDict, ObjectAttrKey
 from moin2hugo.config import MoinSiteConfig
 
+T = TypeVar('T')
 logger = logging.getLogger(__name__)
 
 
@@ -725,7 +729,7 @@ class MoinParser(object):
             if ':' in page_name:
                 wikiname, pagename = page_name.split(':', 1)
                 self.builder.interwikilink_start(wikiname, page_name, queryargs=query_args,
-                                                 anchor=anchor, **tag_attrs,
+                                                 anchor=anchor, attrs=tag_attrs,
                                                  source_text=word, freeze_source=True)
                 self.builder.text(page_name_and_anchor, source_text=word)
                 self.builder.interwikilink_end()
@@ -736,14 +740,14 @@ class MoinParser(object):
                 page_name = current_page
             abs_page_name = wikiutil.abs_page(current_page, page_name)
             self.builder.pagelink_start(abs_page_name, anchor=anchor,
-                                        queryargs=query_args, **tag_attrs,
+                                        queryargs=query_args, attrs=tag_attrs,
                                         source_text=word, freeze_source=True)
             self._link_description(desc, target, page_name_and_anchor)
             self.builder.pagelink_end()
 
         elif mt.group('extern_addr'):
             target = mt.group('extern_addr')
-            self.builder.link_start(target, **tag_attrs, source_text=word, freeze_source=True)
+            self.builder.link_start(target, attrs=tag_attrs, source_text=word, freeze_source=True)
             self._link_description(desc, target, target)
             self.builder.link_end()
 
@@ -753,7 +757,7 @@ class MoinParser(object):
             pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
             if scheme == 'attachment':
                 self.builder.attachment_link_start(pagename=pagename, filename=filename,
-                                                   queryargs=query_args, **tag_attrs,
+                                                   queryargs=query_args, attrs=tag_attrs,
                                                    source_text=word, freeze_source=True)
                 self._link_description(desc, target, attach_addr)
                 self.builder.attachment_link_end()
@@ -825,15 +829,18 @@ class MoinParser(object):
         desc = groups.get('transclude_desc', '') or ''
         params = groups.get('transclude_params', '')
 
+        image_tag_attrs: ImageAttrDict = {}
+        obj_tag_attrs: ObjectAttrDict = {}
+
         if m.group('extern_addr'):
             target = m.group('extern_addr')
             trans_desc = self._transclude_description(desc)
-            tag_attrs = {}
             if trans_desc:
-                tag_attrs = {'alt': trans_desc, 'title': trans_desc, }
-            tmp_tag_attrs, query_args = _get_image_params(params)
-            tag_attrs.update(tmp_tag_attrs)
-            self.builder.image(src=target, source_text=word, **tag_attrs)
+                image_tag_attrs['alt'] = trans_desc
+                image_tag_attrs['title'] = trans_desc
+            tmp_image_tag_attrs, query_args = _get_image_params(params)
+            image_tag_attrs.update(tmp_image_tag_attrs)
+            self.builder.image(src=target, source_text=word, attrs=image_tag_attrs)
 
         elif m.group('attach_scheme'):
             scheme = m.group('attach_scheme')
@@ -849,25 +856,26 @@ class MoinParser(object):
                                                     source_text=word)
                 elif majortype == 'image' and subtype in settings.browser_supported_images:
                     trans_desc = self._transclude_description(desc)
-                    tag_attrs = {}
                     if trans_desc:
-                        tag_attrs = {'alt': trans_desc, 'title': trans_desc, }
-                    tmp_tag_attrs, query_args = _get_image_params(params)
-                    tag_attrs.update(tmp_tag_attrs)
+                        image_tag_attrs['alt'] = trans_desc
+                        image_tag_attrs['title'] = trans_desc
+                    tmp_image_tag_attrs, query_args = _get_image_params(params)
+                    image_tag_attrs.update(tmp_image_tag_attrs)
                     self.builder.attachment_image(pagename=pagename, filename=filename,
-                                                  source_text=word, **tag_attrs)
+                                                  source_text=word, attrs=image_tag_attrs)
                 else:
                     # non-text, unsupported images, or other filetypes
-                    tag_attrs = {'title': desc, }
-                    tmp_tag_attrs, query_args = _get_object_params(params)
-                    tag_attrs.update(tmp_tag_attrs)
+                    obj_tag_attrs['title'] = desc
+                    obj_tag_attrs['mimetype'] = mtype
+                    tmp_obj_tag_attrs, query_args = _get_object_params(params)
+                    obj_tag_attrs.update(tmp_obj_tag_attrs)
 
                     trans_desc = self._transclude_description(desc)
                     if trans_desc is None:
                         trans_desc = attach_addr
 
                     self.builder.attachment_transclusion_start(
-                        pagename=pagename, filename=filename, mimetype=mtype, **tag_attrs,
+                        pagename=pagename, filename=filename, attrs=obj_tag_attrs,
                         source_text=word, freeze_source=True)
                     self.builder.text(trans_desc, source_text=desc)
                     self.builder.attachment_transclusion_end()
@@ -883,9 +891,10 @@ class MoinParser(object):
                 self.builder.text(word, source_text=word)
                 return
 
-            tag_attrs = {'mimetype': 'text/html', 'width': '100%'}
-            tmp_tag_attrs, query_args = _get_object_params(params)
-            tag_attrs.update(tmp_tag_attrs)
+            obj_tag_attrs['mimetype'] = 'text/html'
+            obj_tag_attrs['width'] = '100%'
+            tmp_obj_tag_attrs, query_args = _get_object_params(params)
+            obj_tag_attrs.update(tmp_obj_tag_attrs)
             # TODO
             if 'action' not in query_args:
                 query_args['action'] = 'content'
@@ -894,7 +903,7 @@ class MoinParser(object):
             if trans_desc is None:
                 trans_desc = page_name_all
 
-            self.builder.transclusion_start(pagename=page_name_all, **tag_attrs,
+            self.builder.transclusion_start(pagename=page_name_all, attrs=obj_tag_attrs,
                                             source_text=word, freeze_source=True)
             self.builder.text(trans_desc, source_text=desc)
             self.builder.transclusion_end()
@@ -1130,45 +1139,39 @@ class MoinParser(object):
             self.builder.paragraph_end()
 
 
-def _get_image_params(paramstring: str) -> Tuple[Dict[str, str], Dict[str, str]]:
-    # TODO: which attrs should i support?
-    # TODO: longdesc is deprecated in HTML5
-    acceptable_attrs_img = ['class', 'title', 'longdesc', 'width', 'height', 'align', ]
-    return _get_params(paramstring, acceptable_attrs=acceptable_attrs_img)
+def _get_image_params(paramstring: str) -> Tuple[ImageAttrDict, Dict[str, str]]:
+    acceptable: List[ImageAttrKey] = ['class', 'title', 'longdesc', 'width', 'height', 'align']
+    return _get_params(paramstring, acceptable_attrs=acceptable)
 
 
-def _get_object_params(paramstring: str) -> Tuple[Dict[str, str], Dict[str, str]]:
-    # TODO: standby is deprecated in HTML5
-    acceptable_attrs_object = ['class', 'title', 'width', 'height', 'type', 'standby', ]
-    tag_attrs, query_args = _get_params(paramstring, acceptable_attrs=acceptable_attrs_object)
-    if 'type' in tag_attrs:
-        tag_attrs['mimetype'] = tag_attrs['type']
-        del tag_attrs['type']
+def _get_object_params(paramstring: str) -> Tuple[ObjectAttrDict, Dict[str, str]]:
+    acceptable: List[ObjectAttrKey] = ['class', 'title', 'width', 'height', 'mimetype', 'standby']
+    tag_attrs, query_args = _get_params(paramstring, acceptable_attrs=acceptable,
+                                        mapping={'type': 'mimetype'})
     return tag_attrs, query_args
 
 
-def _get_link_params(paramstring: str) -> Tuple[Dict[str, str], Dict[str, str]]:
-    # TODO: don't support all attrs actually
-    acceptable_attrs_link = ['class', 'title', 'target', 'accesskey', 'rel', ]
+def _get_link_params(paramstring: str) -> Tuple[LinkAttrDict, Dict[str, str]]:
+    acceptable_attrs_link: List[LinkAttrKey] = ['class', 'title', 'target', 'accesskey', 'rel', ]
     return _get_params(paramstring, acceptable_attrs=acceptable_attrs_link)
 
 
-def _get_params(paramstring: str, acceptable_attrs: List[str] = []
-                ) -> Tuple[Dict[str, str], Dict[str, str]]:
+def _get_params(paramstring: str, acceptable_attrs: List[T] = [], mapping: Dict[str, str] = {},
+                ) -> Tuple[Dict[T, str], Dict[str, str]]:
     """ parse the parameters of link/transclusion markup,
         defaults can be a dict with some default key/values
         that will be in the result as given, unless overriden
         by the params.
     """
-    tag_attrs = {}
+    tag_attrs: Dict[T, str] = {}
     query_args = {}
     if paramstring:
         fixed, kw, trailing = wikiutil.parse_quoted_separated(paramstring)
-        # we ignore fixed and trailing args and only use kw args:
         for key, val in kw.items():
+            if key in mapping:
+                key = mapping[key]
             if key in acceptable_attrs:
-                # tag attributes must be string type
-                tag_attrs[str(key)] = val
+                tag_attrs[key] = val
             elif key.startswith('&'):
                 key = key[1:]
                 query_args[key] = val
