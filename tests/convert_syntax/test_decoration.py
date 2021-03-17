@@ -70,5 +70,5 @@ def test_decorations_not_fully_work(data, expected, formatter_object, caplog):
 def test_decorations_without_unsafe(data, expected, formatter_without_unsafe_object, caplog):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_without_unsafe_object.format(page) == expected, \
-        page.print_structure(include_src=True)
+        page.tree_repr(include_src=True)
     assert 'goldmark_unsafe' in caplog.text

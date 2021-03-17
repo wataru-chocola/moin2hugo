@@ -120,7 +120,7 @@ class PageBuilder(object):
     # Helpers
     def _assert_cur_elem(self, x: Type[PageElement]):
         if not isinstance(self.cur, x):
-            emsg = "Tree Structure:\n" + self.page_root.print_structure() + "\n"
+            emsg = "Tree Structure:\n" + self.page_root.tree_repr() + "\n"
             emsg += "Current Elemnt: " + repr(self.cur)
             raise AssertionError(emsg)
 

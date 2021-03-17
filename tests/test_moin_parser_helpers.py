@@ -33,7 +33,7 @@ def test_src_build():
 
     """)
     page = moin2hugo.moin_parser.MoinParser.parse(text, 'PageName')
-    assert page.source_text == text, page.print_structure(include_src=True)
+    assert page.source_text == text, page.tree_repr(include_src=True)
 
 
 def test_bang_meta():
