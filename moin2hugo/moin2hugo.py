@@ -43,7 +43,7 @@ class Moin2Hugo(object):
             if entry.name.startswith("."):
                 continue
 
-            logger.info("Page Found: %s" % unquoteWikiname(entry.name))
+            logger.debug("+ Page Found: %s" % unquoteWikiname(entry.name))
             pagedir = os.path.join(page_dir, entry.name)
             try:
                 current_file = os.path.join(pagedir, 'current')
@@ -55,7 +55,7 @@ class Moin2Hugo(object):
             content_file = os.path.join(pagedir, 'revisions', current_revision)
             if not os.path.isfile(content_file):
                 # TODO: page deleted?
-                logger.error("Not found: %s/revisions/%s" % (entry.name, current_revision))
+                logger.error("+ Not found: %s/revisions/%s" % (entry.name, current_revision))
                 continue
 
             attachments: List[MoinAttachment] = []
@@ -80,11 +80,13 @@ class Moin2Hugo(object):
                 content = f.read()
             page_obj = MoinParser.parse(content, page.name,
                                         site_config=self.config.moin_site_config)
-            logger.info("Convert Page: %s" % page.name)
-            logger.debug("Filepath: %s" % page.filepath)
+            logger.info("+ Convert Page: %s" % page.name)
+            logger.debug("+ Filepath: %s" % page.filepath)
             converted = formatter.format(page_obj)
             # TODO: do something
             # TODO: page.attachments
+            logger.info("+ Done.")
+            logger.info("")
 
 
 def config_logger(verbose: bool):
