@@ -28,15 +28,44 @@ def test_decorations_ml(data, expected, formatter_object):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        ("^super^script", "<sup>super</sup>script"),   # TODO
-        (",,sub,,script", "<sub>sub</sub>script"),   # TODO
+        ("^super^script", "<sup>super</sup>script"),
+        (",,sub,,script", "<sub>sub</sub>script"),
         ("`inline code`", "`inline code`"),
         ("{{{this is ``code``}}}", "```this is ``code`` ```"),
 
-        ("^su<x />per^script", "<sup>su&lt;x /&gt;per</sup>script"),   # TODO
-        (",,su<x />b,,script", "<sub>su&lt;x /&gt;b</sub>script"),   # TODO
+        ("^su<x />per^script", "<sup>su&lt;x /&gt;per</sup>script"),
+        (",,su<x />b,,script", "<sub>su&lt;x /&gt;b</sub>script"),
     ]
 )
 def test_decorations_sl(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("__underlined '''x''' text__", "<u>underlined **x** text</u>"),
+    ]
+)
+def test_decorations_not_fully_work(data, expected, formatter_object, caplog):
+    page = MoinParser.parse(data, 'PageName')
+    assert formatter_object.format(page) == expected
+    assert 'unsupported: non-Text' in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("__underlined '''x''' text__", r"\_\_underlined **x** text\_\_"),
+        ("~-smaller-~", r"\~\-smaller\~\-"),
+        ("~+larger+~", r"\~\+larger\+\~"),
+
+        ("^super^script", r"\^super\^script"),
+        (",,sub,,script", r",,sub,,script"),
+        ("^su<x />per^script", r"\^su&lt;x /&gt;per\^script"),
+        (",,su<x />b,,script", r",,su&lt;x /&gt;b,,script"),
+    ]
+)
+def test_decorations_without_unsafe(data, expected, formatter_without_unsafe_object, caplog):
+    page = MoinParser.parse(data, 'PageName')
+    assert formatter_without_unsafe_object.format(page) == expected
+    assert 'goldmark_unsafe' in caplog.text

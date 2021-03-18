@@ -30,6 +30,14 @@ class PageElement(object):
         return ret
 
     @property
+    def descendants(self) -> List[PageElement]:
+        ret: List[PageElement] = []
+        for c in self.children:
+            ret.append(c)
+            ret += c.descendants
+        return ret
+
+    @property
     def prev_sibling(self) -> Optional[PageElement]:
         if self.parent is None:
             return None
