@@ -54,8 +54,8 @@ class Moin2Hugo(object):
 
             content_file = os.path.join(pagedir, 'revisions', current_revision)
             if not os.path.isfile(content_file):
-                # TODO: page deleted?
-                logger.error("+ Not found: %s/revisions/%s" % (entry.name, current_revision))
+                logger.debug("++ not found: %s/revisions/%s" % (entry.name, current_revision))
+                logger.debug("++ already deleted")
                 continue
 
             attachments: List[MoinAttachment] = []
