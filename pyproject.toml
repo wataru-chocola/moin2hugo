@@ -8,11 +8,16 @@ authors = ["Wataru Watanabe <wataru.chocola@gmail.com>"]
 python = "^3.8"
 attrs = "^20.3.0"
 pydantic = "^1.8.1"
+click = "^7.1.2"
+PyYAML = "^5.4.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 mypy = "^0.812"
 pytest-randomly = "^3.5.0"
+
+[tool.poetry.scripts]
+moin2hugo = "moin2hugo.moin2hugo:convert_site"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
