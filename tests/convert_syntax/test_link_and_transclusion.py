@@ -1,4 +1,5 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.page_tree import AttachmentImage
 
 import pytest
 from unittest import mock
@@ -67,6 +68,29 @@ def test_transclude(data, expected, formatter_object):
     with mock.patch('moin2hugo.formatter.open', mock_io):
         assert formatter_object.format(page) == expected
     assert page.source_text == data
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ('{{attachment:image.png|title|width=100,height=150,xxx=test}}', ('100', '150')),
+
+        # This comes from Moin-1.9's HelpOnLinking, but doesn't work (maybe bug)
+        ('{{attachment:image.png|title|width=100 height=150}}', ('100 height=150', None)),
+    ]
+)
+def test_transclude_attrs(data, expected):
+    page = MoinParser.parse(data, 'PageName')
+    attach_image: AttachmentImage = page.children[0].children[0]
+    expected_width, expected_height = expected
+    assert isinstance(attach_image, AttachmentImage)
+    if expected_width is None:
+        assert attach_image.attrs.width is None
+    else:
+        assert attach_image.attrs.width == expected_width
+    if expected_height is None:
+        assert attach_image.attrs.height is None
+    else:
+        assert attach_image.attrs.height == expected_height
 
 
 @pytest.mark.parametrize(
