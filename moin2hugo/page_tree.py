@@ -10,6 +10,8 @@ class PageElement(object):
     content: str = attr.ib(default='')
     parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False)
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
+    source_text: str = attr.ib(default='', repr=False)
+    source_frozen: bool = attr.ib(default=False, repr=False)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> PageElement:
@@ -17,7 +19,7 @@ class PageElement(object):
         init_args = dict([(k, v) for k, v in data.items() if k in initable_fields])
         obj = cls(**init_args)
         for _class, c_init_data in data.get('children', []):
-            obj.add_child(_class.from_dict(c_init_data))
+            obj.add_child(_class.from_dict(c_init_data), propagate_source_text=False)
         return obj
 
     @property
@@ -27,6 +29,14 @@ class PageElement(object):
         while tmp is not None:
             ret.append(tmp)
             tmp = tmp.parent
+        return ret
+
+    @property
+    def descendants(self) -> List[PageElement]:
+        ret: List[PageElement] = []
+        for c in self.children:
+            ret.append(c)
+            ret += c.descendants
         return ret
 
     @property
@@ -56,22 +66,45 @@ class PageElement(object):
                 return True
         return False
 
-    def add_child(self, element: PageElement):
-        self.children.append(element)
-        element.parent = self
+    def add_child(self, child: PageElement, propagate_source_text: bool = True):
+        self.children.append(child)
+        child.parent = self
+        if propagate_source_text:
+            child.propagate_source_text(child.source_text)
 
-    def print_structure(self) -> str:
-        ret = ""
+    def add_source_text(self, source_text: str, freeze: bool = False):
+        self.source_text += source_text
+        self.propagate_source_text(source_text)
+        if freeze:
+            self.source_frozen = True
+
+    def propagate_source_text(self, source_text: str):
+        for p in self.parents:
+            if p.source_frozen:
+                break
+            p.source_text += source_text
+
+    def print_structure(self, include_src: bool = False) -> str:
+        def _shorten(text: str, width: int = 40) -> str:
+            placeholder = '[...]'
+            assert width > len(placeholder)
+            if len(text) > width:
+                return text[:width-len(placeholder)] + placeholder
+            return text
+
         classname = self.__class__.__name__
+        description = '{classname}:'.format(classname=classname)
         if self.content:
-            summary = textwrap.shorten(self.content, 40)
-            ret += '{classname}: content="{summary}"'.format(classname=classname, summary=summary)
-        else:
-            ret += '{classname}:'.format(classname=classname)
+            summary = repr(_shorten(self.content, 40))
+            description += ' content={summary}'.format(summary=summary)
+        if include_src and self.source_text:
+            summary = repr(_shorten(self.source_text, 40))
+            description += ' source={summary}'.format(summary=summary)
+
         for e in self.children:
-            ret += "\n"
-            ret += textwrap.indent(e.print_structure(), "    ")
-        return ret
+            description += "\n"
+            description += textwrap.indent(e.print_structure(include_src=include_src), "    ")
+        return description
 
 
 # General Objects

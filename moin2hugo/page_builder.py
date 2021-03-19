@@ -21,13 +21,6 @@ class PageBuilder(object):
         self.page_root = PageRoot()
         self.cur = self.page_root
 
-    # Helpers
-    def assert_cur_elem(self, x: Type[PageElement]):
-        if not isinstance(self.cur, x):
-            emsg = "Tree Structure:\n" + self.page_root.print_structure() + "\n"
-            emsg += "Current Elemnt: " + repr(self.cur)
-            raise AssertionError(emsg)
-
     # Page Bulding Status
     @property
     def in_p(self) -> bool:
@@ -95,6 +88,10 @@ class PageBuilder(object):
         return self.cur.in_x([Big])
 
     @property
+    def in_table_row(self) -> bool:
+        return self.cur.in_x([TableRow])
+
+    @property
     def in_li_of_current_list(self) -> bool:
         return self.cur.in_x([Listitem], upper_bound=[BulletList, NumberList, DefinitionList])
 
@@ -121,6 +118,12 @@ class PageBuilder(object):
         return list_types
 
     # Helpers
+    def _assert_cur_elem(self, x: Type[PageElement]):
+        if not isinstance(self.cur, x):
+            emsg = "Tree Structure:\n" + self.page_root.print_structure() + "\n"
+            emsg += "Current Elemnt: " + repr(self.cur)
+            raise AssertionError(emsg)
+
     def _add_new_elem(self, e: PageElement):
         self.cur.add_child(e)
 
@@ -131,6 +134,10 @@ class PageBuilder(object):
     def _end_current_elem(self):
         self.cur = self.cur.parent
 
+    # Building Source
+    def feed_src(self, source_text: str):
+        self.cur.add_source_text(source_text)
+
     # General Objects
     def paragraph_start(self):
         self._start_new_elem(Paragraph())
@@ -138,240 +145,258 @@ class PageBuilder(object):
     def paragraph_end(self):
         self._end_current_elem()
 
-    def text(self, text: str):
-        self._add_new_elem(Text(content=text))
+    def text(self, text: str, source_text: str = ''):
+        self._add_new_elem(Text(content=text, source_text=source_text))
 
-    def sgml_entity(self, text: str):
-        self._add_new_elem(SGMLEntity(content=text))
+    def sgml_entity(self, text: str, source_text: str = ''):
+        self._add_new_elem(SGMLEntity(content=text, source_text=source_text))
 
     # Moinwiki Special Objects
-    def macro(self, macro_name: str, macro_args: Optional[str], markup: str):
-        self._add_new_elem(Macro(macro_name=macro_name, macro_args=macro_args, markup=markup))
+    def macro(self, macro_name: str, macro_args: Optional[str], markup: str,
+              source_text: str = ''):
+        self._add_new_elem(Macro(macro_name=macro_name, macro_args=macro_args, markup=markup,
+                                 source_text=source_text))
 
-    def comment(self, text: str):
-        self._add_new_elem(Comment(content=text))
+    def comment(self, text: str, source_text: str = ''):
+        self._add_new_elem(Comment(content=text, source_text=source_text))
 
-    def smiley(self, smiley: str):
-        self._add_new_elem(Smiley(content=smiley))
+    def smiley(self, smiley: str, source_text: str = ''):
+        self._add_new_elem(Smiley(content=smiley, source_text=source_text))
 
-    def remark_toggle(self):
+    def remark_toggle(self, source_text: str = ''):
         if not self.in_remark:
-            self._start_new_elem(Remark())
+            self._start_new_elem(Remark(source_text=source_text))
         else:
-            self.assert_cur_elem(Remark)
+            self._assert_cur_elem(Remark)
+            self.feed_src(source_text)
             self._end_current_elem()
 
     # Codeblock / ParsedText
-    def parsed_text_start(self):
-        e = ParsedText()
+    def parsed_text_start(self, source_text: str = ''):
+        e = ParsedText(source_text=source_text)
         self._start_new_elem(e)
 
     def parsed_text_parser(self, parser_name: str, parser_args: Optional[str] = None):
-        self.assert_cur_elem(ParsedText)
+        self._assert_cur_elem(ParsedText)
         self.cur.parser_name = parser_name
         self.cur.parser_args = parser_args
 
-    def parsed_text_end(self, lines: List[str]):
-        self.assert_cur_elem(ParsedText)
+    def parsed_text_end(self, lines: List[str], source_text: str = ''):
+        self._assert_cur_elem(ParsedText)
+        self.feed_src(source_text)
         self.cur.content = ''.join(lines)
         self._end_current_elem()
-
-    def preformatted(self, on):
-        # TODO: needed?
-        pass
 
     # Table
     def table_start(self, attrs: Dict[str, str] = {}):
         self._start_new_elem(Table(attrs=attrs))
 
     def table_end(self):
-        self.assert_cur_elem(Table)
+        self._assert_cur_elem(Table)
         self._end_current_elem()
 
     def table_row_start(self, attrs: Dict[str, str] = {}):
         self._start_new_elem(TableRow(attrs=attrs))
 
     def table_row_end(self):
-        self.assert_cur_elem(TableRow)
+        self._assert_cur_elem(TableRow)
         self._end_current_elem()
 
-    def table_cell_start(self, attrs: Dict[str, str] = {}):
-        self._start_new_elem(TableCell(attrs=attrs))
+    def table_cell_start(self, attrs: Dict[str, str] = {}, source_text: str = ''):
+        self._start_new_elem(TableCell(attrs=attrs, source_text=source_text))
 
     def table_cell_end(self):
-        self.assert_cur_elem(TableCell)
+        self._assert_cur_elem(TableCell)
         self._end_current_elem()
 
     # Heading / Horizontal Rule
-    def heading(self, depth: int, text: str):
-        self._add_new_elem(Heading(depth=depth, content=text))
+    def heading(self, depth: int, text: str, source_text: str = ''):
+        self._add_new_elem(Heading(depth=depth, content=text, source_text=source_text))
 
-    def rule(self):
-        self._add_new_elem(HorizontalRule())
+    def rule(self, source_text: str = ''):
+        self._add_new_elem(HorizontalRule(source_text=source_text))
 
     # Decoration
-    def underline_toggle(self):
+    def underline_toggle(self, source_text: str = ''):
         if not self.in_underline:
-            self._start_new_elem(Underline())
+            self._start_new_elem(Underline(source_text=source_text))
         else:
-            self.assert_cur_elem(Underline)
+            self._assert_cur_elem(Underline)
+            self.feed_src(source_text)
             self._end_current_elem()
 
-    def strike_toggle(self):
+    def strike_toggle(self, source_text: str = ''):
         if not self.in_strike:
-            self._start_new_elem(Strike())
+            self._start_new_elem(Strike(source_text=source_text))
         else:
-            self.assert_cur_elem(Strike)
+            self._assert_cur_elem(Strike)
+            self.feed_src(source_text)
             self._end_current_elem()
 
-    def big_toggle(self):
+    def big_toggle(self, source_text: str = ''):
         if not self.in_big:
-            self._start_new_elem(Big())
+            self._start_new_elem(Big(source_text=source_text))
         else:
-            self.assert_cur_elem(Big)
+            self._assert_cur_elem(Big)
+            self.feed_src(source_text)
             self._end_current_elem()
 
-    def small_toggle(self):
+    def small_toggle(self, source_text: str = ''):
         if not self.in_small:
-            self._start_new_elem(Small())
+            self._start_new_elem(Small(source_text=source_text))
         else:
-            self.assert_cur_elem(Small)
+            self._assert_cur_elem(Small)
+            self.feed_src(source_text)
             self._end_current_elem()
 
-    def strong_toggle(self):
+    def strong_toggle(self, source_text: str = ''):
         if not self.in_strong:
-            self._start_new_elem(Strong())
+            self._start_new_elem(Strong(source_text=source_text))
         else:
-            self.assert_cur_elem(Strong)
+            self._assert_cur_elem(Strong)
+            self.feed_src(source_text)
             self._end_current_elem()
 
-    def emphasis_toggle(self):
+    def emphasis_toggle(self, source_text: str = ''):
         if not self.in_emphasis:
-            self._start_new_elem(Emphasis())
+            self._start_new_elem(Emphasis(source_text=source_text))
         else:
-            self.assert_cur_elem(Emphasis)
+            self._assert_cur_elem(Emphasis)
+            self.feed_src(source_text)
             self._end_current_elem()
 
-    def sup(self, text: str):
-        self._add_new_elem(Sup(content=text))
+    def sup(self, text: str, source_text: str = ''):
+        self._add_new_elem(Sup(content=text, source_text=source_text))
 
-    def sub(self, text: str):
-        self._add_new_elem(Sub(content=text))
+    def sub(self, text: str, source_text: str = ''):
+        self._add_new_elem(Sub(content=text, source_text=source_text))
 
-    def code(self, text: str):
-        self._add_new_elem(Code(content=text))
+    def code(self, text: str, source_text: str = ''):
+        self._add_new_elem(Code(content=text, source_text=source_text))
 
     # Link
-    def link_start(self, target: str, title: Optional[str] = None):
+    def link_start(self, target: str, title: Optional[str] = None,
+                   source_text: str = '', freeze_source: bool = False):
         # TODO: extra link attributes
-        self._start_new_elem(Link(target=target, title=title))
+        self._start_new_elem(Link(target=target, title=title, source_text=source_text,
+                                  source_frozen=freeze_source))
 
     def link_end(self):
-        self.assert_cur_elem(Link)
+        self._assert_cur_elem(Link)
         self._end_current_elem()
 
     def pagelink_start(self, pagename: str = '', queryargs: Optional[Dict[str, str]] = None,
-                       anchor: Optional[str] = None,
-                       target: Optional[str] = None):
+                       anchor: Optional[str] = None, target: Optional[str] = None,
+                       source_text: str = '', freeze_source: bool = False):
         # TODO: extra link attributes
-        e = Pagelink(pagename=pagename, queryargs=queryargs, anchor=anchor)
+        e = Pagelink(pagename=pagename, queryargs=queryargs, anchor=anchor,
+                     source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
     def pagelink_end(self):
-        self.assert_cur_elem(Pagelink)
+        self._assert_cur_elem(Pagelink)
         self._end_current_elem()
 
     def attachment_link_start(self, pagename: str, filename: str, title: Optional[str] = None,
-                              queryargs: Optional[Dict[str, str]] = None):
+                              queryargs: Optional[Dict[str, str]] = None,
+                              source_text: str = '', freeze_source: bool = False):
         # TODO: extra link attributes
-        e = AttachmentLink(pagename=pagename, filename=filename, title=title, queryargs=queryargs)
+        e = AttachmentLink(pagename=pagename, filename=filename, title=title, queryargs=queryargs,
+                           source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
     def attachment_link_end(self):
-        self.assert_cur_elem(AttachmentLink)
+        self._assert_cur_elem(AttachmentLink)
         self._end_current_elem()
 
-    def url(self, text: str):
-        self._add_new_elem(Url(content=text))
+    def url(self, text: str, source_text: str = ''):
+        self._add_new_elem(Url(content=text, source_text=source_text))
 
     # Itemlist
     def bullet_list_start(self):
         self._start_new_elem(BulletList())
 
     def bullet_list_end(self):
-        self.assert_cur_elem(BulletList)
+        self._assert_cur_elem(BulletList)
         self._end_current_elem()
 
     def number_list_start(self, numtype: str = '1', numstart: str = '1'):
         self._start_new_elem(NumberList())
 
     def number_list_end(self):
-        self.assert_cur_elem(NumberList)
+        self._assert_cur_elem(NumberList)
         self._end_current_elem()
 
     def listitem_start(self):
         self._start_new_elem(Listitem())
 
     def listitem_end(self):
-        self.assert_cur_elem(Listitem)
+        self._assert_cur_elem(Listitem)
         self._end_current_elem()
 
     def definition_list_start(self):
         self._start_new_elem(DefinitionList())
 
     def definition_list_end(self):
-        self.assert_cur_elem(DefinitionList)
+        self._assert_cur_elem(DefinitionList)
         self._end_current_elem()
 
-    def definition_term_start(self):
-        self._start_new_elem(DefinitionTerm())
+    def definition_term_start(self, source_text: str = '', freeze_source: bool = False):
+        self._start_new_elem(DefinitionTerm(source_text=source_text, source_frozen=freeze_source))
 
     def definition_term_end(self):
-        self.assert_cur_elem(DefinitionTerm)
+        self._assert_cur_elem(DefinitionTerm)
         self._end_current_elem()
 
     def definition_desc_start(self):
         self._start_new_elem(DefinitionDesc())
 
     def definition_desc_end(self):
-        self.assert_cur_elem(DefinitionDesc)
+        self._assert_cur_elem(DefinitionDesc)
         self._end_current_elem()
 
     # Transclude (Image Embedding)
     def transclusion_start(self, pagename: str, mimetype: str, title: Optional[str] = None,
-                           width: Optional[str] = None):
+                           width: Optional[str] = None,
+                           source_text: str = '', freeze_source: bool = False):
         # TODO: extra object attributes
-        e = Transclude(pagename=pagename, mimetype=mimetype, title=title, width=width)
+        e = Transclude(pagename=pagename, mimetype=mimetype, title=title, width=width,
+                       source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
     def transclusion_end(self):
-        self.assert_cur_elem(Transclude)
+        self._assert_cur_elem(Transclude)
         self._end_current_elem()
 
     def attachment_transclusion_start(self, pagename: str, filename: str, mimetype: str,
-                                      title: Optional[str] = None, width: Optional[str] = None):
+                                      title: Optional[str] = None, width: Optional[str] = None,
+                                      source_text: str = '', freeze_source: bool = False):
         # TODO: extra object attributes
         e = AttachmentTransclude(pagename=pagename, filename=filename, mimetype=mimetype,
-                                 title=title, width=width)
+                                 title=title, width=width,
+                                 source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
     def attachment_transclusion_end(self):
-        self.assert_cur_elem(AttachmentTransclude)
+        self._assert_cur_elem(AttachmentTransclude)
         self._end_current_elem()
 
     def attachment_image(self, pagename: str, filename: str, title: Optional[str] = None,
                          width: Optional[str] = None, height: Optional[str] = None,
-                         alt: Optional[str] = '', align: Optional[str] = None):
+                         alt: Optional[str] = '', align: Optional[str] = None,
+                         source_text: str = ''):
         # TODO: extra image attributes
         e = AttachmentImage(pagename=pagename, filename=filename, title=title,
-                            width=width, height=height, align=align)
+                            width=width, height=height, align=align, source_text=source_text)
         self._add_new_elem(e)
 
-    def attachment_inlined(self, pagename: str, filename: str, link_text: str):
+    def attachment_inlined(self, pagename: str, filename: str, link_text: str,
+                           source_text: str = ''):
         self._add_new_elem(AttachmentInlined(pagename=pagename, filename=filename,
-                                             link_text=link_text))
+                                             link_text=link_text, source_text=source_text))
 
     def image(self, src: str, alt: str = '', title: Optional[str] = None,
-              align: Optional[str] = None):
+              align: Optional[str] = None, source_text: str = ''):
         # TODO: extra image attributes
-        self._add_new_elem(Image(src=src, alt=alt, title=title, align=align))
+        self._add_new_elem(Image(src=src, alt=alt, title=title, align=align,
+                                 source_text=source_text))

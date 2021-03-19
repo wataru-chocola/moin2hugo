@@ -1,6 +1,59 @@
 import pytest
+import textwrap
 
 import moin2hugo.moin_parser
+from moin2hugo.page_tree import PageRoot, Paragraph, Pagelink, Text
+from moin2hugo.config import MoinSiteConfig
+
+
+def test_src_build():
+    text = textwrap.dedent("""\
+    <<TableOfContents>>
+
+    = Headling 1 =
+
+    This is test /* inline comment */ for attaching src to each element.
+
+     * item1
+         * decoration: '''strong'''
+         * decoration: '''''strong&emphasis''' emphasis''
+         * decoration: ^super^test
+         * word: WikiName
+         * word: !WikiName
+         * word: PageName
+         * word: !PageName
+     * item2
+
+     {{{#!highlight python
+    ...
+    }}}
+
+    {{attachment:test.png}}
+    [[https://www.example.com/|{{attachment:test.png}}]]
+
+    """)
+    page = moin2hugo.moin_parser.MoinParser.parse(text, 'PageName')
+    assert page.source_text == text, page.print_structure(include_src=True)
+
+
+def test_bang_meta():
+    moin_site_config = MoinSiteConfig(bang_meta=False)
+    page = moin2hugo.moin_parser.MoinParser.parse("!WikiName", 'PageName', moin_site_config)
+    expected = PageRoot.from_dict({
+        'source_text': '!WikiName',
+        'children': [
+            (Paragraph, {
+                'source_text': '!WikiName',
+                'children': [
+                    (Pagelink, {
+                        'anchor': '',
+                        'pagename': 'WikiName',
+                        'source_text': '!WikiName',
+                        'children': [(Text, {'content': '!WikiName', 'source_text': '!WikiName'})]
+                    })],
+            })],
+    })
+    assert page == expected
 
 
 @pytest.mark.parametrize(
