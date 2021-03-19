@@ -4,6 +4,7 @@ import collections
 import copy
 import html
 import urllib.parse
+import logging
 
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
@@ -19,8 +20,11 @@ from moin2hugo.page_tree import (
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
+from moin2hugo.config import HugoConfig
 
 from typing import Optional, List, Dict, Callable, Type, Any
+
+logger = logging.getLogger(__name__)
 
 smiley2emoji = {
     'X-(': ':angry:',
@@ -99,6 +103,12 @@ def urlquote(text: str) -> str:
 
 
 class Formatter(object):
+    def __init__(self, config: Optional[HugoConfig] = None):
+        if config:
+            self.config = config
+        else:
+            self.config = HugoConfig()
+
     def format(self, e: PageElement):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self.page_root,
@@ -160,11 +170,10 @@ class Formatter(object):
         }
         return dispatch_tbl[type(e)](e)
 
-    def _generic_container(self, e: PageElement) -> str:
-        ret = ''
-        for c in e.children:
-            ret += self.format(c)
-        return ret
+    def _warn_nontext_in_raw_html(self, e: PageElement):
+        msgfmt = "unsupported: non-Text element within %s wouldn't be rendered as intended"
+        if any((not isinstance(c, Text) for c in e.descendants)):
+            logger.warning(msgfmt % e.__class__.__name__)
 
     def _separator_line(self, e: PageElement) -> str:
         if e.prev_sibling is not None and type(e.prev_sibling) in (
@@ -182,12 +191,35 @@ class Formatter(object):
             if isinstance(c, Text):
                 if len(new_e.children) > 0 and isinstance(new_e.children[-1], Text):
                     new_e.children[-1].content += c.content
+                    new_e.children[-1].source_text += c.source_text
                     continue
             new_c = self._consolidate(c)
-            new_e.add_child(new_c)
+            new_e.add_child(new_c, propagate_source_text=False)
         return new_e
 
     # General Objects
+    def _generic_container(self, e: PageElement) -> str:
+        ret = ''
+        for c in e.children:
+            ret += self.format(c)
+        return ret
+
+    def _raw_html(self, e: PageElement, tag: str, content: str,
+                  tag_attrs: Dict[str, str] = {}) -> str:
+        if self.config.goldmark_unsafe:
+            self._warn_nontext_in_raw_html(e)
+            if tag_attrs:
+                tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
+                start_tag = "<%s %s>" % (tag, tag_attrs_str)
+            else:
+                start_tag = "<%s>" % tag
+            end_tag = "</%s>" % tag
+            return start_tag + html.escape(content) + end_tag
+        else:
+            logger.warning("unsupported: %s (set `goldmark_unsafe` option)" % e.__class__.__name__)
+            return "%s" % escape_markdown_all(e.source_text)
+
+    # Basic Elements
     def page_root(self, e: Paragraph) -> str:
         new_e = self._consolidate(e)
         return self._generic_container(new_e)
@@ -342,19 +374,16 @@ class Formatter(object):
 
     # Decoration (can be multilined)
     def underline(self, e: Underline) -> str:
-        # TODO: unsafe
-        return "<u>%s</u>" % html.escape(self._generic_container(e))
+        return self._raw_html(e, 'u', content=self._generic_container(e))
 
     def strike(self, e: Strike) -> str:
         return "~~%s~~" % self._generic_container(e)
 
     def small(self, e: Small) -> str:
-        # TODO: unsafe
-        return "<small>%s</small>" % html.escape(self._generic_container(e))
+        return self._raw_html(e, 'small', content=self._generic_container(e))
 
     def big(self, e: Big) -> str:
-        # TODO: unsafe
-        return "<big>%s</big>" % html.escape(self._generic_container(e))
+        return self._raw_html(e, 'big', content=self._generic_container(e))
 
     def strong(self, e: Strong) -> str:
         return "**%s**" % self._generic_container(e)
@@ -364,12 +393,10 @@ class Formatter(object):
 
     # Decoration (cannot be multilined)
     def sup(self, e: Sup) -> str:
-        # TODO: unsafe option?
-        return "<sup>%s</sup>" % html.escape(e.content)
+        return self._raw_html(e, 'sup', content=e.content)
 
     def sub(self, e: Sub) -> str:
-        # TODO: unsafe option?
-        return "<sub>%s</sub>" % html.escape(e.content)
+        return self._raw_html(e, 'sub', content=e.content)
 
     def code(self, e: Code) -> str:
         # noqa: refer: https://meta.stackexchange.com/questions/82718/how-do-i-escape-a-backtick-within-in-line-code-in-markdown
@@ -502,11 +529,7 @@ class Formatter(object):
             tag_attrs['type'] = html.escape(mimetype)
         if title:
             tag_attrs['name'] = html.escape(title)
-        tag_attrs_str = " ".join(['%s="%s"' % (k, v) for k, v in tag_attrs.items()])
-        ret = "<object %s>" % tag_attrs_str
-        ret += html.escape(self._generic_container(e))
-        ret += "</object>"
-        return ret
+        return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = attachment_url(e.pagename, e.filename)

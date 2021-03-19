@@ -18,6 +18,8 @@ def test_highlighted_python(formatter_object):
     sys.out.write("Hello, World")
     ```
     """.rstrip()
-    page = MoinParser.parse(textwrap.dedent(code_block_text), 'PageName')
+    data = textwrap.dedent(code_block_text)
+    page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
+    assert page.source_text == data

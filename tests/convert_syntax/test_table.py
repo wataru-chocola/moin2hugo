@@ -12,9 +12,11 @@ def test_basic_table(formatter_object):
     | **A** | **B** | **C** |
     | 1 | 2 | 3 |
     """
-    page = MoinParser.parse(textwrap.dedent(table_text), 'PageName')
+    data = textwrap.dedent(table_text)
+    page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 def test_table_escape(formatter_object):
@@ -28,9 +30,11 @@ def test_table_escape(formatter_object):
     | \\-\\- | \\-\\- | \\-\\- |
     | 1 | 2 | 3 |
     """
-    page = MoinParser.parse(textwrap.dedent(table_text), 'PageName')
+    data = textwrap.dedent(table_text)
+    page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 def test_extended_table(formatter_object):
