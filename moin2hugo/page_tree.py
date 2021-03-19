@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-import attr
 import textwrap
+import attr
+
 from typing import Optional, List, Dict, Any, Type, Literal
 
 
 @attr.s
 class PageElement(object):
     content: str = attr.ib(default='')
-    parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False)
+
+    parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False,
+                                            metadata={'exclude_content': True})
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
-    source_text: str = attr.ib(default='', repr=False)
-    source_frozen: bool = attr.ib(default=False, repr=False)
+    source_text: str = attr.ib(default='', repr=False, metadata={'exclude_content': True})
+    source_frozen: bool = attr.ib(default=False, repr=False, metadata={'exclude_content': True})
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> PageElement:
@@ -21,6 +24,32 @@ class PageElement(object):
         for _class, c_init_data in data.get('children', []):
             obj.add_child(_class.from_dict(c_init_data), propagate_source_text=False)
         return obj
+
+    @property
+    def content_hash(self) -> int:
+        def get_hash(obj: Any) -> int:
+            if isinstance(obj, PageElement):
+                return obj.content_hash
+            else:
+                return hash(obj)
+
+        hash_value = 0
+        for field in attr.fields(self.__class__):
+            assert isinstance(field, attr.Attribute)
+            if field.metadata.get('exclude_content',  False):
+                continue
+            value = self.__getattribute__(field.name)
+            hash_value += hash(field.name)
+            if isinstance(value, list):
+                hash_value += hash((field.name, sum([get_hash(c) for c in value])))
+            elif isinstance(value, dict):
+                tmp_value = 0
+                for k, v in value.items():
+                    tmp_value += hash((k, get_hash(v)))
+                hash_value += hash((field.name, tmp_value))
+            else:
+                hash_value += hash((field.name, value))
+        return hash((self.__class__.__name__, hash_value))
 
     @property
     def parents(self) -> List[PageElement]:
@@ -245,7 +274,7 @@ LinkAttrKey = Literal['class', 'title', 'target', 'accesskey', 'rel']
 LinkAttrDict = Dict[LinkAttrKey, Any]
 
 
-@attr.s
+@attr.s(frozen=True)
 class LinkAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     title: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -338,7 +367,7 @@ ImageAttrKey = Literal['class', 'alt', 'title', 'longdesc', 'width', 'height', '
 ImageAttrDict = Dict[ImageAttrKey, Any]
 
 
-@attr.s
+@attr.s(frozen=True)
 class ImageAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     alt: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -377,7 +406,7 @@ ObjectAttrKey = Literal['class', 'title', 'width', 'height', 'mimetype', 'standb
 ObjectAttrDict = Dict[ObjectAttrKey, Any]
 
 
-@attr.s
+@attr.s(frozen=True)
 class ObjectAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     title: Optional[str] = attr.ib(kw_only=True, default=None)
