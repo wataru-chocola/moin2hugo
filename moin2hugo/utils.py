@@ -10,7 +10,6 @@ def page_to_hugo_filepath(pagename: str, disable_path_to_lower: bool = False) ->
     filepath = pagename.translate(str.maketrans(trans_dict))
     if not disable_path_to_lower:
         filepath = filepath.lower()
-    filepath += ".md"
     return filepath
 
 

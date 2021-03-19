@@ -30,6 +30,9 @@ class MoinPageInfo:
 
 
 class Moin2Hugo(object):
+    BRANCH_BUNDLE = 1
+    LEAF_BUNDLE = 2
+
     def __init__(self, src_dir: str, dst_dir: str, config: Optional[Config] = None):
         if config:
             self.config = config
@@ -37,6 +40,23 @@ class Moin2Hugo(object):
             self.config = Config()
         self.src_dir = src_dir
         self.dst_dir = dst_dir
+        self._hugo_site_structure = None
+
+    @property
+    def hugo_site_structure(self):
+        if self._hugo_site_structure is not None:
+            return self._hugo_site_structure
+
+        self._hugo_site_structure = {}
+        for page in self.scan_pages(self.src_dir):
+            elems = page.name.split("/")
+            for i in range(len(elems) - 1):
+                branch_path = "/".join(elems[:i+1])
+                self._hugo_site_structure[branch_path] = self.BRANCH_BUNDLE
+            leaf_path = page.name
+            if leaf_path not in self._hugo_site_structure:
+                self._hugo_site_structure[leaf_path] = self.LEAF_BUNDLE
+        return self._hugo_site_structure
 
     def scan_pages(self, page_dir: str) -> Iterator[MoinPageInfo]:
         for entry in os.scandir(page_dir):
@@ -88,7 +108,11 @@ class Moin2Hugo(object):
             page.name,
             disable_path_to_lower=self.config.hugo_config.disablePathToLower
         )
-        dst_filepath = safe_path_join(self.dst_dir, hugo_filepath)
+        hugo_pagepath = safe_path_join(self.dst_dir, hugo_filepath)
+        if self.hugo_site_structure[page.name] == self.LEAF_BUNDLE:
+            dst_filepath = safe_path_join(hugo_pagepath, "index.md")
+        elif self.hugo_site_structure[page.name] == self.BRANCH_BUNDLE:
+            dst_filepath = safe_path_join(hugo_pagepath, "_index.md")
         logger.info("++ output: %s" % dst_filepath)
 
         dst_dirpath = os.path.dirname(dst_filepath)
