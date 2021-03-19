@@ -72,7 +72,7 @@ class MoinParser(object):
           (?:[%(u)s][%(l)s]+){2,}  # at least 2 upper>lower transitions make CamelCase
          )+  # we can have MainPage/SubPage/SubSubPage ...
          (?:
-          \#  # anchor separator          TODO check if this does not make trouble at places where word_rule is used
+          \#  # anchor separator
           (?P<word_anchor>\S+)  # some anchor name
          )?
         )
@@ -443,8 +443,6 @@ class MoinParser(object):
                         self.builder.paragraph_start()
                     self.builder.text(line[lastpos:start], source_text=line[lastpos:start])
 
-            # TODO: this makes unneccesary paragraph some cases
-            # Replace match with markup
             if not (self.builder.in_pre or self.builder.in_p or self.builder.in_table
                     or self.builder.in_list or self.builder.in_remark):
                 self.builder.paragraph_start()
@@ -704,7 +702,6 @@ class MoinParser(object):
         elif m.group('transclude'):
             groupdict = m.groupdict()
             if groupdict.get('transclude_desc') is None:
-                # TODO: is this really necessary?
                 # if transcluded obj (image) has no description, use target for it
                 groupdict['transclude_desc'] = target
             desc = m.group('transclude')
@@ -890,11 +887,8 @@ class MoinParser(object):
 
             obj_tag_attrs['mimetype'] = 'text/html'
             obj_tag_attrs['width'] = '100%'
-            tmp_obj_tag_attrs, query_args = _get_object_params(params)
+            tmp_obj_tag_attrs, _query_args = _get_object_params(params)
             obj_tag_attrs.update(tmp_obj_tag_attrs)
-            # TODO
-            if 'action' not in query_args:
-                query_args['action'] = 'content'
 
             trans_desc = self._transclude_description(desc)
             if trans_desc is None:
