@@ -189,9 +189,10 @@ class Formatter(object):
             if isinstance(c, Text):
                 if len(new_e.children) > 0 and isinstance(new_e.children[-1], Text):
                     new_e.children[-1].content += c.content
+                    new_e.children[-1].source_text += c.source_text
                     continue
             new_c = self._consolidate(c)
-            new_e.add_child(new_c)
+            new_e.add_child(new_c, propagate_source_text=False)
         return new_e
 
     # General Objects
@@ -214,7 +215,7 @@ class Formatter(object):
             return start_tag + html.escape(content) + end_tag
         else:
             logger.warning("unsupported: %s (set `goldmark_unsafe` option)" % e.__class__.__name__)
-            return "%s" % content
+            return "%s" % escape_markdown_all(e.source_text)
 
     # Basic Elements
     def page_root(self, e: Paragraph) -> str:

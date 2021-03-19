@@ -12,6 +12,7 @@ import pytest
 def test_endling_newline(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -27,6 +28,7 @@ def test_endling_newline(data, expected, formatter_object):
 def test_escape(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -38,8 +40,8 @@ def test_escape(data, expected, formatter_object):
 )
 def test_macro(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
-    ret = formatter_object.format(page)
-    assert ret == expected
+    assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -51,8 +53,8 @@ def test_macro(data, expected, formatter_object):
 )
 def test_comment(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
-    ret = formatter_object.format(page)
-    assert ret == expected
+    assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -62,13 +64,14 @@ def test_comment(data, expected, formatter_object):
 )
 def test_smiley(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
-    ret = formatter_object.format(page)
-    assert ret == expected
+    assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
         ("= head1 =", "# head1\n\n"),
+        ("= head1 =\n", "# head1\n\n"),
         ("===== head5 =====", "##### head5\n\n"),
         ("====== head5 ======", "##### head5\n\n"),
 
@@ -78,6 +81,7 @@ def test_smiley(data, expected, formatter_object):
 def test_heading(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -89,6 +93,7 @@ def test_heading(data, expected, formatter_object):
 def test_horizontal_rules(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
 
 
 @pytest.mark.parametrize(
@@ -101,3 +106,4 @@ def test_horizontal_rules(data, expected, formatter_object):
 def test_entities(data, expected, formatter_object):
     page = MoinParser.parse(data, 'PageName')
     assert formatter_object.format(page) == expected
+    assert page.source_text == data

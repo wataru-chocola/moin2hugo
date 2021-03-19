@@ -1,6 +1,45 @@
 import pytest
+import textwrap
 
 import moin2hugo.moin_parser
+
+
+def test_src_build():
+    text = textwrap.dedent("""\
+    <<TableOfContents>>
+
+    = Headling 1 =
+
+    This is test /* inline comment */ for attaching src to each element.
+
+     * item1
+         * decoration: '''strong'''
+         * decoration: '''''strong&emphasis''' emphasis''
+         * decoration: ^super^test
+         * word: WikiName
+         * word: !WikiName
+         * word: PageName
+         * word: !PageName
+     * item2
+
+     {{{#!highlight python
+    ...
+    }}}
+
+    {{attachment:test.png}}
+    [[https://www.example.com/|{{attachment:test.png}}]]
+
+    """)
+    page = moin2hugo.moin_parser.MoinParser.parse(text, 'PageName')
+    assert page.source_text == text, page.print_structure(include_src=True)
+
+
+# TODO
+# def test_bang_meta():
+#     import moin2hugo.moin_site_config
+#     moin2hugo.moin_site_config.bang_meta = False
+#     page = moin2hugo.moin_parser.MoinParser.parse("!WikiName", 'PageName')
+#     assert page.print_structure() == '', page.print_structure(include_src=True)
 
 
 @pytest.mark.parametrize(
