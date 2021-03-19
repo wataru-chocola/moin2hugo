@@ -5,6 +5,7 @@ import html
 import urllib.parse
 import logging
 
+from .base import FormatterBase
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley, Remark,
@@ -21,7 +22,7 @@ from moin2hugo.page_tree import (
 )
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict, Callable, Type, Any
+from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -101,74 +102,15 @@ def urlquote(text: str) -> str:
     return urllib.parse.quote(text)
 
 
-class Formatter(object):
+class HugoFormatter(FormatterBase):
     def __init__(self, config: Optional[HugoConfig] = None):
         if config:
             self.config = config
         else:
             self.config = HugoConfig()
 
-    def format(self, e: PageElement):
-        dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
-            PageRoot: self.page_root,
-
-            # General Objects
-            Paragraph: self.paragraph,
-            Text: self.text,
-            SGMLEntity: self.sgml_entity,
-
-            # Moinwiki Special Objects
-            Macro: self.macro,
-            Comment: self.comment,
-            Smiley: self.smiley,
-            Remark: self.remark,
-
-            # Codeblock / ParsedText
-            ParsedText: self.parsed_text,
-
-            # Table
-            Table: self.table,
-            TableRow: self.table_row,
-            TableCell: self.table_cell,
-
-            # Heading / Horizontal Rule
-            Heading: self.heading,
-            HorizontalRule: self.rule,
-
-            # Decorations
-            Underline: self.underline,
-            Strike: self.strike,
-            Small: self.small,
-            Big: self.big,
-            Emphasis: self.emphasis,
-            Strong: self.strong,
-            Sup: self.sup,
-            Sub: self.sub,
-            Code: self.code,
-
-            # Links
-            Link: self.link,
-            Pagelink: self.pagelink,
-            Interwikilink: self.interwikilink,
-            AttachmentLink: self.attachment_link,
-            Url: self.url,
-
-            # Itemlist
-            BulletList: self.bullet_list,
-            NumberList: self.number_list,
-            Listitem: self.listitem,
-            DefinitionList: self.definition_list,
-            DefinitionTerm: self.definition_term,
-            DefinitionDesc: self.definition_desc,
-
-            # Transclude (Image Embedding)
-            AttachmentTransclude: self.attachment_transclude,
-            Transclude: self.transclude,
-            AttachmentInlined: self.attachment_inlined,
-            AttachmentImage: self.attachment_image,
-            Image: self.image,
-        }
-        return dispatch_tbl[type(e)](e)
+    def format(self, e: PageElement) -> str:
+        return self.format_dispatcher(e)
 
     def _warn_nontext_in_raw_html(self, e: PageElement):
         msgfmt = "unsupported: non-Text element within %s wouldn't be rendered as intended"
@@ -231,7 +173,7 @@ class Formatter(object):
             return "%s" % escape_markdown_all(e.source_text)
 
     # Basic Elements
-    def page_root(self, e: Paragraph) -> str:
+    def page_root(self, e: PageRoot) -> str:
         logger.debug("+ Consolidate page structure...")
         new_e = self._consolidate(e)
         logger.debug("+ Format page...")
@@ -371,14 +313,14 @@ class Formatter(object):
     def table(self, e: Table) -> str:
         return self._separator_line(e) + self._generic_container(e)
 
-    def table_row(self, e: Table) -> str:
+    def table_row(self, e: TableRow) -> str:
         ret = []
         for c in e.children:
             assert isinstance(c, TableCell)
             ret.append(self.format(c))
         return "|" + "|".join(ret) + "|\n"
 
-    def table_cell(self, e: Table) -> str:
+    def table_cell(self, e: TableCell) -> str:
         return " %s " % self._generic_container(e).strip()
 
     # Heading / Horizontal Rule
