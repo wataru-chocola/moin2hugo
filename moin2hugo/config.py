@@ -7,6 +7,7 @@ class MoinSiteConfig(BaseSettings):
 
 class HugoConfig(BaseSettings):
     goldmark_unsafe: bool = True
+    disablePathToLower: bool = True
 
 
 class Config(BaseSettings):
