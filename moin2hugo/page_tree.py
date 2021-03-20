@@ -66,6 +66,9 @@ class PageElement(object):
                 return True
         return False
 
+    def add_content(self, content: str):
+        self.content += content
+
     def add_child(self, child: PageElement, propagate_source_text: bool = True):
         self.children.append(child)
         child.parent = self
@@ -84,7 +87,7 @@ class PageElement(object):
                 break
             p.source_text += source_text
 
-    def print_structure(self, include_src: bool = False) -> str:
+    def tree_repr(self, include_src: bool = False) -> str:
         def _shorten(text: str, width: int = 40) -> str:
             placeholder = '[...]'
             assert width > len(placeholder)
@@ -103,7 +106,7 @@ class PageElement(object):
 
         for e in self.children:
             description += "\n"
-            description += textwrap.indent(e.print_structure(include_src=include_src), "    ")
+            description += textwrap.indent(e.tree_repr(include_src=include_src), "    ")
         return description
 
 
@@ -246,6 +249,14 @@ class Link(PageElement):
 
 @attr.s
 class Pagelink(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
+    anchor: Optional[str] = attr.ib(default=None)
+
+
+@attr.s
+class Interwikilink(PageElement):
+    wikiname: str = attr.ib(kw_only=True)
     pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     anchor: Optional[str] = attr.ib(default=None)
