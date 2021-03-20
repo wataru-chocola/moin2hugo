@@ -66,6 +66,9 @@ class PageElement(object):
                 return True
         return False
 
+    def add_content(self, content: str):
+        self.content += content
+
     def add_child(self, child: PageElement, propagate_source_text: bool = True):
         self.children.append(child)
         child.parent = self
