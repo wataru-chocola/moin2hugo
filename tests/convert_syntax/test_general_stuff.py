@@ -1,4 +1,5 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
 
 import pytest
 import textwrap
@@ -10,9 +11,9 @@ import textwrap
         ("'''''test'''''\ntest", "***test***\ntest"),
     ]
 )
-def test_endling_newline(data, expected, formatter_object):
+def test_endling_newline(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -26,9 +27,9 @@ def test_endling_newline(data, expected, formatter_object):
         ("'''***'''", r"**\*\*\***"),
     ]
 )
-def test_escape(data, expected, formatter_object):
+def test_escape(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -40,9 +41,9 @@ def test_escape(data, expected, formatter_object):
         ("<<UnsupportedMacro>>", r'\<\<UnsupportedMacro\>\>'),
     ]
 )
-def test_macro(data, expected, formatter_object):
+def test_macro(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -53,9 +54,9 @@ def test_macro(data, expected, formatter_object):
         ("Hello, /* ''' comment */ world", 'Hello,  world'),
     ]
 )
-def test_comment(data, expected, formatter_object):
+def test_comment(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -64,9 +65,9 @@ def test_comment(data, expected, formatter_object):
         (":)", ":simple_smile:"),
     ]
 )
-def test_smiley(data, expected, formatter_object):
+def test_smiley(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -88,11 +89,11 @@ def test_smiley(data, expected, formatter_object):
          """),
     ]
 )
-def test_continuous_blocks(data, expected, formatter_object):
+def test_continuous_blocks(data, expected):
     data = textwrap.dedent(data)
     expected = textwrap.dedent(expected)
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
 
 
 @pytest.mark.parametrize(
@@ -102,7 +103,7 @@ def test_continuous_blocks(data, expected, formatter_object):
         ("&#x42;", "&#x42;"),
     ]
 )
-def test_entities(data, expected, formatter_object):
+def test_entities(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data

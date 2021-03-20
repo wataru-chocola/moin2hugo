@@ -14,11 +14,21 @@ from moin2hugo.page_tree import (
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
-from typing import Dict, Callable, Type, Any
+from typing import Dict, Callable, Type, Any, Optional
 
 
 class FormatterBase(metaclass=ABCMeta):
-    def format(self, e: PageElement) -> str:
+    @abstractclassmethod
+    def __init__(self, config: Optional[Any] = None, pagename: Optional[str] = None):
+        pass
+
+    @classmethod
+    def format(cls, e: PageElement, config: Optional[Any] = None,
+               pagename: Optional[str] = None) -> str:
+        formatter = cls(config=config, pagename=pagename)
+        return formatter.do_format(e)
+
+    def do_format(self, e: PageElement) -> str:
         return self.format_dispatcher(e)
 
     def format_dispatcher(self, e: PageElement) -> str:

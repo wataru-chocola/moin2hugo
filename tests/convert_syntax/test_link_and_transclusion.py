@@ -1,5 +1,7 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
 from moin2hugo.page_tree import AttachmentImage
+from moin2hugo.config import HugoConfig
 
 import pytest
 from unittest import mock
@@ -37,20 +39,20 @@ from unittest import mock
         ("https://www.markdownguide.org#a>aa", "<https://www.markdownguide.org#a\\>aa>"),
     ]
 )
-def test_links(data, expected, formatter_object):
+def test_links(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
         # attachment
-        ("{{attachment:image.png}}", "![](/PageName/image.png)"),
-        ("{{attachment:image.png|title}}", '![title](/PageName/image.png "title")'),
-        ('{{attachment:image.png|title|width=100 height=150 xxx=11}}', '![title](/PageName/image.png "title")'),  # noqa
-        ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](/PageName/image.txt)"),
-        ("{{attachment:image.pdf}}", '<object data="/PageName/image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
+        ("{{attachment:image.png}}", "![](image.png)"),
+        ("{{attachment:image.png|title}}", '![title](image.png "title")'),
+        ('{{attachment:image.png|title|width=100 height=150 xxx=11}}', '![title](image.png "title")'),  # noqa
+        ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](image.txt)"),
+        ("{{attachment:image.pdf}}", '<object data="image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
         # page
         ("{{pagename}}", '<object data="/pagename" type="text/html">pagename</object>'),
         # drawing
@@ -61,16 +63,16 @@ def test_links(data, expected, formatter_object):
 
         # escape
         ("{{http://example.net/im(a)ge.png}}", "![](http://example.net/im\\(a\\)ge.png)"),
-        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](/PageName/%2Aa%2A.png "\\<\\"a\\"\\>")'),  # noqa
-        ("{{attachment:*a*.pdf}}", '<object data="/PageName/%2Aa%2A.pdf" type="application/pdf">*a*.pdf</object>'),  # noqa
-        ("{{attachment:<a>.pdf}}", '<object data="/PageName/%3Ca%3E.pdf" type="application/pdf">&lt;a&gt;.pdf</object>'),  # noqa
+        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](%2Aa%2A.png "\\<\\"a\\"\\>")'),  # noqa
+        ("{{attachment:*a*.pdf}}", '<object data="%2Aa%2A.pdf" type="application/pdf">*a*.pdf</object>'),  # noqa
+        ("{{attachment:<a>.pdf}}", '<object data="%3Ca%3E.pdf" type="application/pdf">&lt;a&gt;.pdf</object>'),  # noqa
     ]
 )
-def test_transclude(data, expected, formatter_object):
+def test_transclude(data, expected):
     mock_io = mock.mock_open(read_data="hello")
     page = MoinParser.parse(data, 'PageName')
     with mock.patch('moin2hugo.formatter.hugo.open', mock_io):
-        assert formatter_object.format(page) == expected
+        assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -103,8 +105,8 @@ def test_transclude_attrs(data, expected):
         ("{{attachment:<a>.pdf}}", r'\{\{attachment\:\<a\>.pdf\}\}'),
     ]
 )
-def test_transclude_without_unsafe(data, expected, formatter_without_unsafe_object, caplog):
+def test_transclude_without_unsafe(data, expected, caplog):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_without_unsafe_object.format(page) == expected, \
-        page.tree_repr(include_src=True)
+    ret = HugoFormatter.format(page, config=HugoConfig(goldmark_unsafe=False), pagename='PageName')
+    assert ret == expected, page.tree_repr(include_src=True)
     assert 'goldmark_unsafe' in caplog.text
