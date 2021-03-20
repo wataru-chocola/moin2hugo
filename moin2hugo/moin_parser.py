@@ -340,8 +340,6 @@ class MoinParser(object):
         self.builder = moin2hugo.page_builder.PageBuilder()
         self.lines = text.expandtabs().splitlines(keepends=True)
         self.page_name = page_name
-
-        self.parser_lines: List[str] = []
         self.list_indents: List[int] = []  # holds the nesting level (in chars) of open lists
 
     # Public Method ----------------------------------------------------------
@@ -425,7 +423,6 @@ class MoinParser(object):
                     # lastpos is more then 0 and result of line slice is empty make useless line
                     if not (lastpos > 0 and remainder == ''):
                         self._parser_content(remainder)
-                        self.builder.feed_src(remainder)
                 elif remainder:
                     if not (self.builder.in_pre or self.builder.in_p or
                             self.builder.in_li_of_current_list or
@@ -440,7 +437,6 @@ class MoinParser(object):
                 # process leading text
                 if self.builder.in_pre:
                     self._parser_content(line[lastpos:start])
-                    self.builder.feed_src(remainder)
                 else:
                     if not (self.builder.in_p or self.builder.in_remark):
                         self.builder.paragraph_start()
@@ -663,9 +659,13 @@ class MoinParser(object):
 
     def _interwiki_handler(self, word: str, groups: Dict[str, str]):
         """Handle InterWiki links."""
-        text = groups.get('interwiki', '')
-        logger.warning("unsupported: interwiki_name=%s" % text)
-        self.builder.text(text, source_text=word)
+        wikiname = groups.get('interwiki_wiki', '')
+        pagename = groups.get('interwiki_page', '')
+        pagename, anchor = wikiutil.split_anchor(pagename)
+        self.builder.interwikilink_start(wikiname, pagename, anchor=anchor,
+                                         source_text=word, freeze_source=True)
+        self.builder.text(word, source_text=word)
+        self.builder.interwikilink_end()
 
     def _word_handler(self, word: str, groups: Dict[str, str]):
         """Handle WikiNames."""
@@ -721,13 +721,16 @@ class MoinParser(object):
 
         if mt.group('page_name'):
             page_name_and_anchor = mt.group('page_name')
-            if ':' in page_name_and_anchor:
-                # interwiki
-                logger.warning("unsupported: interwiki_name=%s" % page_name_and_anchor)
+            page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
+            if ':' in page_name:
+                wikiname, pagename = page_name.split(':', 1)
+                self.builder.interwikilink_start(wikiname, page_name, queryargs=query_args,
+                                                 anchor=anchor, **tag_attrs,
+                                                 source_text=word, freeze_source=True)
                 self.builder.text(page_name_and_anchor, source_text=word)
+                self.builder.interwikilink_end()
                 return
 
-            page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
             current_page = self.page_name
             if not page_name:
                 page_name = current_page
@@ -956,8 +959,6 @@ class MoinParser(object):
 
     def _parser_handler(self, word: str, groups: Dict[str, str]):
         """Handle parsed code displays."""
-        self.parser_lines = []
-
         parser_name = groups.get('parser_name', None)
         parser_args = groups.get('parser_args', None)
         parser_nothing = groups.get('parser_nothing', None)
@@ -984,8 +985,9 @@ class MoinParser(object):
 
     def _parser_content(self, line: str):
         """ handle state and collecting lines for parser in pre/parser sections """
+        self.builder.feed_src(line)
         if self.builder.is_found_parser:
-            self.parser_lines.append(line)
+            self.builder.add_parsed_text(line)
         elif line.strip():
             bang_line = False
             stripped_line = line.strip()
@@ -1009,7 +1011,7 @@ class MoinParser(object):
 
             self.builder.parsed_text_parser(parser_name, parser_args)
             if not bang_line:
-                self.parser_lines.append(line)
+                self.builder.add_parsed_text(line)
 
     def _parser_end_handler(self, word: str, groups: Dict[str, str]):
         """ when we reach the end of a parser/pre section,
@@ -1017,9 +1019,7 @@ class MoinParser(object):
         """
         if not self.builder.is_found_parser:
             self.builder.parsed_text_parser('text')
-        self.builder.parsed_text_end(self.parser_lines, source_text=word)
-
-        self.parser_lines = []
+        self.builder.parsed_text_end(source_text=word)
 
     def _smiley_handler(self, word: str, groups: Dict[str, str]):
         self.builder.smiley(word, source_text=word)
