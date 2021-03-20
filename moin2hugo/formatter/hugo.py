@@ -1,4 +1,5 @@
 import re
+import os
 import textwrap
 import collections
 import html
@@ -96,10 +97,6 @@ def escape_markdown_all(text: str) -> MarkdownEscapedText:
     '''escape all occurences of these symbols no matter which context they are on.
     '''
     return escape_markdown_symbols(text, all_symbols=True)
-
-
-def urlquote(text: str) -> str:
-    return urllib.parse.quote(text)
 
 
 class HugoFormatter(FormatterBase):
@@ -428,7 +425,7 @@ class HugoFormatter(FormatterBase):
         return self._link(url, description, title=title)
 
     def pagelink(self, e: Pagelink) -> str:
-        link_path = page_url(e.pagename)
+        link_path = page_url(e.pagename, disable_path_to_lower=self.config.disablePathToLower)
         if e.queryargs:
             # just ignore them
             pass
@@ -443,7 +440,8 @@ class HugoFormatter(FormatterBase):
         return escape_markdown_all(e.source_text)
 
     def attachment_link(self, e: AttachmentLink) -> str:
-        link_path = attachment_url(e.pagename, e.filename)
+        link_path = attachment_url(e.pagename, e.filename,
+                                   disable_path_to_lower=self.config.disablePathToLower)
         if e.queryargs:
             # just ignore them
             pass
@@ -537,16 +535,18 @@ class HugoFormatter(FormatterBase):
         return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
-        url = attachment_url(e.pagename, e.filename)
+        url = attachment_url(e.pagename, e.filename,
+                             disable_path_to_lower=self.config.disablePathToLower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def transclude(self, e: Transclude) -> str:
-        url = page_url(e.pagename)
+        url = page_url(e.pagename, disable_path_to_lower=self.config.disablePathToLower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
-        url = attachment_url(e.pagename, e.filename)
+        url = attachment_url(e.pagename, e.filename,
+                             disable_path_to_lower=self.config.disablePathToLower)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
         filepath = attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
@@ -575,26 +575,67 @@ class HugoFormatter(FormatterBase):
         return self._image(src, alt, title)
 
     def attachment_image(self, e: AttachmentImage) -> str:
-        url = escape_markdown_symbols(attachment_url(e.pagename, e.filename),
-                                      symbols=['"', '[', ']', '(', ')'])
+        url = attachment_url(e.pagename, e.filename,
+                             disable_path_to_lower=self.config.disablePathToLower)
+        url = escape_markdown_symbols(url, symbols=['"', '[', ']', '(', ')'])
         title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
         alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
         return self._image(url, alt, title)
 
 
-def page_url(pagename: str) -> str:
-    # TODO
-    url = urlquote("url/" + pagename)
-    return url
+def encode_hugo_name(name: str) -> str:
+    # encode punctuation which has special meaining in shell
+    punctuation = """ !"#$%&'()*+,;<=>?@[\\]^`{|}~:"""
+    trans_dict: Dict[str, Union[int, str, None]] = dict([(c, "%%%02X" % ord(c)) for c in punctuation])  # noqa
+    encoded_name = name.translate(str.maketrans(trans_dict))
+    return encoded_name
+
+
+def page_to_hugo_bundle_path(pagename: str) -> str:
+    return encode_hugo_name(pagename)
 
 
 def attachment_filepath(pagename: str, filename: str) -> str:
-    # TODO
-    filepath = "filepath/" + pagename + "/" + filename
+    attachfile_hugo_name = encode_hugo_name(filename)
+    hugo_bundle_path = page_to_hugo_bundle_path(pagename)
+    filepath = safe_path_join(hugo_bundle_path, attachfile_hugo_name)
     return filepath
 
 
-def attachment_url(pagename: str, filename: str) -> str:
-    # TODO
-    url = urlquote("url/" + pagename + "/" + filename)
+def page_url(pagename: str, relative_base: Optional[str] = None,
+             disable_path_to_lower: bool = False) -> str:
+    url = "/" + pagename
+    if relative_base:
+        target_path_elems = pagename.split("/")
+        relative_base_elems = relative_base.split("/")
+        if len(target_path_elems) >= len(relative_base_elems):
+            for elem in relative_base_elems:
+                if target_path_elems[0] != elem:
+                    break
+                target_path_elems.pop(0)
+            else:
+                url = "/".join(target_path_elems)
+
+    if not disable_path_to_lower:
+        url = url.lower()
+    url = encode_hugo_name(url)
     return url
+
+
+def attachment_url(pagename: str, filename: str, relative_base: Optional[str] = None,
+                   disable_path_to_lower: bool = False) -> str:
+    url = page_url(pagename, relative_base=relative_base,
+                   disable_path_to_lower=disable_path_to_lower)
+    url = urllib.parse.urljoin(url + "/", filename)
+    if not disable_path_to_lower:
+        url = url.lower()
+    url = encode_hugo_name(url)
+    return url
+
+
+def safe_path_join(basepath: str, path: str):
+    basepath = os.path.normpath(basepath)
+    joined = os.path.normpath(os.path.join(basepath, path))
+    if os.path.commonpath([joined, basepath]) != basepath:
+        raise ValueError("not allowed path traversal: path=%s" % path)
+    return joined
