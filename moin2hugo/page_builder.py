@@ -7,7 +7,7 @@ from moin2hugo.page_tree import (
     BulletList, NumberList, Listitem,
     DefinitionList, DefinitionTerm, DefinitionDesc,
     Heading, HorizontalRule,
-    Link, Pagelink, Url, AttachmentLink,
+    Link, Pagelink, Interwikilink, Url, AttachmentLink,
     Paragraph, Text, SGMLEntity,
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
@@ -285,8 +285,9 @@ class PageBuilder(object):
         self._assert_cur_elem(Link)
         self._end_current_elem()
 
-    def pagelink_start(self, pagename: str = '', queryargs: Optional[Dict[str, str]] = None,
-                       anchor: Optional[str] = None, target: Optional[str] = None,
+    def pagelink_start(self, pagename: str, queryargs: Optional[Dict[str, str]] = None,
+                       anchor: Optional[str] = None,
+                       target: Optional[str] = None,
                        source_text: str = '', freeze_source: bool = False):
         # TODO: extra link attributes
         e = Pagelink(pagename=pagename, queryargs=queryargs, anchor=anchor,
@@ -295,6 +296,19 @@ class PageBuilder(object):
 
     def pagelink_end(self):
         self._assert_cur_elem(Pagelink)
+        self._end_current_elem()
+
+    def interwikilink_start(self, wikiname: str, pagename: str,
+                            queryargs: Optional[Dict[str, str]] = None,
+                            anchor: Optional[str] = None,
+                            target: Optional[str] = None,
+                            source_text: str = '', freeze_source: bool = False):
+        e = Interwikilink(wikiname=wikiname, pagename=pagename, queryargs=queryargs, anchor=anchor,
+                          source_text=source_text, source_frozen=freeze_source)
+        self._start_new_elem(e)
+
+    def interwikilink_end(self):
+        self._assert_cur_elem(Interwikilink)
         self._end_current_elem()
 
     def attachment_link_start(self, pagename: str, filename: str, title: Optional[str] = None,
