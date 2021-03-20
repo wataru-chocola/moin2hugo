@@ -84,7 +84,7 @@ class PageElement(object):
                 break
             p.source_text += source_text
 
-    def print_structure(self, include_src: bool = False) -> str:
+    def tree_repr(self, include_src: bool = False) -> str:
         def _shorten(text: str, width: int = 40) -> str:
             placeholder = '[...]'
             assert width > len(placeholder)
@@ -103,7 +103,7 @@ class PageElement(object):
 
         for e in self.children:
             description += "\n"
-            description += textwrap.indent(e.print_structure(include_src=include_src), "    ")
+            description += textwrap.indent(e.tree_repr(include_src=include_src), "    ")
         return description
 
 
