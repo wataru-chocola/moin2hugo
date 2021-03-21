@@ -15,7 +15,7 @@ from unittest import mock
         ('[[free link]]', '[free link](url/free%20link)'),
         ('[[SomePage|Some Page]]', '[Some Page](url/SomePage)'),
         ('[[SamePage#subsection|subsection of Some Page]]', '[subsection of Some Page](url/SamePage#subsection)'),  # noqa
-        ('[[SomePage|{{attachment:image.png}}]]', '[![](url/PageName/image.png "SomePage")](url/SomePage)'),  # noqa
+        ('[[SomePage|{{attachment:image.png}}]]', '[![SomePage](url/PageName/image.png "SomePage")](url/SomePage)'),  # noqa
         ('[[SomePage|some Page|target="_blank"]]', '[some Page](url/SomePage)'),
         ('[[attachment:SomePage/image.png]]', '[SomePage/image.png](url/SomePage/image.png)'),
         ('[[attachment:SomePage/image.png|image.png|title="png"]]', '[image.png](url/SomePage/image.png "png")'),  # noqa
@@ -42,8 +42,8 @@ def test_links(data, expected, formatter_object):
     ("data", "expected"), [
         # attachment
         ("{{attachment:image.png}}", "![](url/PageName/image.png)"),
-        ("{{attachment:image.png|title}}", '![](url/PageName/image.png "title")'),
-        ('{{attachment:image.png|title|width=100 height=150 xxx=11}}', '![](url/PageName/image.png "title")'),  # noqa
+        ("{{attachment:image.png|title}}", '![title](url/PageName/image.png "title")'),
+        ('{{attachment:image.png|title|width=100 height=150 xxx=11}}', '![title](url/PageName/image.png "title")'),  # noqa
         ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](url/PageName/image.txt)"),
         ("{{attachment:image.pdf}}", '<object data="url/PageName/image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
         # page
@@ -56,7 +56,7 @@ def test_links(data, expected, formatter_object):
 
         # escape
         ("{{http://example.net/im(a)ge.png}}", "![](http://example.net/im\\(a\\)ge.png)"),
-        ('{{attachment:*a*.png|<"a">}}', '![](url/PageName/%2Aa%2A.png "\\<\\"a\\"\\>")'),
+        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](url/PageName/%2Aa%2A.png "\\<\\"a\\"\\>")'),  # noqa
         ("{{attachment:*a*.pdf}}", '<object data="url/PageName/%2Aa%2A.pdf" type="application/pdf">*a*.pdf</object>'),  # noqa
         ("{{attachment:<a>.pdf}}", '<object data="url/PageName/%3Ca%3E.pdf" type="application/pdf">&lt;a&gt;.pdf</object>'),  # noqa
     ]
