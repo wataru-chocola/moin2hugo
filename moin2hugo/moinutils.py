@@ -4,9 +4,10 @@ import html
 import shlex
 import logging
 import mimetypes
+import attr
 
 from io import StringIO
-from typing import Tuple
+from typing import Tuple, List, Dict, Union, Any
 
 logger = logging.getLogger(__name__)
 
@@ -26,230 +27,120 @@ def split_anchor(pagename: str) -> Tuple[str, str]:
     return (pagename, "")
 
 
-def resolve_wiki(request, wikiurl):
-    # TODO
-    raise NotImplementedError()
+@attr.s
+class MoinKV(object):
+    k: str = ''
+    v: str = ''
+    is_value_started = False
+
+    @property
+    def cur(self):
+        if self.is_value_started:
+            return self.v
+        else:
+            return self.k
+
+    @cur.setter
+    def cur(self, s: str):
+        if self.is_value_started:
+            self.v = s
+        else:
+            self.k = s
+
+    def start_value(self):
+        self.is_value_started = True
 
 
-def join_wiki(wikiurl, wikitail):
-    # TODO
-    raise NotImplementedError()
+def parse_quoted_separated_ext(argstring: str, separator: str = ",", quotes: str = '"')\
+        -> List[Union[Tuple[str, str], str]]:
+    name_value_separator = "="
+    SPACE = [' ', '\t', ]
 
-
-# TODO: parser like stuff
-class BracketError(Exception):
-    pass
-
-
-class BracketUnexpectedCloseError(BracketError):
-    def __init__(self, bracket):
-        self.bracket = bracket
-        BracketError.__init__(self, "Unexpected closing bracket %s" % bracket)
-
-
-class BracketMissingCloseError(BracketError):
-    def __init__(self, bracket):
-        self.bracket = bracket
-        BracketError.__init__(self, "Missing closing bracket %s" % bracket)
-
-
-class ParserPrefix:
-    """
-    Trivial container-class holding a single character for
-    the possible prefixes for parse_quoted_separated_ext
-    and implementing rich equal comparison.
-    """
-    def __init__(self, prefix):
-        self.prefix = prefix
-
-    def __eq__(self, other):
-        return isinstance(other, ParserPrefix) and other.prefix == self.prefix
-
-    def __repr__(self):
-        return '<ParserPrefix(%s)>' % self.prefix.encode('utf-8')
-
-
-def parse_quoted_separated_ext(args, separator=None, name_value_separator=None,
-                               brackets=None, seplimit=0, multikey=False,
-                               prefixes=None, quotes='"'):
-    # TODO
-    idx = 0
-    assert name_value_separator is None or name_value_separator != separator
-    assert name_value_separator is None or len(name_value_separator) == 1
-    max = len(args)
+    len_argstring = len(argstring)
     result = []         # result list
-    cur = [None]        # current item
+    cur = MoinKV()
     quoted = None       # we're inside quotes, indicates quote character used
-    skipquote = 0       # next quote is a quoted quote
     noquote = False     # no quotes expected because word didn't start with one
-    seplimit_reached = False # number of separators exhausted
-    separator_count = 0 # number of separators encountered
-    SPACE = [' ', '\t', ]
-    nextitemsep = [separator]   # used for skipping trailing space
-    SPACE = [' ', '\t', ]
-    if separator is None:
-        nextitemsep = SPACE[:]
-        separators = SPACE
-    else:
-        nextitemsep = [separator]   # used for skipping trailing space
-        separators = [separator]
-    if name_value_separator:
-        nextitemsep.append(name_value_separator)
+    nextitemsep = [separator, name_value_separator]
+    separators = [separator]
 
-    # bracketing support
-    opening = []
-    closing = []
-    bracketstack = []
-    matchingbracket = {}
-    if brackets:
-        for o, c in brackets:
-            assert not o in opening
-            opening.append(o)
-            assert not c in closing
-            closing.append(c)
-            matchingbracket[o] = c
-
-    def additem(result, cur, separator_count, nextitemsep):
-        if len(cur) == 1:
-            result.extend(cur)
-        elif cur:
-            result.append(tuple(cur))
-        cur = [None]
+    def add_cur_item():
+        nonlocal result, cur, noquote
+        if cur.is_value_started:
+            result.append((cur.k, cur.v))
+        else:
+            result.append(cur.k)
+        cur = MoinKV()
         noquote = False
-        separator_count += 1
-        seplimit_reached = False
-        if seplimit and separator_count >= seplimit:
-            seplimit_reached = True
-            nextitemsep = [n for n in nextitemsep if n in separators]
 
-        return cur, noquote, separator_count, seplimit_reached, nextitemsep
+    idx = 0
+    while idx < len_argstring:
+        cur_char = argstring[idx]
 
-    while idx < max:
-        char = args[idx]
-        next = None
-        if idx + 1 < max:
-            next = args[idx+1]
-        if skipquote:
-            skipquote -= 1
-        if not separator is None and not quoted and char in SPACE:
+        if not quoted and cur_char in SPACE:
             spaces = ''
-            # accumulate all space
-            while char in SPACE and idx < max - 1:
-                spaces += char
+            while idx < len_argstring - 1:
+                spaces += cur_char
                 idx += 1
-                char = args[idx]
-            # remove space if args end with it
-            if char in SPACE and idx == max - 1:
-                break
-            # remove space at end of argument
-            if char in nextitemsep:
-                continue
-            idx -= 1
-            if len(cur) and cur[-1]:
-                cur[-1] = cur[-1] + spaces
-        elif not quoted and char == name_value_separator:
-            if multikey or len(cur) == 1:
-                cur.append(None)
+                cur_char = argstring[idx]
+                if cur_char not in SPACE:
+                    break
             else:
-                if not multikey:
-                    if cur[-1] is None:
-                        cur[-1] = ''
-                    cur[-1] += name_value_separator
-                else:
-                    cur.append(None)
+                break  # end of argstring
+            if cur_char in nextitemsep:
+                continue
+            if cur.cur:
+                cur.cur += spaces
+            continue
+
+        elif not quoted and cur_char == name_value_separator:
+            if not cur.is_value_started:
+                cur.start_value()
+            else:
+                cur.v += name_value_separator
             noquote = False
-        elif not quoted and not seplimit_reached and char in separators:
-            (cur, noquote, separator_count, seplimit_reached,
-             nextitemsep) = additem(result, cur, separator_count, nextitemsep)
-        elif not quoted and not noquote and char in quotes:
-            if len(cur) and cur[-1] is None:
-                del cur[-1]
-            cur.append('')
-            quoted = char
-        elif char == quoted and not skipquote:
-            if next == quoted:
-                skipquote = 2 # will be decremented right away
+
+        elif not quoted and cur_char in separators:
+            add_cur_item()
+
+        elif not quoted and not noquote and cur_char in quotes:
+            quoted = cur_char
+
+        elif cur_char == quoted:
+            if idx + 1 < len_argstring and argstring[idx+1] == quoted:
+                # quoted quote (e.g. "")
+                cur.cur += argstring[idx+1]
+                idx += 1
+                noquote = True
             else:
                 quoted = None
-        elif not quoted and char in opening:
-            while len(cur) and cur[-1] is None:
-                del cur[-1]
-            (cur, noquote, separator_count, seplimit_reached,
-             nextitemsep) = additem(result, cur, separator_count, nextitemsep)
-            bracketstack.append((matchingbracket[char], result))
-            result = [char]
-        elif not quoted and char in closing:
-            while len(cur) and cur[-1] is None:
-                del cur[-1]
-            (cur, noquote, separator_count, seplimit_reached,
-             nextitemsep) = additem(result, cur, separator_count, nextitemsep)
-            cur = []
-            if not bracketstack:
-                raise BracketUnexpectedCloseError(char)
-            expected, oldresult = bracketstack[-1]
-            if not expected == char:
-                raise BracketUnexpectedCloseError(char)
-            del bracketstack[-1]
-            oldresult.append(result)
-            result = oldresult
-        elif not quoted and prefixes and char in prefixes and cur == [None]:
-            cur = [ParserPrefix(char)]
-            cur.append(None)
         else:
-            if len(cur):
-                if cur[-1] is None:
-                    cur[-1] = char
-                else:
-                    cur[-1] += char
-            else:
-                cur.append(char)
+            cur.cur += cur_char
             noquote = True
-
         idx += 1
 
-    if bracketstack:
-        raise BracketMissingCloseError(bracketstack[-1][0])
-
     if quoted:
-        if len(cur):
-            if cur[-1] is None:
-                cur[-1] = quoted
-            else:
-                cur[-1] = quoted + cur[-1]
-        else:
-            cur.append(quoted)
+        cur.cur = quoted + cur.cur
 
-    additem(result, cur, separator_count, nextitemsep)
-
+    add_cur_item()
     return result
 
 
-def parse_quoted_separated(args, separator=',', name_value=True, seplimit=0):
-    result = []
-    positional = result
-    if name_value:
-        name_value_separator = '='
-        trailing = []
-        keywords = {}
-    else:
-        name_value_separator = None
+def parse_quoted_separated(argstring: str) -> Tuple[List[str], Dict[Any, str], List[str]]:
+    leading: List[str] = []
+    positional = leading
+    trailing: List[str] = []
+    keywords: Dict[str, str] = {}
 
-    items = parse_quoted_separated_ext(args, separator=separator,
-                                       name_value_separator=name_value_separator,
-                                       seplimit=seplimit)
+    items = parse_quoted_separated_ext(argstring)
     for item in items:
         if isinstance(item, tuple):
             key, value = item
-            if key is None:
-                key = ''
             keywords[key] = value
             positional = trailing
         else:
             positional.append(item)
-
-    if name_value:
-        return result, keywords, trailing
-    return result
+    return leading, keywords, trailing
 
 
 def filename2mimetype(filename: str) -> Tuple[str, str, str]:
@@ -296,7 +187,6 @@ def abs_page(base_page: str, target_page: str) -> str:
 
 def url_unquote(s: str) -> str:
     try:
-        # TODO: return urllib.parse.unquote(s, charset=config.charset, errors='strict')
         return urllib.parse.unquote(s, encoding='utf-8', errors='strict')
     except UnicodeDecodeError:
         return urllib.parse.unquote(s, encoding='iso-8859-1', errors='replace')
@@ -308,30 +198,19 @@ def unquoteWikiname(filename: str) -> str:
     parts = []
     start = 0
     for needle in QUOTED.finditer(filename):
-        # append leading unquoted stuff
         parts.append(filename[start:needle.start()])
         start = needle.end()
-        # Append quoted stuff
         group = needle.group(1)
         try:
             parts.append(bytes.fromhex(group).decode('utf-8'))
         except ValueError:
-            # byte not in hex, e.g 'xy'
             raise InvalidFileNameError(filename)
 
     # append rest of string
-    if start == 0:
-        wikiname = filename
-    else:
-        parts.append(filename[start:len(filename)])
-        wikiname = ''.join(parts)
+    parts.append(filename[start:len(filename)])
+    wikiname = ''.join(parts)
 
     return wikiname
-
-
-def drawing2fname(drawing):
-    # TODO
-    raise NotImplementedError()
 
 
 def parseAttributes(attrstring: str, endtoken=None, extension=None):
