@@ -67,3 +67,16 @@ def test_transclude(data, expected, formatter_object):
     with mock.patch('moin2hugo.formatter.open', mock_io):
         assert formatter_object.format(page) == expected
     assert page.source_text == data
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("{{attachment:image.pdf}}", r'\{\{attachment\:image.pdf\}\}'),
+        ("{{attachment:<a>.pdf}}", r'\{\{attachment\:\<a\>.pdf\}\}'),
+    ]
+)
+def test_transclude_without_unsafe(data, expected, formatter_without_unsafe_object, caplog):
+    page = MoinParser.parse(data, 'PageName')
+    assert formatter_without_unsafe_object.format(page) == expected, \
+        page.tree_repr(include_src=True)
+    assert 'goldmark_unsafe' in caplog.text
