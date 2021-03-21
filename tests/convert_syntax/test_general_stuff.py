@@ -34,7 +34,8 @@ def test_escape(data, expected, formatter_object):
 @pytest.mark.parametrize(
     ("data", "expected"), [
         ("<<TableOfContents>>", ''),
-        ("<<BR>>", '<br />'),
+        ("<<BR>>", '  \n'),
+        ("||a||b<<BR>>c||", '| a | b<br />c |\n'),
         ("<<UnsupportedMacro>>", r'\<\<UnsupportedMacro\>\>'),
     ]
 )
