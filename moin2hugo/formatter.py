@@ -305,8 +305,13 @@ class Formatter(object):
     # Moinwiki Special Objects
     def macro(self, e: Macro) -> str:
         if e.macro_name == 'BR':
-            # TODO:
-            return '<br />'
+            if not e.in_x([TableCell]):
+                return "  \n"
+            else:
+                if self.config.goldmark_unsafe:
+                    return '<br />'
+                else:
+                    return escape_markdown_all(e.source_text)
         elif e.macro_name == 'TableOfContents':
             # TODO
             return ''
@@ -528,7 +533,6 @@ class Formatter(object):
     # Image / Object Embedding
     def _transclude(self, url: str, e: PageElement, mimetype: Optional[str] = None,
                     title: Optional[str] = None) -> str:
-        # TODO: unsafe
         tag_attrs = collections.OrderedDict([('data', url)])
         if mimetype:
             tag_attrs['type'] = html.escape(mimetype)

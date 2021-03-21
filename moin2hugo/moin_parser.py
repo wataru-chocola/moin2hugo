@@ -311,13 +311,13 @@ class MoinParser(object):
     (?:\|\|)+(?:<(?!<)[^>]*?>)?(?!\|?\s$) # a table
 )|(?P<rule>
     -{4,}  # hor. rule, min. 4 -
-)|(?P<entity>
+)|(?P<sgml_entity>
     &(
       ([a-zA-Z]+)  # symbolic entity, like &uuml;
       |
       (\#(\d{1,5}|x[0-9a-fA-F]+))  # numeric entities, like &#42; or &#x42;
      );
-)|(?P<sgml_entity>  # must come AFTER entity rule!
+)|(?P<sgml_special_symbol>  # must come AFTER entity rule!
     [<>&]  # needs special treatment for html/xml
 )""" % {  # NOQA
         'url_scheme': url_scheme,
@@ -533,8 +533,8 @@ class MoinParser(object):
             'email': self._email_handler,
 
             # SGML entities
-            'entity': self._entity_handler,
             'sgml_entity': self._sgml_entity_handler,
+            'sgml_special_symbol': self._sgml_special_symbol_handler,
 
             # Itemlist
             'indent': self._indent_handler,
@@ -776,11 +776,11 @@ class MoinParser(object):
         """Handle email addresses (without a leading mailto:)."""
         self.builder.url(word, source_text=word)
 
-    def _entity_handler(self, word: str, groups: Dict[str, str]):
+    def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
         self.builder.sgml_entity(word, source_text=word)
 
-    def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
+    def _sgml_special_symbol_handler(self, word: str, groups: Dict[str, str]):
         """Handle SGML entities: [<>&]"""
         self.builder.text(word, source_text=word)
 
