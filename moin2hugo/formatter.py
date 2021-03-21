@@ -426,10 +426,10 @@ class Formatter(object):
             return "[%s](%s)" % (description, target)
 
     def link(self, e: Link) -> str:
-        target = escape_markdown_symbols(e.target, symbols=['(', ')', '[', ']', '"'])
+        url = escape_markdown_symbols(e.url, symbols=['(', ')', '[', ']', '"'])
         description = MarkdownEscapedText(self._generic_container(e))
-        title = None if e.title is None else escape_markdown_all(e.title)
-        return self._link(target, description, title=title)
+        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
+        return self._link(url, description, title=title)
 
     def pagelink(self, e: Pagelink) -> str:
         link_path = page_url(e.pagename)
@@ -453,7 +453,7 @@ class Formatter(object):
             pass
         escaped_link_path = escape_markdown_symbols(link_path, symbols=['(', ')', '[', ']', '"'])
         description = MarkdownEscapedText(self._generic_container(e))
-        title = None if e.title is None else escape_markdown_all(e.title)
+        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
         return self._link(escaped_link_path, description, title)
 
     # Itemlist
@@ -538,11 +538,11 @@ class Formatter(object):
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = attachment_url(e.pagename, e.filename)
-        return self._transclude(url, e, e.mimetype, e.title)
+        return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def transclude(self, e: Transclude) -> str:
         url = page_url(e.pagename)
-        return self._transclude(url, e, e.mimetype, e.title)
+        return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
@@ -570,15 +570,15 @@ class Formatter(object):
 
     def image(self, e: Image) -> str:
         src = escape_markdown_symbols(e.src, symbols=['"', '[', ']', '(', ')'])
-        title = None if e.title is None else escape_markdown_all(e.title)
-        alt = None if e.alt is None else escape_markdown_all(e.alt)
+        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
+        alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
         return self._image(src, alt, title)
 
     def attachment_image(self, e: AttachmentImage) -> str:
         url = escape_markdown_symbols(attachment_url(e.pagename, e.filename),
                                       symbols=['"', '[', ']', '(', ')'])
-        title = None if e.title is None else escape_markdown_all(e.title)
-        alt = None if e.alt is None else escape_markdown_all(e.alt)
+        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
+        alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
         return self._image(url, alt, title)
 
 

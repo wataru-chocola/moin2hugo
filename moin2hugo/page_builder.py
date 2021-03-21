@@ -12,6 +12,9 @@ from moin2hugo.page_tree import (
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
+from moin2hugo.page_tree import LinkAttr, LinkAttrDict
+from moin2hugo.page_tree import ImageAttr, ImageAttrDict
+from moin2hugo.page_tree import ObjectAttr, ObjectAttrDict
 
 from typing import List, Dict, Optional, Type
 
@@ -252,10 +255,10 @@ class PageBuilder(object):
         self._add_new_elem(Code(content=text, source_text=source_text))
 
     # Link
-    def link_start(self, target: str, title: Optional[str] = None,
+    def link_start(self, url: str, attrs: LinkAttrDict = {},
                    source_text: str = '', freeze_source: bool = False):
-        # TODO: extra link attributes
-        self._start_new_elem(Link(target=target, title=title, source_text=source_text,
+        link_attrs = LinkAttr.from_dict(attrs)
+        self._start_new_elem(Link(url=url, attrs=link_attrs, source_text=source_text,
                                   source_frozen=freeze_source))
 
     def link_end(self):
@@ -264,10 +267,11 @@ class PageBuilder(object):
 
     def pagelink_start(self, pagename: str, queryargs: Optional[Dict[str, str]] = None,
                        anchor: Optional[str] = None,
-                       target: Optional[str] = None,
+                       attrs: LinkAttrDict = {},
                        source_text: str = '', freeze_source: bool = False):
-        # TODO: extra link attributes
+        link_attrs = LinkAttr.from_dict(attrs)
         e = Pagelink(pagename=pagename, queryargs=queryargs, anchor=anchor,
+                     attrs=link_attrs,
                      source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
@@ -278,9 +282,11 @@ class PageBuilder(object):
     def interwikilink_start(self, wikiname: str, pagename: str,
                             queryargs: Optional[Dict[str, str]] = None,
                             anchor: Optional[str] = None,
-                            target: Optional[str] = None,
+                            attrs: LinkAttrDict = {},
                             source_text: str = '', freeze_source: bool = False):
+        link_attrs = LinkAttr.from_dict(attrs)
         e = Interwikilink(wikiname=wikiname, pagename=pagename, queryargs=queryargs, anchor=anchor,
+                          attrs=link_attrs,
                           source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
@@ -288,11 +294,13 @@ class PageBuilder(object):
         self._assert_cur_elem(Interwikilink)
         self._end_current_elem()
 
-    def attachment_link_start(self, pagename: str, filename: str, title: Optional[str] = None,
+    def attachment_link_start(self, pagename: str, filename: str,
                               queryargs: Optional[Dict[str, str]] = None,
+                              attrs: LinkAttrDict = {},
                               source_text: str = '', freeze_source: bool = False):
-        # TODO: extra link attributes
-        e = AttachmentLink(pagename=pagename, filename=filename, title=title, queryargs=queryargs,
+        link_attrs = LinkAttr.from_dict(attrs)
+        e = AttachmentLink(pagename=pagename, filename=filename, queryargs=queryargs,
+                           attrs=link_attrs,
                            source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
@@ -347,11 +355,22 @@ class PageBuilder(object):
         self._end_current_elem()
 
     # Transclude (Image Embedding)
-    def transclusion_start(self, pagename: str, mimetype: str, title: Optional[str] = None,
-                           width: Optional[str] = None,
+    def attachment_image(self, pagename: str, filename: str, attrs: ImageAttrDict = {},
+                         source_text: str = ''):
+        image_attrs = ImageAttr.from_dict(attrs)
+        e = AttachmentImage(pagename=pagename, filename=filename, attrs=image_attrs,
+                            source_text=source_text)
+        self._add_new_elem(e)
+
+    def image(self, src: str, attrs: ImageAttrDict = {}, source_text: str = ''):
+        image_attrs = ImageAttr.from_dict(attrs)
+        self._add_new_elem(Image(src=src, attrs=image_attrs, source_text=source_text))
+
+    # Transclude (Object Embedding)
+    def transclusion_start(self, pagename: str, attrs: ObjectAttrDict = {},
                            source_text: str = '', freeze_source: bool = False):
-        # TODO: extra object attributes
-        e = Transclude(pagename=pagename, mimetype=mimetype, title=title, width=width,
+        obj_attrs = ObjectAttr.from_dict(attrs)
+        e = Transclude(pagename=pagename, attrs=obj_attrs,
                        source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
@@ -359,12 +378,11 @@ class PageBuilder(object):
         self._assert_cur_elem(Transclude)
         self._end_current_elem()
 
-    def attachment_transclusion_start(self, pagename: str, filename: str, mimetype: str,
-                                      title: Optional[str] = None, width: Optional[str] = None,
+    def attachment_transclusion_start(self, pagename: str, filename: str,
+                                      attrs: ObjectAttrDict = {},
                                       source_text: str = '', freeze_source: bool = False):
-        # TODO: extra object attributes
-        e = AttachmentTransclude(pagename=pagename, filename=filename, mimetype=mimetype,
-                                 title=title, width=width,
+        obj_attrs = ObjectAttr.from_dict(attrs)
+        e = AttachmentTransclude(pagename=pagename, filename=filename, attrs=obj_attrs,
                                  source_text=source_text, source_frozen=freeze_source)
         self._start_new_elem(e)
 
@@ -372,22 +390,8 @@ class PageBuilder(object):
         self._assert_cur_elem(AttachmentTransclude)
         self._end_current_elem()
 
-    def attachment_image(self, pagename: str, filename: str, title: Optional[str] = None,
-                         width: Optional[str] = None, height: Optional[str] = None,
-                         alt: Optional[str] = '', align: Optional[str] = None,
-                         source_text: str = ''):
-        # TODO: extra image attributes
-        e = AttachmentImage(pagename=pagename, filename=filename, title=title,
-                            width=width, height=height, align=align, source_text=source_text)
-        self._add_new_elem(e)
-
+    # Transclude (Other)
     def attachment_inlined(self, pagename: str, filename: str, link_text: str,
                            source_text: str = ''):
         self._add_new_elem(AttachmentInlined(pagename=pagename, filename=filename,
                                              link_text=link_text, source_text=source_text))
-
-    def image(self, src: str, alt: str = '', title: Optional[str] = None,
-              align: Optional[str] = None, source_text: str = ''):
-        # TODO: extra image attributes
-        self._add_new_elem(Image(src=src, alt=alt, title=title, align=align,
-                                 source_text=source_text))
