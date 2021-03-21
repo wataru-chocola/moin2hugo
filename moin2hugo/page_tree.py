@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import attr
 import textwrap
-from typing import Optional, List, Dict, Any, Type
+from typing import Optional, List, Dict, Any, Type, Literal
 
 
 @attr.s
@@ -241,21 +241,48 @@ class Code(PageElement):
 
 
 # Links
-@attr.s
-class Link(PageElement):
-    target: str = attr.ib(kw_only=True)
-    title: Optional[str] = attr.ib(default=None)
+LinkAttrKey = Literal['class', 'title', 'target', 'accesskey', 'rel']
+LinkAttrDict = Dict[LinkAttrKey, Any]
 
 
 @attr.s
-class Pagelink(PageElement):
+class LinkAttr:
+    class_: Optional[str] = attr.ib(kw_only=True, default=None)
+    title: Optional[str] = attr.ib(kw_only=True, default=None)
+    target: Optional[str] = attr.ib(kw_only=True, default=None)
+    accesskey: Optional[str] = attr.ib(kw_only=True, default=None)
+    rel: Optional[str] = attr.ib(kw_only=True, default=None)
+
+    @classmethod
+    def from_dict(cls, data: LinkAttrDict) -> LinkAttr:
+        tmp_data: Dict[str, Any] = dict([(k, v) for k, v in data.items()])  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
+        if 'class' in tmp_data:
+            tmp_data['class_'] = tmp_data['class']
+        initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
+        init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
+        obj = cls(**init_args)
+        return obj
+
+
+@attr.s
+class LinkBase(PageElement):
+    attrs: LinkAttr = attr.ib(default=attr.Factory(LinkAttr))
+
+
+@attr.s
+class Link(LinkBase):
+    url: str = attr.ib(kw_only=True)
+
+
+@attr.s
+class Pagelink(LinkBase):
     pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     anchor: Optional[str] = attr.ib(default=None)
 
 
 @attr.s
-class Interwikilink(PageElement):
+class Interwikilink(LinkBase):
     wikiname: str = attr.ib(kw_only=True)
     pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
@@ -263,11 +290,10 @@ class Interwikilink(PageElement):
 
 
 @attr.s
-class AttachmentLink(PageElement):
+class AttachmentLink(LinkBase):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
-    title: Optional[str] = attr.ib(default=None)
 
 
 @attr.s
@@ -307,53 +333,86 @@ class Listitem(PageElement):
     pass
 
 
-# Transclude (Image Embedding)
-@attr.s
-class Transclude(PageElement):
-    pagename: str = attr.ib(kw_only=True)
-    mimetype: Optional[str] = attr.ib(kw_only=True, default=None)
+# Transclusion (Image Embedding)
+ImageAttrKey = Literal['class', 'alt', 'title', 'longdesc', 'width', 'height', 'align']
+ImageAttrDict = Dict[ImageAttrKey, Any]
 
+
+@attr.s
+class ImageAttr:
+    class_: Optional[str] = attr.ib(kw_only=True, default=None)
+    alt: Optional[str] = attr.ib(kw_only=True, default=None)
     title: Optional[str] = attr.ib(kw_only=True, default=None)
+    longdesc: Optional[str] = attr.ib(kw_only=True, default=None)   # deprecated in HTML5
     width: Optional[str] = attr.ib(kw_only=True, default=None)
     height: Optional[str] = attr.ib(kw_only=True, default=None)
+    align: Optional[str] = attr.ib(kw_only=True, default=None)
 
-
-@attr.s
-class AttachmentTransclude(PageElement):
-    pagename: str = attr.ib(kw_only=True)
-    filename: str = attr.ib(kw_only=True)
-    mimetype: Optional[str] = attr.ib(kw_only=True, default=None)
-
-    title: Optional[str] = attr.ib(kw_only=True, default=None)
-    width: Optional[str] = attr.ib(kw_only=True, default=None)
-    height: Optional[str] = attr.ib(kw_only=True, default=None)
-
-
-@attr.s
-class AttachmentInlined(PageElement):
-    pagename: str = attr.ib(kw_only=True)
-    filename: str = attr.ib(kw_only=True)
-    link_text: str = attr.ib(kw_only=True)
+    @classmethod
+    def from_dict(cls, data: ImageAttrDict) -> ImageAttr:
+        tmp_data: Dict[str, Any] = dict([(k, v) for k, v in data.items()])  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
+        if 'class' in tmp_data:
+            tmp_data['class_'] = tmp_data['class']
+        initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
+        init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
+        obj = cls(**init_args)
+        return obj
 
 
 @attr.s
 class AttachmentImage(PageElement):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
-
-    width: Optional[str] = attr.ib(kw_only=True, default=None)
-    height: Optional[str] = attr.ib(kw_only=True, default=None)
-    title: Optional[str] = attr.ib(kw_only=True, default=None)
-    alt: Optional[str] = attr.ib(kw_only=True, default=None)
-    align: Optional[str] = attr.ib(kw_only=True, default=None)
+    attrs: ImageAttr = attr.ib(default=attr.Factory(ImageAttr))
 
 
 @attr.s
 class Image(PageElement):
     src: str = attr.ib(kw_only=True)
+    attrs: ImageAttr = attr.ib(default=attr.Factory(ImageAttr))
 
+
+# Transclusion (Object Embedding)
+ObjectAttrKey = Literal['class', 'title', 'width', 'height', 'mimetype', 'standby']
+ObjectAttrDict = Dict[ObjectAttrKey, Any]
+
+
+@attr.s
+class ObjectAttr:
+    class_: Optional[str] = attr.ib(kw_only=True, default=None)
+    title: Optional[str] = attr.ib(kw_only=True, default=None)
     width: Optional[str] = attr.ib(kw_only=True, default=None)
     height: Optional[str] = attr.ib(kw_only=True, default=None)
-    title: Optional[str] = attr.ib(kw_only=True, default=None)
-    alt: Optional[str] = attr.ib(kw_only=True, default=None)
-    align: Optional[str] = attr.ib(kw_only=True, default=None)
+    mimetype: Optional[str] = attr.ib(kw_only=True, default=None)
+    standby: Optional[str] = attr.ib(kw_only=True, default=None)  # deprecated in HTML5
+
+    @classmethod
+    def from_dict(cls, data: ObjectAttrDict) -> ObjectAttr:
+        tmp_data: Dict[str, Any] = dict([(k, v) for k, v in data.items()])  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
+        if 'class' in tmp_data:
+            tmp_data['class_'] = tmp_data['class']
+        initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
+        init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
+        obj = cls(**init_args)
+        return obj
+
+
+@attr.s
+class Transclude(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    attrs: ObjectAttr = attr.ib(default=attr.Factory(ObjectAttr))
+
+
+@attr.s
+class AttachmentTransclude(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
+    attrs: ObjectAttr = attr.ib(default=attr.Factory(ObjectAttr))
+
+
+# Transclude (Other)
+@attr.s
+class AttachmentInlined(PageElement):
+    pagename: str = attr.ib(kw_only=True)
+    filename: str = attr.ib(kw_only=True)
+    link_text: str = attr.ib(kw_only=True)

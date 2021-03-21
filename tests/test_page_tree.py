@@ -1,4 +1,4 @@
-from moin2hugo.page_tree import PageRoot, Paragraph, Text, Link
+from moin2hugo.page_tree import PageRoot, Paragraph, Text, Link, LinkAttr
 
 
 def test_initialize_page_elements():
@@ -10,7 +10,7 @@ def test_from_dict():
     expected = PageRoot()
     p = Paragraph()
     text = Text(content="link: ")
-    link = Link(target="http://example.com", title="test link")
+    link = Link(url="http://example.com")
     p.add_child(text)
     p.add_child(link)
     expected.add_child(p)
@@ -20,7 +20,7 @@ def test_from_dict():
             (Paragraph, {
                 'children': [
                     (Text, {'content': 'link: '}),
-                    (Link, {'target': 'http://example.com', 'title': 'test link'})
+                    (Link, {'url': 'http://example.com'}),
                 ]})
         ]
     }
