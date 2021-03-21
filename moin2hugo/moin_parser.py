@@ -1166,7 +1166,7 @@ def _get_params(paramstring: str, acceptable_attrs: List[T] = [], mapping: Dict[
     tag_attrs: Dict[T, str] = {}
     query_args = {}
     if paramstring:
-        fixed, kw, trailing = wikiutil.parse_quoted_separated(paramstring)
+        _fixed, kw, _trailing = wikiutil.parse_quoted_separated(paramstring)
         for key, val in kw.items():
             if key in mapping:
                 key = mapping[key]
