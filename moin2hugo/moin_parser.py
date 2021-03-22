@@ -350,10 +350,10 @@ class MoinParser(object):
     @classmethod
     def parse(cls, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None):
         parser = cls(text, page_name, site_config=site_config)
-        return parser._parse()
+        return parser.run_parse()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
-    def _parse(self):
+    def run_parse(self):
         """ For each line, scan through looking for magic
             strings, outputting verbatim any intervening text.
         """
