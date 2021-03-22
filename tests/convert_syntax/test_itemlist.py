@@ -30,6 +30,7 @@ def test_itemlists_multi_items(formatter_object):
          2. num2
      * two
      * three
+       * three-1.
     """
     expected = """\
     Preamble.
@@ -41,6 +42,7 @@ def test_itemlists_multi_items(formatter_object):
             1. num2
     * two
     * three
+        * three-1.
     """
     data = textwrap.dedent(moin_text)
 
@@ -85,7 +87,7 @@ def test_itemlists_containing_paragraph(formatter_object):
     assert page.source_text == data
 
 
-def test_definition_lists(formatter_object):
+def test_definition_lists_1(formatter_object):
     moin_text = """\
     Preamble.
 
@@ -125,4 +127,68 @@ def test_definition_lists(formatter_object):
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
     assert formatter_object.format(page) == expected
+    assert page.source_text == data
+
+
+def test_definition_lists_2(formatter_object):
+    moin_text = """\
+    Preamble.
+
+     term1 ::
+     description 1
+    """
+    expected = """\
+    Preamble.
+
+    term1
+    : description 1
+    """
+    data = textwrap.dedent(moin_text)
+
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert formatter_object.format(page) == expected
+    assert page.source_text == data
+
+
+def test_definition_lists_3(formatter_object):
+    """Original moin-1.9 parser wrongly parses table inside definition description.
+    """
+    moin_text = """\
+    Preamble.
+
+     term1::
+     text1-1.
+
+       * item1
+       * item2
+
+     text1-2.
+
+     ||a ||b ||c ||
+     ||x ||y ||z ||
+
+     term2::
+     text2.
+    """
+    expected = """\
+    Preamble.
+
+    term1
+    : text1-1.
+        * item1
+        * item2
+
+      text1-2.
+      | a | b | c |
+      | x | y | z |
+
+    term2
+    : text2.
+    """
+    data = textwrap.dedent(moin_text)
+
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert formatter_object.format(page) == expected, page.tree_repr()
     assert page.source_text == data
