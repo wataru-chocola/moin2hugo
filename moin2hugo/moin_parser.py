@@ -389,9 +389,6 @@ class MoinParser(object):
                     and len(tmp_line) >= 5
                 if not self.builder.in_table and is_table_line:
                     # start table
-                    if self.builder.list_types and not self.builder.in_li_of_current_list:
-                        self.builder.listitem_start()
-
                     if self.builder.in_p:
                         self.builder.paragraph_end()
                     attrs = _getTableAttrs(tmp_line[2:])
@@ -1122,6 +1119,7 @@ class MoinParser(object):
                 self.builder.definition_list_end()
             else:
                 self.builder.bullet_list_end()
+            self._close_item()
         self.list_indents = []
 
     def _close_item(self):

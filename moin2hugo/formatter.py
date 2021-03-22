@@ -180,7 +180,15 @@ class Formatter(object):
         if e.prev_sibling is not None and type(e.prev_sibling) in (
                 Paragraph, ParsedText, BulletList, NumberList, DefinitionList,
                 Heading, HorizontalRule):
-            return "\n"
+            prev_output_lines = self.format(e.prev_sibling).splitlines(keepends=True)
+            if not prev_output_lines:
+                return ""
+            elif prev_output_lines[-1] == "\n":  # empty line
+                return ""
+            elif prev_output_lines[-1].endswith("\n"):
+                return "\n"
+            else:
+                return "\n\n"
         return ''
 
     def _consolidate(self, e: PageElement) -> PageElement:
@@ -297,7 +305,7 @@ class Formatter(object):
         if self._is_in_raw_html(e):
             return e.content
         else:
-            return self._escape_markdown_text(e)
+            return self._separator_line(e) + self._escape_markdown_text(e)
 
     def sgml_entity(self, e: SGMLEntity) -> str:
         return e.content
@@ -492,6 +500,8 @@ class Formatter(object):
                     if first_line:
                         ret += marker + line
                         first_line = False
+                    elif line in ["\n", ""]:
+                        ret += line
                     else:
                         ret += paragraph_indent + line
         return ret
@@ -503,6 +513,7 @@ class Formatter(object):
         dt = self._generic_container(e)
         if not dt:
             return ""
+        dt = dt.rstrip(" ")
         preceding_newline = ""
         if e.prev_sibling is not None:
             preceding_newline = "\n"
@@ -526,6 +537,8 @@ class Formatter(object):
                     if first_line:
                         ret += marker + line
                         first_line = False
+                    elif line in ["\n", ""]:
+                        ret += line
                     else:
                         ret += paragraph_indent + line
         return ret
