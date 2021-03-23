@@ -1,7 +1,6 @@
 import re
 import textwrap
 import collections
-import copy
 import html
 import urllib.parse
 import logging
@@ -337,7 +336,6 @@ class Formatter(object):
         return ''
 
     def smiley(self, smiley: Smiley) -> str:
-        # TODO: enableEmoji option?
         return smiley2emoji[smiley.content]
 
     def remark(self, remark: Remark) -> str:
