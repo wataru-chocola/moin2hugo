@@ -1,0 +1,1 @@
+from .hugo import HugoFormatter
