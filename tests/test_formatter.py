@@ -1,4 +1,4 @@
-from moin2hugo.formatter import Formatter
+from moin2hugo.formatter import HugoFormatter
 from moin2hugo.page_tree import PageRoot, Text, ParsedText, Paragraph, Remark, Strong
 
 import pytest
@@ -44,7 +44,7 @@ import textwrap
         ]
 )
 def test_consolidate(data, expected):
-    formatter = Formatter()
+    formatter = HugoFormatter()
     data_page = PageRoot.from_dict(data)
     expected_page = PageRoot.from_dict(expected)
     ret = formatter._consolidate(data_page)
@@ -95,7 +95,7 @@ def test_consolidate(data, expected):
     ]
 )
 def test_text_escape(data, expected):
-    formatter = Formatter()
+    formatter = HugoFormatter()
     text = Text(data)
     assert formatter.format(text) == expected
 
@@ -131,6 +131,6 @@ def test_codeblock(data, expected):
     data = textwrap.dedent(data)
     expected = textwrap.dedent(expected).rstrip()
 
-    formatter = Formatter()
+    formatter = HugoFormatter()
     e = ParsedText(content=data)
     assert formatter.format(e) == expected
