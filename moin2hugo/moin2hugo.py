@@ -8,7 +8,7 @@ import click
 
 from moin2hugo.config import load_config, Config
 from moin2hugo.moin_parser import MoinParser
-from moin2hugo.formatter import Formatter
+from moin2hugo.formatter import HugoFormatter
 from moin2hugo.moinutils import unquoteWikiname
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class Moin2Hugo(object):
             yield page
 
     def convert(self):
-        formatter = Formatter(config=self.config.hugo_config)
+        formatter = HugoFormatter(config=self.config.hugo_config)
         for page in self.scan_pages(self.src_dir):
             with open(page.filepath, 'r') as f:
                 content = f.read()

@@ -65,7 +65,7 @@ def test_links(data, expected, formatter_object):
 def test_transclude(data, expected, formatter_object):
     mock_io = mock.mock_open(read_data="hello")
     page = MoinParser.parse(data, 'PageName')
-    with mock.patch('moin2hugo.formatter.open', mock_io):
+    with mock.patch('moin2hugo.formatter.hugo.open', mock_io):
         assert formatter_object.format(page) == expected
     assert page.source_text == data
 
