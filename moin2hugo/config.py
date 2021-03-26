@@ -6,6 +6,7 @@ class MoinSiteConfig(BaseSettings):
 
 
 class HugoConfig(BaseSettings):
+    detect_header_heuristically: bool = True
     goldmark_unsafe: bool = True
     disablePathToLower: bool = True
 

@@ -22,7 +22,7 @@ from moin2hugo.page_tree import (
 )
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +108,14 @@ class HugoFormatter(FormatterBase):
             self.config = config
         else:
             self.config = HugoConfig()
+        self._formatted: Dict[int, str] = {}
 
     def format(self, e: PageElement) -> str:
-        return self.format_dispatcher(e)
+        if e.content_hash in self._formatted:
+            return self._formatted[e.content_hash]
+        formatted = self.format_dispatcher(e)
+        self._formatted[e.content_hash] = formatted
+        return formatted
 
     def _warn_nontext_in_raw_html(self, e: PageElement):
         msgfmt = "unsupported: non-Text element within %s wouldn't be rendered as intended"
@@ -120,7 +125,7 @@ class HugoFormatter(FormatterBase):
     def _separator_line(self, e: PageElement) -> str:
         if e.prev_sibling is not None and type(e.prev_sibling) in (
                 Paragraph, ParsedText, BulletList, NumberList, DefinitionList,
-                Heading, HorizontalRule):
+                Table, Heading, HorizontalRule):
             prev_output_lines = self.format(e.prev_sibling).splitlines(keepends=True)
             if not prev_output_lines:
                 return ""
@@ -310,8 +315,41 @@ class HugoFormatter(FormatterBase):
         return ret
 
     # Table
+    def _is_header_row(self, e: TableRow) -> bool:
+        # check if table row is header row by heuristic
+        for cell in e.children:
+            assert isinstance(cell, TableCell)
+            for text in cell.children:
+                if not isinstance(text, (Emphasis, Strong)):
+                    return False
+        return True
+
+    def _detect_table_properties(self, e: Table) -> Tuple[int, int]:
+        num_of_header_lines = 0
+        num_of_columns = 0
+        header_ends = False
+        for i, row in enumerate(e.children):
+            assert isinstance(row, TableRow)
+            if self.config.detect_header_heuristically and not header_ends:
+                if self._is_header_row(row):
+                    num_of_header_lines = i + 1
+                else:
+                    header_ends = True
+            if len(row.children) > num_of_columns:
+                num_of_columns = len(row.children)
+        return num_of_header_lines, num_of_columns
+
     def table(self, e: Table) -> str:
-        return self._separator_line(e) + self._generic_container(e)
+        ret = self._separator_line(e)
+
+        num_of_header_lines, num_of_columns = self._detect_table_properties(e)
+        if num_of_header_lines == 0:
+            ret += "|%s|\n" % "|".join(["   "] * num_of_columns)
+        for i, c in enumerate(e.children):
+            if i == num_of_header_lines:
+                ret += "|%s|\n" % "|".join([" - "] * num_of_columns)
+            ret += self.format(c)
+        return ret
 
     def table_row(self, e: TableRow) -> str:
         ret = []

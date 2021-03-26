@@ -428,6 +428,7 @@ class MoinParser(object):
                     if not (self.builder.in_pre or self.builder.in_p or
                             self.builder.in_li_of_current_list or
                             self.builder.in_dd_of_current_list or
+                            self.builder.in_table or
                             self.builder.in_remark):
                         self.builder.paragraph_start()
                     self.builder.text(remainder, source_text=remainder)
@@ -439,7 +440,7 @@ class MoinParser(object):
                 if self.builder.in_pre:
                     self._parser_content(line[lastpos:start])
                 else:
-                    if not (self.builder.in_p or self.builder.in_remark):
+                    if not (self.builder.in_p or self.builder.in_remark or self.builder.in_table):
                         self.builder.paragraph_start()
                     self.builder.text(line[lastpos:start], source_text=line[lastpos:start])
 
@@ -555,7 +556,8 @@ class MoinParser(object):
                 return
             if _type not in ["hmarker", ]:
                 # Open p for certain types
-                if not (self.builder.in_p or self.builder.in_pre or (_type in no_new_p_before)):
+                if not (self.builder.in_p or self.builder.in_pre or self.builder.in_table or
+                        (_type in no_new_p_before)):
                     self.builder.paragraph_start()
                 dispatcher[_type](hit, match.groupdict())
                 return
