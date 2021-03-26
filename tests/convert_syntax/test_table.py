@@ -10,12 +10,13 @@ def test_basic_table(formatter_object):
     """
     expected = """\
     | **A** | **B** | **C** |
+    | - | - | - |
     | 1 | 2 | 3 |
     """
     data = textwrap.dedent(table_text)
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected
+    assert formatter_object.format(page) == expected, page.tree_repr()
     assert page.source_text == data
 
 
@@ -26,6 +27,8 @@ def test_table_escape(formatter_object):
     ||1   || 2  ||3   ||
     """
     expected = """\
+    |   |   |   |
+    | - | - | - |
     | A\\| | B\\| | C\\| |
     | \\-\\- | \\-\\- | \\-\\- |
     | 1 | 2 | 3 |
