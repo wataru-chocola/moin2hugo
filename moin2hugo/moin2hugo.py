@@ -9,9 +9,9 @@ import click
 
 from moin2hugo.config import load_config, Config
 from moin2hugo.moin_parser import MoinParser
-from moin2hugo.formatter import HugoFormatter
 from moin2hugo.moinutils import unquoteWikiname
-from moin2hugo.utils import page_to_hugo_filepath, safe_path_join
+from moin2hugo.formatter import HugoFormatter
+from moin2hugo.formatter.hugo import encode_hugo_name, page_to_hugo_bundle_path, safe_path_join
 
 logger = logging.getLogger(__name__)
 
@@ -101,24 +101,30 @@ class Moin2Hugo(object):
             content = f.read()
         page_obj = MoinParser.parse(content, page.name,
                                     site_config=self.config.moin_site_config)
+
+        logger.debug("++ translate")
         formatter = HugoFormatter(config=self.config.hugo_config)
         converted = formatter.format(page_obj)
 
-        hugo_filepath = page_to_hugo_filepath(
-            page.name,
-            disable_path_to_lower=self.config.hugo_config.disablePathToLower
-        )
-        hugo_pagepath = safe_path_join(self.dst_dir, hugo_filepath)
-        if self.hugo_site_structure[page.name] == self.LEAF_BUNDLE:
-            dst_filepath = safe_path_join(hugo_pagepath, "index.md")
-        elif self.hugo_site_structure[page.name] == self.BRANCH_BUNDLE:
-            dst_filepath = safe_path_join(hugo_pagepath, "_index.md")
-        logger.info("++ output: %s" % dst_filepath)
+        hugo_bundle_path = page_to_hugo_bundle_path(page.name)
+        hugo_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)
+        os.makedirs(hugo_bundle_path, exist_ok=True)
 
-        dst_dirpath = os.path.dirname(dst_filepath)
-        os.makedirs(dst_dirpath, exist_ok=True)
+        if self.hugo_site_structure[page.name] == self.LEAF_BUNDLE:
+            dst_filepath = safe_path_join(hugo_bundle_path, "index.md")
+        elif self.hugo_site_structure[page.name] == self.BRANCH_BUNDLE:
+            dst_filepath = safe_path_join(hugo_bundle_path, "_index.md")
+
+        logger.info("++ output: %s" % dst_filepath)
         with open(dst_filepath, 'w') as f:
             f.write(converted)
+
+        if page.attachments:
+            logger.info("++ copy attachments")
+            for attachment in page.attachments:
+                attachfile_hugo_name = encode_hugo_name(attachment.name)
+                dst_path = safe_path_join(hugo_bundle_path, attachfile_hugo_name)
+                shutil.copy(attachment.filepath, dst_path)
 
     def convert(self):
         logger.info("+ Source Moin Dir: %s" % self.src_dir)
