@@ -1,9 +1,10 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
 
 import textwrap
 
 
-def test_basic_table(formatter_object):
+def test_basic_table():
     table_text = """\
     ||'''A'''||'''B'''||'''C'''||
     ||1      || 2 ||3      ||
@@ -16,11 +17,11 @@ def test_basic_table(formatter_object):
     data = textwrap.dedent(table_text)
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected, page.tree_repr()
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_table_escape(formatter_object):
+def test_table_escape():
     table_text = """\
     || A| || B| || C| ||
     || -- || -- || -- ||
@@ -36,10 +37,10 @@ def test_table_escape(formatter_object):
     data = textwrap.dedent(table_text)
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_extended_table(formatter_object):
+def test_extended_table():
     # TODO
     pass

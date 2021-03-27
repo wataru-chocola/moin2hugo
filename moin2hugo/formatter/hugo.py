@@ -23,7 +23,7 @@ from moin2hugo.page_tree import (
 )
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -100,14 +100,15 @@ def escape_markdown_all(text: str) -> MarkdownEscapedText:
 
 
 class HugoFormatter(FormatterBase):
-    def __init__(self, config: Optional[HugoConfig] = None):
+    def __init__(self, config: Optional[HugoConfig] = None, pagename: Optional[str] = None):
+        self.pagename = pagename
         if config:
             self.config = config
         else:
             self.config = HugoConfig()
         self._formatted: Dict[int, str] = {}
 
-    def format(self, e: PageElement) -> str:
+    def do_format(self, e: PageElement) -> str:
         if e.content_hash in self._formatted:
             return self._formatted[e.content_hash]
         formatted = self.format_dispatcher(e)
@@ -123,7 +124,7 @@ class HugoFormatter(FormatterBase):
         if e.prev_sibling is not None and type(e.prev_sibling) in (
                 Paragraph, ParsedText, BulletList, NumberList, DefinitionList,
                 Table, Heading, HorizontalRule):
-            prev_output_lines = self.format(e.prev_sibling).splitlines(keepends=True)
+            prev_output_lines = self.do_format(e.prev_sibling).splitlines(keepends=True)
             if not prev_output_lines:
                 return ""
             elif prev_output_lines[-1] == "\n":  # empty line
@@ -156,7 +157,7 @@ class HugoFormatter(FormatterBase):
     def _generic_container(self, e: PageElement) -> str:
         ret = ''
         for c in e.children:
-            ret += self.format(c)
+            ret += self.do_format(c)
         return ret
 
     def _raw_html(self, e: PageElement, tag: str, content: str,
@@ -198,7 +199,7 @@ class HugoFormatter(FormatterBase):
                 if not prev.content:
                     prev = prev.prev_sibling
                     continue
-                return self.format(prev).endswith("\n")
+                return self.do_format(prev).endswith("\n")
             else:
                 return False
             break
@@ -345,14 +346,14 @@ class HugoFormatter(FormatterBase):
         for i, c in enumerate(e.children):
             if i == num_of_header_lines:
                 ret += "|%s|\n" % "|".join([" - "] * num_of_columns)
-            ret += self.format(c)
+            ret += self.do_format(c)
         return ret
 
     def table_row(self, e: TableRow) -> str:
         ret = []
         for c in e.children:
             assert isinstance(c, TableCell)
-            ret.append(self.format(c))
+            ret.append(self.do_format(c))
         return "|" + "|".join(ret) + "|\n"
 
     def table_cell(self, e: TableCell) -> str:
@@ -425,7 +426,8 @@ class HugoFormatter(FormatterBase):
         return self._link(url, description, title=title)
 
     def pagelink(self, e: Pagelink) -> str:
-        link_path = page_url(e.pagename, disable_path_to_lower=self.config.disablePathToLower)
+        link_path = page_url(e.pagename, relative_base=self.pagename,
+                             disable_path_to_lower=self.config.disablePathToLower)
         if e.queryargs:
             # just ignore them
             pass
@@ -440,7 +442,7 @@ class HugoFormatter(FormatterBase):
         return escape_markdown_all(e.source_text)
 
     def attachment_link(self, e: AttachmentLink) -> str:
-        link_path = attachment_url(e.pagename, e.filename,
+        link_path = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                                    disable_path_to_lower=self.config.disablePathToLower)
         if e.queryargs:
             # just ignore them
@@ -469,7 +471,7 @@ class HugoFormatter(FormatterBase):
         paragraph_indent = " " * len(marker)
         first_line = True
         for c in e.children:
-            text = self.format(c)
+            text = self.do_format(c)
             if isinstance(c, BulletList) or isinstance(c, NumberList):
                 ret += textwrap.indent(text, " " * 4)
             elif isinstance(c, ParsedText):
@@ -506,7 +508,7 @@ class HugoFormatter(FormatterBase):
         paragraph_indent = " " * len(marker)
         first_line = True
         for c in e.children:
-            text = self.format(c)
+            text = self.do_format(c)
             if isinstance(c, BulletList) or isinstance(c, NumberList):
                 ret += textwrap.indent(text, " " * 4)
             elif isinstance(c, ParsedText):
@@ -535,17 +537,18 @@ class HugoFormatter(FormatterBase):
         return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
-        url = attachment_url(e.pagename, e.filename,
+        url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              disable_path_to_lower=self.config.disablePathToLower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def transclude(self, e: Transclude) -> str:
-        url = page_url(e.pagename, disable_path_to_lower=self.config.disablePathToLower)
+        url = page_url(e.pagename, relative_base=self.pagename,
+                       disable_path_to_lower=self.config.disablePathToLower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
-        url = attachment_url(e.pagename, e.filename,
+        url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              disable_path_to_lower=self.config.disablePathToLower)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
         filepath = attachment_filepath(e.pagename, e.filename)
@@ -554,7 +557,7 @@ class HugoFormatter(FormatterBase):
         # TODO: parse content with corresponding parser
         # _, ext = os.path.splitext(e.filename)
         # Parser = wikiutil.getParserForExtension(self.request.cfg, ext)
-        ret += self.format(ParsedText(parser_name="text", content=attachment_content))
+        ret += self.do_format(ParsedText(parser_name="text", content=attachment_content))
         ret += "\n\n"
         ret += self._link(escaped_url, escape_markdown_all(e.link_text))
         return ret
@@ -575,7 +578,7 @@ class HugoFormatter(FormatterBase):
         return self._image(src, alt, title)
 
     def attachment_image(self, e: AttachmentImage) -> str:
-        url = attachment_url(e.pagename, e.filename,
+        url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              disable_path_to_lower=self.config.disablePathToLower)
         url = escape_markdown_symbols(url, symbols=['"', '[', ']', '(', ')'])
         title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
@@ -626,7 +629,10 @@ def attachment_url(pagename: str, filename: str, relative_base: Optional[str] = 
                    disable_path_to_lower: bool = False) -> str:
     url = page_url(pagename, relative_base=relative_base,
                    disable_path_to_lower=disable_path_to_lower)
-    url = urllib.parse.urljoin(url + "/", filename)
+    if url:
+        url = urllib.parse.urljoin(url + "/", filename)
+    else:
+        url = filename
     if not disable_path_to_lower:
         url = url.lower()
     url = encode_hugo_name(url)

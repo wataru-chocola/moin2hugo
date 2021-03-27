@@ -103,8 +103,8 @@ class Moin2Hugo(object):
                                     site_config=self.config.moin_site_config)
 
         logger.debug("++ translate")
-        formatter = HugoFormatter(config=self.config.hugo_config)
-        converted = formatter.format(page_obj)
+        converted = HugoFormatter.format(page_obj, pagename=page.name,
+                                         config=self.config.hugo_config)
 
         hugo_bundle_path = page_to_hugo_bundle_path(page.name)
         hugo_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)

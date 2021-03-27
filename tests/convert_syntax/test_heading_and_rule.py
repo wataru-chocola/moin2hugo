@@ -1,4 +1,5 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
 
 import pytest
 
@@ -13,9 +14,9 @@ import pytest
         ("====== *head* #5 ======", "##### \\*head\\* \\#5\n\n"),
     ]
 )
-def test_heading(data, expected, formatter_object):
+def test_heading(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -25,7 +26,7 @@ def test_heading(data, expected, formatter_object):
         ("-----------------", "----\n\n"),
     ]
 )
-def test_horizontal_rules(data, expected, formatter_object):
+def test_horizontal_rules(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
