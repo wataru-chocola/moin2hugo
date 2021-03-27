@@ -95,9 +95,8 @@ def test_consolidate(data, expected):
     ]
 )
 def test_text_escape(data, expected):
-    formatter = HugoFormatter()
     text = Text(data)
-    assert formatter.format(text) == expected
+    assert HugoFormatter.format(text) == expected
 
 
 @pytest.mark.parametrize(
@@ -131,6 +130,5 @@ def test_codeblock(data, expected):
     data = textwrap.dedent(data)
     expected = textwrap.dedent(expected).rstrip()
 
-    formatter = HugoFormatter()
     e = ParsedText(content=data)
-    assert formatter.format(e) == expected
+    assert HugoFormatter.format(e) == expected

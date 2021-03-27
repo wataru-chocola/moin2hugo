@@ -1,4 +1,5 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
 
 import pytest
 import textwrap
@@ -13,13 +14,13 @@ import textwrap
         (" hoge", "* hoge"),  # indent list
     ]
 )
-def test_itemlists_simple(data, expected, formatter_object):
+def test_itemlists_simple(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_itemlists_multi_items(formatter_object):
+def test_itemlists_multi_items():
     moin_text = """\
     Preamble.
 
@@ -48,11 +49,11 @@ def test_itemlists_multi_items(formatter_object):
 
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_itemlists_containing_paragraph(formatter_object):
+def test_itemlists_containing_paragraph():
     moin_text = """\
     Preamble.
 
@@ -83,11 +84,11 @@ def test_itemlists_containing_paragraph(formatter_object):
 
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_definition_lists_1(formatter_object):
+def test_definition_lists_1():
     moin_text = """\
     Preamble.
 
@@ -126,11 +127,11 @@ def test_definition_lists_1(formatter_object):
 
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_definition_lists_2(formatter_object):
+def test_definition_lists_2():
     moin_text = """\
     Preamble.
 
@@ -147,11 +148,11 @@ def test_definition_lists_2(formatter_object):
 
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
-def test_definition_lists_3(formatter_object):
+def test_definition_lists_3():
     """Original moin-1.9 parser wrongly parses table inside definition description.
     """
     moin_text = """\
@@ -192,5 +193,5 @@ def test_definition_lists_3(formatter_object):
 
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected, page.tree_repr()
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data

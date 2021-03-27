@@ -1,6 +1,6 @@
 import pytest
 
-import moin2hugo.utils
+from moin2hugo.formatter.hugo import safe_path_join, page_url
 
 
 @pytest.mark.parametrize(
@@ -13,7 +13,7 @@ import moin2hugo.utils
 )
 def test_safe_path_join(data, expected):
     basepath, path = data
-    ret = moin2hugo.utils.safe_path_join(basepath, path)
+    ret = safe_path_join(basepath, path)
     assert ret == expected
 
 
@@ -27,4 +27,18 @@ def test_safe_path_join(data, expected):
 )
 def test_safe_path_join_error(basepath, path):
     with pytest.raises(ValueError):
-        moin2hugo.utils.safe_path_join(basepath, path)
+        safe_path_join(basepath, path)
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        (("PageName", "PageName/foo"), "foo"),
+        (("PageName/foo", "PageName/foo/bar"), "bar"),
+        (("PageName/foo1", "PageName/foo2/bar"), "/PageName/foo2/bar"),
+        (("PageName", None), "/PageName"),
+        (("PageName/foo", "PageName/foo"), ""),
+    ]
+)
+def test_page_url(data, expected):
+    target, base = data
+    page_url(target, base, disable_path_to_lower=False)
