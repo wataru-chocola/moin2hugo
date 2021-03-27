@@ -1,9 +1,10 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
 
 import textwrap
 
 
-def test_highlighted_python(formatter_object):
+def test_highlighted_python():
     code_block_text = """\
     {{{#!highlight python
     import sys
@@ -19,5 +20,5 @@ def test_highlighted_python(formatter_object):
     data = textwrap.dedent(code_block_text)
     page = MoinParser.parse(data, 'PageName')
     expected = textwrap.dedent(expected)
-    assert formatter_object.format(page) == expected, page.tree_repr()
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data

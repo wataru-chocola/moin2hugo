@@ -1,4 +1,6 @@
 from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter.hugo import HugoFormatter
+from moin2hugo.config import HugoConfig
 
 import pytest
 
@@ -21,9 +23,9 @@ import pytest
         ("~+larg<x />er+~", "<big>larg&lt;x /&gt;er</big>"),
     ]
 )
-def test_decorations_ml(data, expected, formatter_object):
+def test_decorations_ml(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -38,9 +40,9 @@ def test_decorations_ml(data, expected, formatter_object):
         (",,su<x />b,,script", "<sub>su&lt;x /&gt;b</sub>script"),
     ]
 )
-def test_decorations_sl(data, expected, formatter_object):
+def test_decorations_sl(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -49,9 +51,9 @@ def test_decorations_sl(data, expected, formatter_object):
         ("__underlined '''x''' text__", "<u>underlined **x** text</u>"),
     ]
 )
-def test_decorations_not_fully_work(data, expected, formatter_object, caplog):
+def test_decorations_not_fully_work(data, expected, caplog):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_object.format(page) == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert 'unsupported: non-Text' in caplog.text
 
 
@@ -67,8 +69,8 @@ def test_decorations_not_fully_work(data, expected, formatter_object, caplog):
         (",,su<x />b,,script", r",,su\<x /\>b,,script"),
     ]
 )
-def test_decorations_without_unsafe(data, expected, formatter_without_unsafe_object, caplog):
+def test_decorations_without_unsafe(data, expected, caplog):
     page = MoinParser.parse(data, 'PageName')
-    assert formatter_without_unsafe_object.format(page) == expected, \
-        page.tree_repr(include_src=True)
+    ret = HugoFormatter.format(page, config=HugoConfig(goldmark_unsafe=False), pagename='PageName')
+    assert ret == expected, page.tree_repr(include_src=True)
     assert 'goldmark_unsafe' in caplog.text
