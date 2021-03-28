@@ -195,3 +195,32 @@ def test_definition_lists_3():
     expected = textwrap.dedent(expected)
     assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
+
+
+def test_definition_lists_4():
+    moin_text = """\
+    Preamble.
+
+     term1 ::
+      * item1
+      * item2
+
+     term2 ::
+     text2.
+    """
+    expected = """\
+    term1
+    : * item1
+      * item2
+
+    term2
+    : text2.
+    """
+    data = textwrap.dedent(moin_text)
+
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert HugoFormatter.format(page, pagename='PageName') == expected, page.tree_repr()
+    assert page.source_text == data
+
+
