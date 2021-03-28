@@ -110,10 +110,11 @@ class HugoFormatter(FormatterBase):
         self._formatted: Dict[int, str] = {}
 
     def do_format(self, e: PageElement) -> str:
-        if e.content_hash in self._formatted:
-            return self._formatted[e.content_hash]
+        e_id = id(e)
+        if e_id in self._formatted:
+            return self._formatted[e_id]
         formatted = self.format_dispatcher(e)
-        self._formatted[e.content_hash] = formatted
+        self._formatted[e_id] = formatted
         return formatted
 
     def _warn_nontext_in_raw_html(self, e: PageElement):
@@ -362,12 +363,14 @@ class HugoFormatter(FormatterBase):
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
+        ret = self._separator_line(e)
         max_level = 6
         heading_level = e.depth
         if self.config.increment_heading_level:
             heading_level += 1
         heading_level = min(heading_level, max_level)
-        return '#' * heading_level + ' ' + escape_markdown_all(e.content) + "\n\n"
+        ret += '#' * heading_level + ' ' + escape_markdown_all(e.content) + "\n\n"
+        return ret
 
     def rule(self, e: HorizontalRule) -> str:
         return '-' * 4 + "\n\n"
