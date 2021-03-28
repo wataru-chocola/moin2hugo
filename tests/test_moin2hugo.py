@@ -1,5 +1,6 @@
 import pytest
 import os
+from datetime import datetime
 
 from moin2hugo import __version__
 from moin2hugo.moin2hugo import Moin2Hugo, MoinPageInfo, MoinAttachment
@@ -30,6 +31,7 @@ def moin_pages(moin_sitedir, moin_abspath):
     pages.append(MoinPageInfo(
         name='テスト',
         filepath=moin_abspath('(e38386e382b9e38388)/revisions/00000002'),
+        updated=datetime(2019, 5, 22, 13, 54, 54, 621428),
         attachments=[
             MoinAttachment(name='file_example_JPG_100kB.jpg',
                            filepath=moin_abspath('(e38386e382b9e38388)/attachments/file_example_JPG_100kB.jpg')),  # NOQA
@@ -37,11 +39,13 @@ def moin_pages(moin_sitedir, moin_abspath):
 
     pages.append(MoinPageInfo(
         name='テスト/page_test/ページ',
+        updated=datetime(2012, 2, 2, 18, 34, 47),
         filepath=moin_abspath('(e38386e382b9e383882f)page_test(2fe3839ae383bce382b8)/revisions/00000003'),  # NOQA
         attachments=[]))
 
     pages.append(MoinPageInfo(
         name='テスト/attachments_test',
+        updated=datetime(2019, 5, 22, 13, 54, 54, 621428),
         filepath=moin_abspath('(e38386e382b9e383882f)attachments_test/revisions/00000002'),
         attachments=[
             MoinAttachment(name='file_example_JPG_100kB.jpg',
