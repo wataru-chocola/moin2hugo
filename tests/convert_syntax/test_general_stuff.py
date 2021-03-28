@@ -84,7 +84,7 @@ def test_smiley(data, expected):
          | a | b |
          | 1 | 2 |
 
-         # head1
+         ## head1
 
          """),
     ]

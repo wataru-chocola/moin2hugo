@@ -6,7 +6,7 @@ Convert moinwiki's data directory into hugo content directory structure.
 
 ## Configuration
 
-Paramater | Default | 
+Paramater | Default | Description
 -- | -- | --
 `moin_site_config.*` | - | see below
 `hugo_config.*` | - | see below
@@ -15,12 +15,15 @@ Paramater | Default |
 
 ### HugoConfig
 
-Hugo site configuration.
+Hugo formatting configuration.
 
-Paramater | Default | Corrensponding Hogo's setting
+Paramater | Default | Description
 -- | -- | --
-`goldmark_unsafe` | `True` | `markup.goldman.render.goldmark_unsafe`
-`disablePathToLower` | `True` | `disablePathLower`
+`detect_table_header_heuristically` | `True` | make table header by heuristics
+`increment_heading_level` | `True` | increment heading level (e.g. moin's h1 -> hugo's h2)
+`root_path` | `/` | root path of hugo site in url
+`goldmark_unsafe` | `True` | correspondings with hugo's config: `markup.goldman.render.goldmark_unsafe`
+`disable_path_to_lower` | `True` | corrensponding with hugo's config: `disablePathLower`
 
 ## References
 
