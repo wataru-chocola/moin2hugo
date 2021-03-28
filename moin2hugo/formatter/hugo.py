@@ -5,6 +5,7 @@ import collections
 import html
 import urllib.parse
 import logging
+from datetime import datetime
 
 from .base import FormatterBase
 from moin2hugo.page_tree import (
@@ -593,6 +594,16 @@ class HugoFormatter(FormatterBase):
         title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
         alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
         return self._image(url, alt, title)
+
+
+def create_frontmatter(pagename: str, updated: Optional[datetime] = None):
+    ret = "---\n"
+    title = pagename.split("/")[-1]
+    ret += 'title: "%s"\n' % title
+    if updated is not None:
+        ret += 'date: %s\n' % updated.isoformat()
+    ret += "---"
+    return ret
 
 
 def encode_hugo_name(name: str) -> str:
