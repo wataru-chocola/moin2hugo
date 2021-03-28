@@ -1,5 +1,6 @@
 from moin2hugo.formatter import HugoFormatter
-from moin2hugo.page_tree import PageRoot, Text, ParsedText, Paragraph, Remark, Strong
+from moin2hugo.page_tree import PageRoot, Text, ParsedText, Paragraph, Remark, Strong, Pagelink
+from moin2hugo.config import HugoConfig
 
 import pytest
 import textwrap
@@ -132,3 +133,10 @@ def test_codeblock(data, expected):
 
     e = ParsedText(content=data)
     assert HugoFormatter.format(e) == expected
+
+
+def test_root_path():
+    pagelink = Pagelink(pagename='SomePage')
+    config = HugoConfig(root_path='/hugo')
+    ret = HugoFormatter.format(pagelink, pagename='PageName', config=config)
+    assert ret == '[](/hugo/SomePage)'
