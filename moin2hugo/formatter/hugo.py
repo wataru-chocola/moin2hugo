@@ -514,26 +514,24 @@ class HugoFormatter(FormatterBase):
 
     def definition_desc(self, e: DefinitionDesc) -> str:
         ret = ""
-        marker = ": "
-        paragraph_indent = " " * len(marker)
+        indent = " " * 4
+        marker = ":   "
         first_line = True
         for c in e.children:
             text = self.do_format(c)
-            if isinstance(c, BulletList) or isinstance(c, NumberList):
-                ret += textwrap.indent(text, " " * 4)
-            elif isinstance(c, ParsedText):
-                ret += "\n"
-                ret += textwrap.indent(text, " " * 4)
-                ret += "\n"
-            else:
-                for line in text.splitlines(keepends=True):
-                    if first_line:
-                        ret += marker + line
-                        first_line = False
-                    elif line in ["\n", ""]:
-                        ret += line
-                    else:
-                        ret += paragraph_indent + line
+            if isinstance(c, ParsedText):
+                if c.prev_sibling is not None:
+                    text = "\n" + text
+                text += "\n"
+
+            for line in text.splitlines(keepends=True):
+                if first_line:
+                    ret += marker + line
+                    first_line = False
+                elif line in ["\n", ""]:
+                    ret += line
+                else:
+                    ret += indent + line
         return ret
 
     # Image / Object Embedding
