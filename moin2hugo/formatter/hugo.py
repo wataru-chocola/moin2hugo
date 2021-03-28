@@ -427,6 +427,7 @@ class HugoFormatter(FormatterBase):
 
     def pagelink(self, e: Pagelink) -> str:
         link_path = page_url(e.pagename, relative_base=self.pagename,
+                             root_path=self.config.root_path,
                              disable_path_to_lower=self.config.disablePathToLower)
         if e.queryargs:
             # just ignore them
@@ -443,6 +444,7 @@ class HugoFormatter(FormatterBase):
 
     def attachment_link(self, e: AttachmentLink) -> str:
         link_path = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
+                                   root_path=self.config.root_path,
                                    disable_path_to_lower=self.config.disablePathToLower)
         if e.queryargs:
             # just ignore them
@@ -538,17 +540,20 @@ class HugoFormatter(FormatterBase):
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
+                             root_path=self.config.root_path,
                              disable_path_to_lower=self.config.disablePathToLower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def transclude(self, e: Transclude) -> str:
         url = page_url(e.pagename, relative_base=self.pagename,
+                       root_path=self.config.root_path,
                        disable_path_to_lower=self.config.disablePathToLower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
+                             root_path=self.config.root_path,
                              disable_path_to_lower=self.config.disablePathToLower)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
         filepath = attachment_filepath(e.pagename, e.filename)
@@ -606,8 +611,8 @@ def attachment_filepath(pagename: str, filename: str) -> str:
 
 
 def page_url(pagename: str, relative_base: Optional[str] = None,
-             disable_path_to_lower: bool = False) -> str:
-    url = "/" + pagename
+             root_path: str = '/', disable_path_to_lower: bool = False) -> str:
+    url = urllib.parse.urljoin(root_path + "/", pagename)
     if relative_base:
         target_path_elems = pagename.split("/")
         relative_base_elems = relative_base.split("/")
@@ -626,8 +631,8 @@ def page_url(pagename: str, relative_base: Optional[str] = None,
 
 
 def attachment_url(pagename: str, filename: str, relative_base: Optional[str] = None,
-                   disable_path_to_lower: bool = False) -> str:
-    url = page_url(pagename, relative_base=relative_base,
+                   root_path: str = '/', disable_path_to_lower: bool = False) -> str:
+    url = page_url(pagename, relative_base=relative_base, root_path=root_path,
                    disable_path_to_lower=disable_path_to_lower)
     if url:
         url = urllib.parse.urljoin(url + "/", filename)
