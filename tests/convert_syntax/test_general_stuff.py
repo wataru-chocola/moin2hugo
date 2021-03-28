@@ -18,7 +18,7 @@ def test_endling_newline(data, expected):
 
 
 @pytest.mark.parametrize(
-    # all markdown escaping are located in test_formatter.py
+    # all markdown escaping are located in test_hugo_formatter.py
     ("data", "expected"), [
         ("line with spaces  \ntest", "line with spaces\ntest"),
         ("line1\n/* xyz */    line2", "line1\nline2"),
