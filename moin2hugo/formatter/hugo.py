@@ -328,7 +328,7 @@ class HugoFormatter(FormatterBase):
         header_ends = False
         for i, row in enumerate(e.children):
             assert isinstance(row, TableRow)
-            if self.config.detect_header_heuristically and not header_ends:
+            if self.config.detect_table_header_heuristically and not header_ends:
                 if self._is_header_row(row):
                     num_of_header_lines = i + 1
                 else:
@@ -361,8 +361,12 @@ class HugoFormatter(FormatterBase):
 
     # Heading / Horizontal Rule
     def heading(self, e: Heading) -> str:
-        assert e.depth >= 1 and e.depth <= 6
-        return '#' * e.depth + ' ' + escape_markdown_all(e.content) + "\n\n"
+        max_level = 6
+        heading_level = e.depth
+        if self.config.increment_heading_level:
+            heading_level += 1
+        heading_level = min(heading_level, max_level)
+        return '#' * heading_level + ' ' + escape_markdown_all(e.content) + "\n\n"
 
     def rule(self, e: HorizontalRule) -> str:
         return '-' * 4 + "\n\n"
@@ -428,7 +432,7 @@ class HugoFormatter(FormatterBase):
     def pagelink(self, e: Pagelink) -> str:
         link_path = page_url(e.pagename, relative_base=self.pagename,
                              root_path=self.config.root_path,
-                             disable_path_to_lower=self.config.disablePathToLower)
+                             disable_path_to_lower=self.config.disable_path_to_lower)
         if e.queryargs:
             # just ignore them
             pass
@@ -445,7 +449,7 @@ class HugoFormatter(FormatterBase):
     def attachment_link(self, e: AttachmentLink) -> str:
         link_path = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                                    root_path=self.config.root_path,
-                                   disable_path_to_lower=self.config.disablePathToLower)
+                                   disable_path_to_lower=self.config.disable_path_to_lower)
         if e.queryargs:
             # just ignore them
             pass
@@ -541,20 +545,20 @@ class HugoFormatter(FormatterBase):
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              root_path=self.config.root_path,
-                             disable_path_to_lower=self.config.disablePathToLower)
+                             disable_path_to_lower=self.config.disable_path_to_lower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def transclude(self, e: Transclude) -> str:
         url = page_url(e.pagename, relative_base=self.pagename,
                        root_path=self.config.root_path,
-                       disable_path_to_lower=self.config.disablePathToLower)
+                       disable_path_to_lower=self.config.disable_path_to_lower)
         return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              root_path=self.config.root_path,
-                             disable_path_to_lower=self.config.disablePathToLower)
+                             disable_path_to_lower=self.config.disable_path_to_lower)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
         filepath = attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
@@ -584,7 +588,7 @@ class HugoFormatter(FormatterBase):
 
     def attachment_image(self, e: AttachmentImage) -> str:
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
-                             disable_path_to_lower=self.config.disablePathToLower)
+                             disable_path_to_lower=self.config.disable_path_to_lower)
         url = escape_markdown_symbols(url, symbols=['"', '[', ']', '(', ')'])
         title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
         alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
