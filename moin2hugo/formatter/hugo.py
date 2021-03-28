@@ -191,7 +191,7 @@ class HugoFormatter(FormatterBase):
         raw_html_types = (Underline, Sup, Sub, Big, Small, AttachmentTransclude, Transclude)
         return any((isinstance(p, raw_html_types) for p in e.parents))
 
-    def _is_at_beginning_of_line(self, e: Text) -> bool:
+    def _is_at_beginning_of_line(self, e: PageElement) -> bool:
         prev = e.prev_sibling
         while prev:
             if isinstance(prev, Remark):
@@ -208,15 +208,19 @@ class HugoFormatter(FormatterBase):
 
         return True
 
-    def _escape_markdown_text(self, e: Text) -> MarkdownEscapedText:
+    def _escape_markdown_text(self, e: PageElement, use_source_text: bool = False) \
+            -> MarkdownEscapedText:
         '''escape markdown symbols depending on context.
         '''
         # escape backslashes at first
-        text = e.content
+        if use_source_text:
+            text = e.source_text
+        else:
+            text = e.content
         text = re.sub(r'\\', r'\\\\', text)
 
         # target symbols of which all occurences are escaped
-        targets = set(['[', ']', '{', '}', '(', ')', '*', '_', ':', '`', '~', '<', '>', '|', '#'])
+        targets = set(['[', ']', '{', '}', '(', ')', '*', '_', '`', '~', '<', '>', '|', '#'])
         symbol_re = re.compile('([%s])' % re.escape("".join(targets)))
 
         is_at_beginning_of_line = self._is_at_beginning_of_line(e)
@@ -244,6 +248,7 @@ class HugoFormatter(FormatterBase):
 
             # escape markdown syntax
             line = re.sub(r'\!(?=\[)', r'\!', line)   # image: ![title](image)
+            line = re.sub(r':(\w+):', r'\:\1\:', line)  # smiley: :smiley:
 
             # escape markdown special symbols
             line = re.sub(symbol_re, r'\\\1', line)
@@ -369,7 +374,7 @@ class HugoFormatter(FormatterBase):
         if self.config.increment_heading_level:
             heading_level += 1
         heading_level = min(heading_level, max_level)
-        ret += '#' * heading_level + ' ' + escape_markdown_all(e.content) + "\n\n"
+        ret += '#' * heading_level + ' ' + self._escape_markdown_text(e) + "\n\n"
         return ret
 
     def rule(self, e: HorizontalRule) -> str:
@@ -448,7 +453,7 @@ class HugoFormatter(FormatterBase):
 
     def interwikilink(self, e: Interwikilink) -> str:
         logger.warning("unsupported: interwiki=%s" % e.source_text)
-        return escape_markdown_all(e.source_text)
+        return self._escape_markdown_text(e, use_source_text=True)
 
     def attachment_link(self, e: AttachmentLink) -> str:
         link_path = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
