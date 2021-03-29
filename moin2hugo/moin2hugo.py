@@ -187,7 +187,7 @@ def config_logger(verbose: bool):
 @click.option('--config', '-c', 'configfile', type=click.Path(exists=True), default=None)
 @click.option('--verbose', '-v', 'verbose', type=bool, default=None, is_flag=True)
 def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool):
-    '''Convert moinmoin site directory to hugo content directory.
+    '''Convert MoinMoin site directory to Hugo content directory.
     '''
     config_logger(verbose)
     if configfile:
