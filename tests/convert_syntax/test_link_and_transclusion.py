@@ -50,7 +50,7 @@ def test_links(data, expected):
         # attachment
         ("{{attachment:image.png}}", "![](image.png)"),
         ("{{attachment:image.png|title}}", '![title](image.png "title")'),
-        ('{{attachment:image.png|title|width=100 height=150 xxx=11}}', '![title](image.png "title")'),  # noqa
+        ('{{attachment:image.png|title|width=100,height=150,xxx=11}}', '{{< figure src="image.png" title="title" alt="title" width="100" height="150" >}}'),  # noqa
         ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](image.txt)"),
         ("{{attachment:image.pdf}}", '<object data="image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
         # page

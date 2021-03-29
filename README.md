@@ -46,6 +46,7 @@ Paramater | Default | Description
 `detect_table_header_heuristically` | `True` | make table header by heuristics
 `increment_heading_level` | `True` | increment heading level (e.g. moin's h1 -> hugo's h2)
 `root_path` | `/` | root path of hugo site in url
+`use_figure_shortcode` | `True` | use `figure` shortcode
 `goldmark_unsafe` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
 `disable_path_to_lower` | `True` | corresponding with hugo config: `disablePathLower`
 
