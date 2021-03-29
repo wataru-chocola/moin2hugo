@@ -25,6 +25,15 @@ Paramater | Default | Description
 `goldmark_unsafe` | `True` | correspondings with hugo's config: `markup.goldman.render.goldmark_unsafe`
 `disable_path_to_lower` | `True` | corrensponding with hugo's config: `disablePathLower`
 
+## Consideration
+
+### Macro
+
+Only a part of macros are supported.
+
+* `<<BR>>`: output whitespace before `\n`.
+* `<<TableOfContents>>`: do nothing.
+
 ## References
 
 - [HelpOnMoinWikiSyntax - MoinMoin](http://moinmo.in/HelpOnMoinWikiSyntax)
