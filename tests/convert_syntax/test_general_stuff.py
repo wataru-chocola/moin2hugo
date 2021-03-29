@@ -18,7 +18,7 @@ def test_endling_newline(data, expected):
 
 
 @pytest.mark.parametrize(
-    # all markdown escaping are located in test_formatter.py
+    # all markdown escaping are located in test_hugo_formatter.py
     ("data", "expected"), [
         ("line with spaces  \ntest", "line with spaces\ntest"),
         ("line1\n/* xyz */    line2", "line1\nline2"),
@@ -87,13 +87,35 @@ def test_smiley(data, expected):
          ## head1
 
          """),
+        ("""\
+         == head1 ==
+
+         Preamble.
+
+          * aaaaaaaaaaaaa
+          * baaaaaaaaaaaa
+
+         == head1 ==
+         """,
+         """\
+         ### head1
+
+         Preamble.
+
+         * aaaaaaaaaaaaa
+         * baaaaaaaaaaaa
+
+         ### head1
+
+         """),
+
     ]
 )
 def test_continuous_blocks(data, expected):
     data = textwrap.dedent(data)
     expected = textwrap.dedent(expected)
     page = MoinParser.parse(data, 'PageName')
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected, page.tree_repr()
 
 
 @pytest.mark.parametrize(

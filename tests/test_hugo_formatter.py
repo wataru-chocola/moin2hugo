@@ -72,7 +72,7 @@ def test_consolidate(data, expected):
         ("---\n", "\\-\\-\\-\n"),
         ("[aa](something)", r"\[aa\]\(something\)"),
         ("[aa][1]", r"\[aa\]\[1\]"),
-        ("[1]: something", r"\[1\]\: something"),
+        ("[1]: something", r"\[1\]: something"),
         ("![aa](something)", r"\!\[aa\]\(something\)"),
         ("<fake@example.com>", r"\<fake@example.com\>"),
         (r"\10,000", r"\\10,000"),
@@ -81,9 +81,9 @@ def test_consolidate(data, expected):
 
         # extended markdown
         ("```\ncode\n```", "\\`\\`\\`\ncode\n\\`\\`\\`"),
-        ("[^1]: test", r"\[^1\]\: test"),
+        ("[^1]: test", r"\[^1\]: test"),
         ("Heading {#custom-id}", r"Heading \{\#custom-id\}"),
-        ("Term\n: Desc", "Term\n\\: Desc"),
+        ("Term\n: Desc", "Term\n: Desc"),
         ("~~Test~~", r"\~\~Test\~\~"),
         (":smiley:", r"\:smiley\:"),
 
@@ -91,6 +91,7 @@ def test_consolidate(data, expected):
         ("1 + 2", "1 + 2"),
         ("1 - 2", "1 - 2"),
         ("hello, world!", "hello, world!"),
+        ("term: definition", "term: definition"),
 
         ("<br>", r"\<br\>"),
     ]
