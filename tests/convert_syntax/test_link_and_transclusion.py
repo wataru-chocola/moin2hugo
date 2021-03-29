@@ -9,7 +9,7 @@ from unittest import mock
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        ("MeatBall:InterWiki", r"MeatBall\:InterWiki"),
+        ("MeatBall:InterWiki", r"MeatBall:InterWiki"),
         ("HelpOnEditing/SubPages", "[HelpOnEditing/SubPages](/HelpOnEditing/SubPages)"),
         ("PageName", "PageName"),
         ("!TestName", "!TestName"),
@@ -22,9 +22,9 @@ from unittest import mock
         ('[[SomePage|some Page|target="_blank"]]', '[some Page](/SomePage)'),
         ('[[attachment:SomePage/image.png]]', '[SomePage/image.png](/SomePage/image.png)'),
         ('[[attachment:SomePage/image.png|image.png|title="png"]]', '[image.png](/SomePage/image.png "png")'),  # noqa
-        ('[[drawing:SomePage/image.png]]', r'\[\[drawing\:SomePage/image.png\]\]'),
+        ('[[drawing:SomePage/image.png]]', r'\[\[drawing:SomePage/image.png\]\]'),
         ('[[http://example.net/|example site]]', '[example site](http://example.net/)'),
-        ('[[otherwiki:somepage]]', r'\[\[otherwiki\:somepage\]\]'),
+        ('[[otherwiki:somepage]]', r'\[\[otherwiki:somepage\]\]'),
 
         # rel links
         ('[[../RelPage|Relative Link]]', '[Relative Link](/RelPage)'),
@@ -56,7 +56,7 @@ def test_links(data, expected):
         # page
         ("{{pagename}}", '<object data="/pagename" type="text/html">pagename</object>'),
         # drawing
-        ("{{drawing:twikitest.tdraw}}", r"\{\{drawing\:twikitest.tdraw\}\}"),
+        ("{{drawing:twikitest.tdraw}}", r"\{\{drawing:twikitest.tdraw\}\}"),
         # external graphic
         ("{{http://example.net/image.png}}", "![](http://example.net/image.png)"),
         ('{{http://example.net/image.png|alt text|align="position"}}', '![alt text](http://example.net/image.png "alt text")'),  # noqa
