@@ -313,7 +313,25 @@ class HugoFormatter(FormatterBase):
         return ''
 
     # Codeblock
+    def _fenced_code(self, delimiter: str, content: str, syntax_id: Optional[str] = None):
+        ret = ""
+        if syntax_id:
+            ret += "%s%s\n" % (delimiter, syntax_id)
+        else:
+            ret += "%s\n" % (delimiter)
+        ret += content
+        ret += "\n%s" % delimiter
+        return ret
+
     def parsed_text(self, e: ParsedText) -> str:
+        old_parser_mapping = {
+            'cplusplus': 'cpp',
+            'diff': 'diff',
+            'python': 'python',
+            'java': 'java',
+            'pascal': 'pascal',
+            'irssi': 'irc'
+        }
         lines = e.content.splitlines()
         if lines and not lines[0]:
             lines = lines[1:]
@@ -328,14 +346,17 @@ class HugoFormatter(FormatterBase):
 
         ret = self._separator_line(e)
         if e.parser_name == 'highlight':
+            # chroma in hugo is basically compatible with pygments in moinwiki
             parser_args = e.parser_args or ''
-            ret += "%s%s\n" % (codeblock_delimiter, parser_args)
-            ret += "\n".join(lines)
-            ret += "\n%s" % codeblock_delimiter
+            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines), syntax_id=parser_args)
+        elif e.parser_name in old_parser_mapping:
+            syntax_id = old_parser_mapping[e.parser_name]
+            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines), syntax_id=syntax_id)
         elif e.parser_name in ["text", ""]:
-            ret += "%s\n" % codeblock_delimiter
-            ret += "\n".join(lines)
-            ret += "\n%s" % codeblock_delimiter
+            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines))
+        else:
+            logger.warning("unsupported: parser=%s" % e.parser_name)
+            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines))
         return ret
 
     # Table
