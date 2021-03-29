@@ -275,11 +275,12 @@ class HugoFormatter(FormatterBase):
                 if self.config.goldmark_unsafe:
                     return '<br />'
                 else:
+                    logger.warning("unsupported: macro <<BR>> inside table")
                     return escape_markdown_all(e.source_text)
         elif e.macro_name == 'TableOfContents':
-            # TODO
             return ''
         else:
+            logger.warning("unsupported: macro <<%s>>" % e.macro_name)
             if e.markup:
                 return self.text(Text(e.markup))
         return ''
