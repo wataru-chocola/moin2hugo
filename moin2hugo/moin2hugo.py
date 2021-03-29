@@ -62,6 +62,12 @@ class Moin2Hugo(object):
         return self._hugo_site_structure
 
     def _scan_page(self, entryname: str, page_dir: str) -> Optional[MoinPageInfo]:
+        ignorable_pages = ['BadContent', 'SideBar']
+
+        pagename = unquoteWikiname(entryname)
+        if pagename in ignorable_pages:
+            return None
+
         pagedir = os.path.join(page_dir, entryname)
         current_file = os.path.join(pagedir, 'current')
         try:
@@ -98,7 +104,7 @@ class Moin2Hugo(object):
                                             name=attachment_entry.name)
                 attachments.append(attachment)
 
-        page = MoinPageInfo(filepath=content_file, name=unquoteWikiname(entryname),
+        page = MoinPageInfo(filepath=content_file, name=pagename,
                             updated=updated, attachments=attachments)
         return page
 
