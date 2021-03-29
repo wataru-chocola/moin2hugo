@@ -54,7 +54,7 @@ def test_links(data, expected):
         ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](image.txt)"),
         ("{{attachment:image.pdf}}", '<object data="image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
         # page
-        ("{{pagename}}", '<object data="/pagename" type="text/html">pagename</object>'),
+        ("{{pagename}}", '<object data="/pagename" type="text/html" width="100%">pagename</object>'),  # noqa
         # drawing
         ("{{drawing:twikitest.tdraw}}", r"\{\{drawing:twikitest.tdraw\}\}"),
         # external graphic

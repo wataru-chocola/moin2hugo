@@ -22,6 +22,7 @@ from moin2hugo.page_tree import (
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
+from moin2hugo.page_tree import ObjectAttr
 from moin2hugo.config import HugoConfig
 
 from typing import Optional, List, Dict, Tuple, Union
@@ -541,26 +542,30 @@ class HugoFormatter(FormatterBase):
         return ret
 
     # Image / Object Embedding
-    def _transclude(self, url: str, e: PageElement, mimetype: Optional[str] = None,
-                    title: Optional[str] = None) -> str:
+    def _transclude(self, url: str, e: PageElement, objattr: Optional[ObjectAttr] = None) -> str:
         tag_attrs = collections.OrderedDict([('data', url)])
-        if mimetype:
-            tag_attrs['type'] = html.escape(mimetype)
-        if title:
-            tag_attrs['name'] = html.escape(title)
+        if objattr:
+            if objattr.mimetype:
+                tag_attrs['type'] = html.escape(objattr.mimetype)
+            if objattr.title:
+                tag_attrs['name'] = html.escape(objattr.title)
+            if objattr.width:
+                tag_attrs['width'] = html.escape(objattr.width)
+            if objattr.height:
+                tag_attrs['height'] = html.escape(objattr.height)
         return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              root_path=self.config.root_path,
                              disable_path_to_lower=self.config.disable_path_to_lower)
-        return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
+        return self._transclude(url, e, e.attrs)
 
     def transclude(self, e: Transclude) -> str:
         url = page_url(e.pagename, relative_base=self.pagename,
                        root_path=self.config.root_path,
                        disable_path_to_lower=self.config.disable_path_to_lower)
-        return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
+        return self._transclude(url, e, e.attrs)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
