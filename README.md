@@ -1,8 +1,8 @@
 # moin2hugo
 
-> A converter from MoinMoin wiki (moinwiki) data directory to hugo content directory.
+> A converter from MoinMoin wiki (moinwiki) data directory to Hugo content directory.
 
-Moin2Hugo converts moinmoin site directory to hugo content directory.
+Moin2Hugo converts MoinMoin site directory to hugo content directory.
 
 * Convert syntax directory (without going through transforming to HTML).
 * Generate clean and tidy markdown source text.
@@ -14,7 +14,7 @@ Moin2Hugo converts moinmoin site directory to hugo content directory.
 ```
 Usage: moin2hugo [OPTIONS] SRC DST
 
-  Convert moinmoin site directory to hugo content directory.
+  Convert MoinMoin site directory to Hugo content directory.
 
 Options:
   -c, --config PATH
@@ -44,8 +44,9 @@ Hugo formatting configuration.
 Paramater | Default | Description
 -- | -- | --
 `detect_table_header_heuristically` | `True` | make table header by heuristics
-`increment_heading_level` | `True` | increment heading level (e.g. moin's h1 -> hugo's h2)
+`increment_heading_level` | `True` | increment heading level (e.g. Moin's h1 -> Hugo's h2)
 `root_path` | `/` | root path of hugo site in url
+`use_figure_shortcode` | `True` | use `figure` shortcode
 `goldmark_unsafe` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
 `disable_path_to_lower` | `True` | corresponding with hugo config: `disablePathLower`
 
@@ -79,6 +80,38 @@ MoinMoin Syntax | Meaning in MoinMoin | Converted into
 `^super^script` | superscript text decoration | `<sup>` tag
 `,,sub,,script` | subscript text decoration | `<sub>` tag
 `{{attachment:object.mp4}}` | embedding object | `<object>` tag
+
+
+### Tag attributes
+
+In Moinmoin, you can specify tag attributes in link, image, embedded object like:
+
+```
+{{attachment:image.png|title|width=100,height=150}}
+```
+
+The support status for these attributes is here:
+
+Tag | Attribute | Support Status
+--- | --------- | --------------
+Link   |`class`     | unsupported
+Link   |`title`     | supported
+Link   |`target`    | supported
+Link   |`accesskey` | unsupported
+Link   |`rel`       | unsupported
+Image  |`class`     | unsupported
+Image  |`alt`       | supported
+Image  |`title`     | supported
+Image  |`longdesc`  | unsupported (deprecated in HTML5)
+Image  |`width`     | supported only if `hugo_config.use_figure_shortcode=True`
+Image  |`height`    | supported only if `hugo_config.use_figure_shortcode=True`
+Image  |`align`     | unsupported
+Object |`class`     | unsupported
+Object |`title`     | supported
+Object |`mimetype`  | supported
+Object |`width`     | supported
+Object |`height`    | supported
+Object |`standby`   | unsupported (deprecated in HTML5)
 
 
 ### Macro
