@@ -6,9 +6,10 @@ class MoinSiteConfig(BaseSettings):
 
 
 class HugoConfig(BaseSettings):
+    root_path: str = '/'
     detect_table_header_heuristically: bool = True
     increment_heading_level: bool = True
-    root_path: str = '/'
+    use_figure_shortcode: bool = True
 
     goldmark_unsafe: bool = True
     disable_path_to_lower: bool = True

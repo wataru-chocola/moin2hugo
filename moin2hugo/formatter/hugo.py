@@ -22,6 +22,7 @@ from moin2hugo.page_tree import (
     AttachmentTransclude, Transclude,
     AttachmentInlined, AttachmentImage, Image
 )
+from moin2hugo.page_tree import ObjectAttr, ImageAttr
 from moin2hugo.config import HugoConfig
 
 from typing import Optional, List, Dict, Tuple, Union
@@ -176,6 +177,18 @@ class HugoFormatter(FormatterBase):
         else:
             logger.warning("unsupported: %s (set `goldmark_unsafe` option)" % e.__class__.__name__)
             return "%s" % escape_markdown_all(e.source_text)
+
+    def _shortcode(self, shortcode: str, attrs: Dict[str, Optional[str]] = {}) -> str:
+        if attrs:
+            attrs_str = []
+            for k, v in attrs.items():
+                if v is None:
+                    attrs_str.append('%s' % k)
+                else:
+                    attrs_str.append('%s="%s"' % (k, v))
+            return "{{< %s %s >}}" % (shortcode, " ".join(attrs_str))
+        else:
+            return "{{< %s >}}" % shortcode
 
     # Basic Elements
     def page_root(self, e: PageRoot) -> str:
@@ -541,26 +554,30 @@ class HugoFormatter(FormatterBase):
         return ret
 
     # Image / Object Embedding
-    def _transclude(self, url: str, e: PageElement, mimetype: Optional[str] = None,
-                    title: Optional[str] = None) -> str:
+    def _transclude(self, url: str, e: PageElement, objattr: Optional[ObjectAttr] = None) -> str:
         tag_attrs = collections.OrderedDict([('data', url)])
-        if mimetype:
-            tag_attrs['type'] = html.escape(mimetype)
-        if title:
-            tag_attrs['name'] = html.escape(title)
+        if objattr:
+            if objattr.mimetype:
+                tag_attrs['type'] = html.escape(objattr.mimetype)
+            if objattr.title:
+                tag_attrs['name'] = html.escape(objattr.title)
+            if objattr.width:
+                tag_attrs['width'] = html.escape(objattr.width)
+            if objattr.height:
+                tag_attrs['height'] = html.escape(objattr.height)
         return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              root_path=self.config.root_path,
                              disable_path_to_lower=self.config.disable_path_to_lower)
-        return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
+        return self._transclude(url, e, e.attrs)
 
     def transclude(self, e: Transclude) -> str:
         url = page_url(e.pagename, relative_base=self.pagename,
                        root_path=self.config.root_path,
                        disable_path_to_lower=self.config.disable_path_to_lower)
-        return self._transclude(url, e, e.attrs.mimetype, e.attrs.title)
+        return self._transclude(url, e, e.attrs)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
@@ -579,28 +596,47 @@ class HugoFormatter(FormatterBase):
         ret += self._link(escaped_url, escape_markdown_all(e.link_text))
         return ret
 
-    def _image(self, src: MarkdownEscapedText, alt: Optional[MarkdownEscapedText] = None,
-               title: Optional[MarkdownEscapedText] = None) -> str:
-        if alt is None:
+    def _figure_shortcode(self, src: MarkdownEscapedText, e: PageElement,
+                          imgattr: Optional[ImageAttr] = None) -> str:
+        tag_attrs: Dict[str, Optional[str]] = collections.OrderedDict([('src', str(src))])
+        if imgattr is not None:
+            if imgattr.title is not None:
+                tag_attrs['title'] = html.escape(imgattr.title)
+            if imgattr.alt is not None:
+                tag_attrs['alt'] = html.escape(imgattr.alt)
+            if imgattr.width:
+                tag_attrs['width'] = html.escape(imgattr.width)
+            if imgattr.height:
+                tag_attrs['height'] = html.escape(imgattr.height)
+        return self._shortcode('figure', attrs=tag_attrs)
+
+    def _image(self, src: MarkdownEscapedText, imgattr: Optional[ImageAttr] = None) -> str:
+        if imgattr is not None and imgattr.alt is not None:
+            alt = escape_markdown_all(imgattr.alt)
+        else:
             alt = MarkdownEscapedText('')
-        if title is not None:
+
+        if imgattr is not None and imgattr.title is not None:
+            title = escape_markdown_all(imgattr.title)
             return '![{alt}]({src} "{title}")'.format(alt=alt, src=src, title=title)
         else:
             return '![{alt}]({src})'.format(alt=alt, src=src)
 
     def image(self, e: Image) -> str:
         src = escape_markdown_symbols(e.src, symbols=['"', '[', ']', '(', ')'])
-        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
-        alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
-        return self._image(src, alt, title)
+        if self.config.use_figure_shortcode and (e.attrs.width or e.attrs.height):
+            return self._figure_shortcode(src, e, e.attrs)
+        else:
+            return self._image(src, e.attrs)
 
     def attachment_image(self, e: AttachmentImage) -> str:
         url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
                              disable_path_to_lower=self.config.disable_path_to_lower)
         url = escape_markdown_symbols(url, symbols=['"', '[', ']', '(', ')'])
-        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
-        alt = None if e.attrs.alt is None else escape_markdown_all(e.attrs.alt)
-        return self._image(url, alt, title)
+        if self.config.use_figure_shortcode and (e.attrs.width or e.attrs.height):
+            return self._figure_shortcode(url, e, e.attrs)
+        else:
+            return self._image(url, e.attrs)
 
 
 def create_frontmatter(pagename: str, updated: Optional[datetime] = None):
