@@ -31,6 +31,9 @@ class TableArguments:
 
 
 class ParserCSV(ParserExtensionAbstract):
+    name: str = "csv"
+    extensions: List[str] = [".csv"]
+
     @classmethod
     def parse(cls, text: str, parser_name: str, parser_arg_string: Optional[str]) -> Table:
         table = Table()
