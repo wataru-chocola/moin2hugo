@@ -3,6 +3,7 @@ from pydantic import BaseSettings, Field
 
 class MoinSiteConfig(BaseSettings):
     bang_meta: bool = True
+    page_front_page: str = 'FrontPage'
 
 
 class HugoConfig(BaseSettings):
@@ -13,6 +14,7 @@ class HugoConfig(BaseSettings):
 
     goldmark_unsafe: bool = True
     disable_path_to_lower: bool = True
+    remove_path_accents: bool = False
 
 
 class Config(BaseSettings):

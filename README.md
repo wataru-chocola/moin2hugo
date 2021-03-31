@@ -36,6 +36,7 @@ Moin wiki parser configuration.
 Paramater | Default | Description
 -- | -- | --
 `bang_meta` |`True` | corresponding with moin site config: `bang_meta`
+`page_front_page` |`FrontPage` | corresponding with moin site config: `page_front_page`
 
 ### HugoConfig
 
@@ -49,6 +50,7 @@ Paramater | Default | Description
 `use_figure_shortcode` | `True` | use `figure` shortcode
 `goldmark_unsafe` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
 `disable_path_to_lower` | `True` | corresponding with hugo config: `disablePathLower`
+`remove_path_accents` | `False` | corresponding with hugo config: `removePathAccents`
 
 ## Notes
 

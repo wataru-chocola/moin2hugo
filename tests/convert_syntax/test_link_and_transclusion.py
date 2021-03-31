@@ -15,7 +15,7 @@ from unittest import mock
         ("!TestName", "!TestName"),
         ("fake@example.com", "<fake@example.com>"),
         ("https://www.markdownguide.org", "<https://www.markdownguide.org>"),
-        ('[[free link]]', '[free link](/free%20link)'),
+        ('[[free link]]', '[free link](/free-link)'),
         ('[[SomePage|Some Page]]', '[Some Page](/SomePage)'),
         ('[[SomePage#subsection|subsection of Some Page]]', '[subsection of Some Page](/SomePage#subsection)'),  # noqa
         ('[[SomePage|{{attachment:image.png}}]]', '[![SomePage](image.png "SomePage")](/SomePage)'),  # noqa
@@ -63,9 +63,9 @@ def test_links(data, expected):
 
         # escape
         ("{{http://example.net/im(a)ge.png}}", "![](http://example.net/im\\(a\\)ge.png)"),
-        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](%2Aa%2A.png "\\<\\"a\\"\\>")'),  # noqa
-        ("{{attachment:*a*.pdf}}", '<object data="%2Aa%2A.pdf" type="application/pdf">*a*.pdf</object>'),  # noqa
-        ("{{attachment:<a>.pdf}}", '<object data="%3Ca%3E.pdf" type="application/pdf">&lt;a&gt;.pdf</object>'),  # noqa
+        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](a.png "\\<\\"a\\"\\>")'),  # noqa
+        ("{{attachment:*a*.pdf}}", '<object data="a.pdf" type="application/pdf">*a*.pdf</object>'),  # noqa
+        ("{{attachment:<a>.pdf}}", '<object data="a.pdf" type="application/pdf">&lt;a&gt;.pdf</object>'),  # noqa
     ]
 )
 def test_transclude(data, expected):
