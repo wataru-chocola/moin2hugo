@@ -12,8 +12,8 @@ from moin2hugo.config import load_config, Config
 from moin2hugo.moin_parser import MoinParser
 from moin2hugo.moinutils import unquoteWikiname
 from moin2hugo.formatter import HugoFormatter
-from moin2hugo.formatter.hugo import encode_hugo_name, page_to_hugo_bundle_path, safe_path_join
-from moin2hugo.formatter.hugo import create_frontmatter
+from moin2hugo.path_builder import HugoPathBuilder
+from moin2hugo.utils import safe_path_join
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,20 @@ class Moin2Hugo(object):
     LEAF_BUNDLE = 2
 
     def __init__(self, src_dir: str, dst_dir: str, config: Optional[Config] = None):
-        if config:
+        if config is not None:
             self.config = config
         else:
             self.config = Config()
         self.src_dir = src_dir
         self.dst_dir = dst_dir
         self._hugo_site_structure = None
+
+        self.path_builder = HugoPathBuilder(
+            page_front_page=self.config.moin_site_config.page_front_page,
+            root_path=self.config.hugo_config.root_path,
+            disable_path_to_lower=self.config.hugo_config.disable_path_to_lower,
+            remove_path_accents=self.config.hugo_config.remove_path_accents
+        )
 
     @property
     def hugo_site_structure(self):
@@ -59,9 +66,19 @@ class Moin2Hugo(object):
             leaf_path = page.name
             if leaf_path not in self._hugo_site_structure:
                 self._hugo_site_structure[leaf_path] = self.LEAF_BUNDLE
+
+        if '' in self._hugo_site_structure:
+            # make top page into branch bandle
+            self._hugo_site_structure[''] = self.BRANCH_BUNDLE
         return self._hugo_site_structure
 
     def _scan_page(self, entryname: str, page_dir: str) -> Optional[MoinPageInfo]:
+        ignorable_pages = ['BadContent', 'SideBar']
+
+        pagename = unquoteWikiname(entryname)
+        if pagename in ignorable_pages:
+            return None
+
         pagedir = os.path.join(page_dir, entryname)
         current_file = os.path.join(pagedir, 'current')
         try:
@@ -98,7 +115,7 @@ class Moin2Hugo(object):
                                             name=attachment_entry.name)
                 attachments.append(attachment)
 
-        page = MoinPageInfo(filepath=content_file, name=unquoteWikiname(entryname),
+        page = MoinPageInfo(filepath=content_file, name=pagename,
                             updated=updated, attachments=attachments)
         return page
 
@@ -125,7 +142,7 @@ class Moin2Hugo(object):
         converted = HugoFormatter.format(page_obj, pagename=page.name,
                                          config=self.config.hugo_config)
 
-        hugo_bundle_path = page_to_hugo_bundle_path(page.name)
+        hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
         hugo_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)
         os.makedirs(hugo_bundle_path, exist_ok=True)
 
@@ -134,7 +151,7 @@ class Moin2Hugo(object):
         elif self.hugo_site_structure[page.name] == self.BRANCH_BUNDLE:
             dst_filepath = safe_path_join(hugo_bundle_path, "_index.md")
 
-        frontmatter = create_frontmatter(page.name, updated=page.updated)
+        frontmatter = HugoFormatter.create_frontmatter(page.name, updated=page.updated)
 
         logger.info("++ output: %s" % dst_filepath)
         with open(dst_filepath, 'w') as f:
@@ -145,8 +162,8 @@ class Moin2Hugo(object):
         if page.attachments:
             logger.info("++ copy attachments")
             for attachment in page.attachments:
-                attachfile_hugo_name = encode_hugo_name(attachment.name)
-                dst_path = safe_path_join(hugo_bundle_path, attachfile_hugo_name)
+                attach_filepath = self.path_builder.attachment_filepath(page.name, attachment.name)
+                dst_path = safe_path_join(self.dst_dir, attach_filepath)
                 shutil.copy(attachment.filepath, dst_path)
 
     def convert(self):

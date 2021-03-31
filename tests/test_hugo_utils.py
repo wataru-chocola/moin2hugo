@@ -2,34 +2,8 @@ import pytest
 import textwrap
 from datetime import datetime
 
-from moin2hugo.formatter.hugo import safe_path_join, page_url, attachment_url, create_frontmatter
-
-
-@pytest.mark.parametrize(
-    ("data", "expected"), [
-        (("tmp", "foo/bar"), "tmp/foo/bar"),
-        (("tmp/", "foo/bar"), "tmp/foo/bar"),
-        (("tmp/xyz", "foo/bar"), "tmp/xyz/foo/bar"),
-        (("/tmp", "foo/bar"), "/tmp/foo/bar"),
-    ]
-)
-def test_safe_path_join(data, expected):
-    basepath, path = data
-    ret = safe_path_join(basepath, path)
-    assert ret == expected
-
-
-@pytest.mark.parametrize(
-    ("basepath", "path"), [
-        ("tmp", "/foo/bar"),
-        ("tmp/", "../foo"),
-        ("tmp/xyz", "../foo"),
-        ("/tmp", "/foo"),
-    ]
-)
-def test_safe_path_join_error(basepath, path):
-    with pytest.raises(ValueError):
-        safe_path_join(basepath, path)
+from moin2hugo.path_builder import HugoPathBuilder
+from moin2hugo.formatter import HugoFormatter
 
 
 @pytest.mark.parametrize(
@@ -43,7 +17,8 @@ def test_safe_path_join_error(basepath, path):
 )
 def test_page_url(data, expected):
     base, target = data
-    url = page_url(target, base, disable_path_to_lower=True)
+    path_builder = HugoPathBuilder(disable_path_to_lower=True)
+    url = path_builder.page_url(target, base)
     assert url == expected
 
 
@@ -55,7 +30,8 @@ def test_page_url(data, expected):
 )
 def test_page_url_with_root_path(data, expected):
     base, target = data
-    url = page_url(target, base, disable_path_to_lower=True, root_path='/hugo')
+    path_builder = HugoPathBuilder(disable_path_to_lower=True, root_path='/hugo')
+    url = path_builder.page_url(target, base)
     assert url == expected
 
 
@@ -70,7 +46,8 @@ def test_page_url_with_root_path(data, expected):
 )
 def test_attachment_url(data, expected):
     base, filename, target = data
-    url = attachment_url(target, filename, base, disable_path_to_lower=True)
+    path_builder = HugoPathBuilder(disable_path_to_lower=True)
+    url = path_builder.attachment_url(target, filename, base)
     assert url == expected
 
 
@@ -82,7 +59,8 @@ def test_attachment_url(data, expected):
 )
 def test_attachment_url_with_root_path(data, expected):
     base, filename, target = data
-    url = attachment_url(target, filename, base, disable_path_to_lower=True, root_path='/hugo')
+    path_builder = HugoPathBuilder(disable_path_to_lower=True, root_path='/hugo')
+    url = path_builder.attachment_url(target, filename, base)
     assert url == expected
 
 
@@ -103,5 +81,5 @@ def test_attachment_url_with_root_path(data, expected):
 )
 def test_frontmatter(pagename, updated, expected):
     expected = textwrap.dedent(expected)
-    ret = create_frontmatter(pagename, updated)
+    ret = HugoFormatter.create_frontmatter(pagename, updated)
     assert ret == expected

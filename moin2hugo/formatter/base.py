@@ -19,13 +19,14 @@ from typing import Dict, Callable, Type, Any, Optional
 
 class FormatterBase(metaclass=ABCMeta):
     @abstractclassmethod
-    def __init__(self, config: Optional[Any] = None, pagename: Optional[str] = None):
+    def __init__(self, config: Optional[Any] = None, pagename: Optional[str] = None,
+                 path_builder: Optional[Any] = None):
         pass
 
     @classmethod
-    def format(cls, e: PageElement, config: Optional[Any] = None,
-               pagename: Optional[str] = None) -> str:
-        formatter = cls(config=config, pagename=pagename)
+    def format(cls, e: PageElement, config: Optional[Any] = None, pagename: Optional[str] = None,
+               path_builder: Optional[Any] = None) -> str:
+        formatter = cls(config=config, pagename=pagename, path_builder=path_builder)
         return formatter.do_format(e)
 
     def do_format(self, e: PageElement) -> str:

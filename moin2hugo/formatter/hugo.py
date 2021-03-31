@@ -1,9 +1,7 @@
 import re
-import os
 import textwrap
 import collections
 import html
-import urllib.parse
 import logging
 from datetime import datetime
 
@@ -23,9 +21,10 @@ from moin2hugo.page_tree import (
     AttachmentInlined, AttachmentImage, Image
 )
 from moin2hugo.page_tree import ObjectAttr, ImageAttr
+from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Optional, List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -102,13 +101,19 @@ def escape_markdown_all(text: str) -> MarkdownEscapedText:
 
 
 class HugoFormatter(FormatterBase):
-    def __init__(self, config: Optional[HugoConfig] = None, pagename: Optional[str] = None):
+    def __init__(self, config: Optional[HugoConfig] = None, pagename: Optional[str] = None,
+                 path_builder: Optional[HugoPathBuilder] = None):
         self.pagename = pagename
         if config:
             self.config = config
         else:
             self.config = HugoConfig()
         self._formatted: Dict[int, str] = {}
+
+        if path_builder:
+            self.path_builder = path_builder
+        else:
+            self.path_builder = HugoPathBuilder()
 
     def do_format(self, e: PageElement) -> str:
         e_id = id(e)
@@ -453,9 +458,7 @@ class HugoFormatter(FormatterBase):
         return self._link(url, description, title=title)
 
     def pagelink(self, e: Pagelink) -> str:
-        link_path = page_url(e.pagename, relative_base=self.pagename,
-                             root_path=self.config.root_path,
-                             disable_path_to_lower=self.config.disable_path_to_lower)
+        link_path = self.path_builder.page_url(e.pagename, relative_base=self.pagename)
         if e.queryargs:
             # just ignore them
             pass
@@ -470,9 +473,8 @@ class HugoFormatter(FormatterBase):
         return self._escape_markdown_text(e, use_source_text=True)
 
     def attachment_link(self, e: AttachmentLink) -> str:
-        link_path = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
-                                   root_path=self.config.root_path,
-                                   disable_path_to_lower=self.config.disable_path_to_lower)
+        link_path = self.path_builder.attachment_url(e.pagename, e.filename,
+                                                     relative_base=self.pagename)
         if e.queryargs:
             # just ignore them
             pass
@@ -568,24 +570,18 @@ class HugoFormatter(FormatterBase):
         return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
-        url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
-                             root_path=self.config.root_path,
-                             disable_path_to_lower=self.config.disable_path_to_lower)
+        url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
         return self._transclude(url, e, e.attrs)
 
     def transclude(self, e: Transclude) -> str:
-        url = page_url(e.pagename, relative_base=self.pagename,
-                       root_path=self.config.root_path,
-                       disable_path_to_lower=self.config.disable_path_to_lower)
+        url = self.path_builder.page_url(e.pagename, relative_base=self.pagename)
         return self._transclude(url, e, e.attrs)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
-        url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
-                             root_path=self.config.root_path,
-                             disable_path_to_lower=self.config.disable_path_to_lower)
+        url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
-        filepath = attachment_filepath(e.pagename, e.filename)
+        filepath = self.path_builder.attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
             attachment_content = f.read()
         # TODO: parse content with corresponding parser
@@ -630,81 +626,20 @@ class HugoFormatter(FormatterBase):
             return self._image(src, e.attrs)
 
     def attachment_image(self, e: AttachmentImage) -> str:
-        url = attachment_url(e.pagename, e.filename, relative_base=self.pagename,
-                             disable_path_to_lower=self.config.disable_path_to_lower)
+        url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
         url = escape_markdown_symbols(url, symbols=['"', '[', ']', '(', ')'])
         if self.config.use_figure_shortcode and (e.attrs.width or e.attrs.height):
             return self._figure_shortcode(url, e, e.attrs)
         else:
             return self._image(url, e.attrs)
 
-
-def create_frontmatter(pagename: str, updated: Optional[datetime] = None):
-    ret = "---\n"
-    title = pagename.split("/")[-1]
-    ret += 'title: "%s"\n' % title
-    if updated is not None:
-        ret += 'date: %s\n' % updated.isoformat()
-    ret += "---"
-    return ret
-
-
-def encode_hugo_name(name: str) -> str:
-    # encode punctuation which has special meaining in shell
-    punctuation = """ !"#$%&'()*+,;<=>?@[\\]^`{|}~:"""
-    trans_dict: Dict[str, Union[int, str, None]] = dict([(c, "%%%02X" % ord(c)) for c in punctuation])  # noqa
-    encoded_name = name.translate(str.maketrans(trans_dict))
-    return encoded_name
-
-
-def page_to_hugo_bundle_path(pagename: str) -> str:
-    return encode_hugo_name(pagename)
-
-
-def attachment_filepath(pagename: str, filename: str) -> str:
-    attachfile_hugo_name = encode_hugo_name(filename)
-    hugo_bundle_path = page_to_hugo_bundle_path(pagename)
-    filepath = safe_path_join(hugo_bundle_path, attachfile_hugo_name)
-    return filepath
-
-
-def page_url(pagename: str, relative_base: Optional[str] = None,
-             root_path: str = '/', disable_path_to_lower: bool = False) -> str:
-    url = urllib.parse.urljoin(root_path + "/", pagename)
-    if relative_base:
-        target_path_elems = pagename.split("/")
-        relative_base_elems = relative_base.split("/")
-        if len(target_path_elems) >= len(relative_base_elems):
-            for elem in relative_base_elems:
-                if target_path_elems[0] != elem:
-                    break
-                target_path_elems.pop(0)
-            else:
-                url = "/".join(target_path_elems)
-
-    if not disable_path_to_lower:
-        url = url.lower()
-    url = encode_hugo_name(url)
-    return url
-
-
-def attachment_url(pagename: str, filename: str, relative_base: Optional[str] = None,
-                   root_path: str = '/', disable_path_to_lower: bool = False) -> str:
-    url = page_url(pagename, relative_base=relative_base, root_path=root_path,
-                   disable_path_to_lower=disable_path_to_lower)
-    if url:
-        url = urllib.parse.urljoin(url + "/", filename)
-    else:
-        url = filename
-    if not disable_path_to_lower:
-        url = url.lower()
-    url = encode_hugo_name(url)
-    return url
-
-
-def safe_path_join(basepath: str, path: str):
-    basepath = os.path.normpath(basepath)
-    joined = os.path.normpath(os.path.join(basepath, path))
-    if os.path.commonpath([joined, basepath]) != basepath:
-        raise ValueError("not allowed path traversal: path=%s" % path)
-    return joined
+    # Frontmatter
+    @staticmethod
+    def create_frontmatter(pagename: str, updated: Optional[datetime] = None):
+        ret = "---\n"
+        title = pagename.split("/")[-1]
+        ret += 'title: "%s"\n' % title
+        if updated is not None:
+            ret += 'date: %s\n' % updated.isoformat()
+        ret += "---"
+        return ret
