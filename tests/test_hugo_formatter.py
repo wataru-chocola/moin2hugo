@@ -1,5 +1,6 @@
 from moin2hugo.formatter import HugoFormatter
 from moin2hugo.page_tree import PageRoot, Text, ParsedText, Paragraph, Remark, Strong, Pagelink
+from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
 import pytest
@@ -139,5 +140,7 @@ def test_codeblock(data, expected):
 def test_root_path():
     pagelink = Pagelink(pagename='SomePage')
     config = HugoConfig(root_path='/hugo')
-    ret = HugoFormatter.format(pagelink, pagename='PageName', config=config)
+    hugo_path_builder = HugoPathBuilder(root_path=config.root_path)
+    ret = HugoFormatter.format(pagelink, pagename='PageName', config=config,
+                               path_builder=hugo_path_builder)
     assert ret == '[](/hugo/SomePage)'
