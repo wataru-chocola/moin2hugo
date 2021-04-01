@@ -22,3 +22,21 @@ def test_highlighted_python():
     expected = textwrap.dedent(expected)
     assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
+
+
+def test_old_parser_irrsi():
+    code_block_text = """\
+    {{{#!irssi
+    ...
+    }}}
+    """
+    expected = """\
+    ```irc
+    ...
+    ```
+    """.rstrip()
+    data = textwrap.dedent(code_block_text)
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data
