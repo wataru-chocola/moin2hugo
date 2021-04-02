@@ -1,9 +1,9 @@
-from abc import ABCMeta, abstractclassmethod
+from abc import ABCMeta, abstractmethod
 
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley, Remark,
-    ParsedText,
+    ParsedText, Codeblock,
     Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
@@ -18,7 +18,7 @@ from typing import Dict, Callable, Type, Any, Optional
 
 
 class FormatterBase(metaclass=ABCMeta):
-    @abstractclassmethod
+    @abstractmethod
     def __init__(self, config: Optional[Any] = None, pagename: Optional[str] = None,
                  path_builder: Optional[Any] = None):
         pass
@@ -49,6 +49,7 @@ class FormatterBase(metaclass=ABCMeta):
 
             # Codeblock / ParsedText
             ParsedText: self.parsed_text,
+            Codeblock: self.codeblock,
 
             # Table
             Table: self.table,
@@ -94,158 +95,162 @@ class FormatterBase(metaclass=ABCMeta):
         }
         return dispatch_tbl[type(e)](e)
 
-    @abstractclassmethod
+    @abstractmethod
     def page_root(self, e: PageRoot) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def paragraph(self, e: Paragraph) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def text(self, e: Text) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def sgml_entity(self, e: SGMLEntity) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def macro(self, e: Macro) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def comment(self, e: Comment) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def smiley(self, e: Smiley) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def remark(self, e: Remark) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
+    def codeblock(self, e: Codeblock) -> str:
+        pass
+
+    @abstractmethod
     def parsed_text(self, e: ParsedText) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def table(self, e: Table) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def table_row(self, e: TableRow) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def table_cell(self, e: TableCell) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def heading(self, e: Heading) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def rule(self, e: HorizontalRule) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def underline(self, e: Underline) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def strike(self, e: Strike) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def small(self, e: Small) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def big(self, e: Big) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def emphasis(self, e: Emphasis) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def strong(self, e: Strong) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def sup(self, e: Sup) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def sub(self, e: Sub) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def code(self, e: Code) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def link(self, e: Link) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def pagelink(self, e: Pagelink) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def interwikilink(self, e: Interwikilink) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def attachment_link(self, e: AttachmentLink) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def url(self, e: Url) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def bullet_list(self, e: BulletList) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def number_list(self, e: NumberList) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def listitem(self, e: Listitem) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def definition_list(self, e: DefinitionList) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def definition_term(self, e: DefinitionTerm) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def definition_desc(self, e: DefinitionDesc) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def transclude(self, e: Transclude) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def attachment_image(self, e: AttachmentImage) -> str:
         pass
 
-    @abstractclassmethod
+    @abstractmethod
     def image(self, e: Image) -> str:
         pass

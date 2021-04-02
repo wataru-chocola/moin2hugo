@@ -9,7 +9,7 @@ from .base import FormatterBase
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley, Remark,
-    ParsedText,
+    ParsedText, Codeblock,
     Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
@@ -21,6 +21,7 @@ from moin2hugo.page_tree import (
     AttachmentInlined, AttachmentImage, Image
 )
 from moin2hugo.page_tree import ObjectAttr, ImageAttr
+from moin2hugo.moin_parser_extensions import parser_extensions, parser_extension_fallback
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
@@ -313,25 +314,7 @@ class HugoFormatter(FormatterBase):
         return ''
 
     # Codeblock
-    def _fenced_code(self, delimiter: str, content: str, syntax_id: Optional[str] = None):
-        ret = ""
-        if syntax_id:
-            ret += "%s%s\n" % (delimiter, syntax_id)
-        else:
-            ret += "%s\n" % (delimiter)
-        ret += content
-        ret += "\n%s" % delimiter
-        return ret
-
-    def parsed_text(self, e: ParsedText) -> str:
-        old_parser_mapping = {
-            'cplusplus': 'cpp',
-            'diff': 'diff',
-            'python': 'python',
-            'java': 'java',
-            'pascal': 'pascal',
-            'irssi': 'irc'
-        }
+    def codeblock(self, e: Codeblock) -> str:
         lines = e.content.splitlines()
         if lines and not lines[0]:
             lines = lines[1:]
@@ -345,19 +328,26 @@ class HugoFormatter(FormatterBase):
                 codeblock_delimiter = "`" * (len(m.group(0)) + 1)
 
         ret = self._separator_line(e)
-        if e.parser_name == 'highlight':
-            # chroma in hugo is basically compatible with pygments in moinwiki
-            parser_args = e.parser_args or ''
-            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines), syntax_id=parser_args)
-        elif e.parser_name in old_parser_mapping:
-            syntax_id = old_parser_mapping[e.parser_name]
-            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines), syntax_id=syntax_id)
-        elif e.parser_name in ["text", ""]:
-            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines))
+        if e.syntax_id:
+            ret += "%s%s\n" % (codeblock_delimiter, e.syntax_id)
+        else:
+            ret += "%s\n" % (codeblock_delimiter)
+        ret += "\n".join(lines)
+        ret += "\n%s" % codeblock_delimiter
+        return ret
+
+    def parsed_text(self, e: ParsedText) -> str:
+        if e.parser_name == "":
+            parser_name = "text"
+        else:
+            parser_name = e.parser_name
+
+        if parser_name in parser_extensions:
+            elem = parser_extensions[parser_name](e.content, e.parser_name, e.parser_args)
         else:
             logger.warning("unsupported: parser=%s" % e.parser_name)
-            ret += self._fenced_code(codeblock_delimiter, "\n".join(lines))
-        return ret
+            elem = parser_extension_fallback(e.content, e.parser_name, e.parser_args)
+        return self.format(elem)
 
     # Table
     def _is_header_row(self, e: TableRow) -> bool:
@@ -376,7 +366,7 @@ class HugoFormatter(FormatterBase):
         for i, row in enumerate(e.children):
             assert isinstance(row, TableRow)
             if self.config.detect_table_header_heuristically and not header_ends:
-                if self._is_header_row(row):
+                if row.is_header or self._is_header_row(row):
                     num_of_header_lines = i + 1
                 else:
                     header_ends = True
