@@ -334,8 +334,6 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in settings.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    available_parsers = ('text', 'highlight')
-
     def __init__(self, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None):
         if site_config:
             self.site_config = site_config
@@ -979,10 +977,6 @@ class MoinParser(object):
         self.builder.parsed_text_start(source_text=word)
 
         if parser_name:
-            if parser_name not in self.available_parsers:
-                logger.warning("unsupported parser: %s" % parser_name)
-                parser_name = 'text'
-                parser_args = None
             self.builder.parsed_text_parser(parser_name, parser_args)
 
     def _parser_content(self, line: str):
@@ -1005,10 +999,6 @@ class MoinParser(object):
                     parser_name = tmp[0]
 
             if not parser_name:
-                parser_name = 'text'
-
-            if parser_name not in self.available_parsers:
-                logger.warning("unsupported parser: %s" % parser_name)
                 parser_name = 'text'
 
             self.builder.parsed_text_parser(parser_name, parser_args)

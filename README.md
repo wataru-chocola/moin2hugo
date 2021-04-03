@@ -126,6 +126,13 @@ Only a part of macros are supported.
 
 ### Parser
 
+Supported parsers:
+
+* `highlight`
+* `diff`, `cplusplus`, `python`, `java`, `pascal`, `irssi
+* `text`
+* `csv`
+
 
 ## References
 
