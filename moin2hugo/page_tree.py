@@ -193,6 +193,11 @@ class ParsedText(PageElement):
     parser_args: Optional[str] = attr.ib(default=None)
 
 
+@attr.s
+class Codeblock(PageElement):
+    syntax_id: Optional[str] = attr.ib(default=None)
+
+
 # Table
 #
 @attr.s
@@ -203,6 +208,7 @@ class Table(PageElement):
 @attr.s
 class TableRow(PageElement):
     attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
+    is_header: bool = attr.ib(default=False)
 
 
 @attr.s

@@ -1,4 +1,5 @@
 import re
+import os.path
 import textwrap
 import collections
 import html
@@ -9,7 +10,7 @@ from .base import FormatterBase
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
     Macro, Comment, Smiley, Remark,
-    ParsedText,
+    ParsedText, Codeblock,
     Table, TableRow, TableCell,
     Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
     BulletList, NumberList, Listitem,
@@ -21,6 +22,8 @@ from moin2hugo.page_tree import (
     AttachmentInlined, AttachmentImage, Image
 )
 from moin2hugo.page_tree import ObjectAttr, ImageAttr
+from moin2hugo.moin_parser_extensions import get_parser, get_fallback_parser
+from moin2hugo.moin_parser_extensions import get_parser_info_from_ext
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
@@ -313,7 +316,7 @@ class HugoFormatter(FormatterBase):
         return ''
 
     # Codeblock
-    def parsed_text(self, e: ParsedText) -> str:
+    def codeblock(self, e: Codeblock) -> str:
         lines = e.content.splitlines()
         if lines and not lines[0]:
             lines = lines[1:]
@@ -327,16 +330,26 @@ class HugoFormatter(FormatterBase):
                 codeblock_delimiter = "`" * (len(m.group(0)) + 1)
 
         ret = self._separator_line(e)
-        if e.parser_name == 'highlight':
-            parser_args = e.parser_args or ''
-            ret += "%s%s\n" % (codeblock_delimiter, parser_args)
-            ret += "\n".join(lines)
-            ret += "\n%s" % codeblock_delimiter
-        elif e.parser_name in ["text", ""]:
-            ret += "%s\n" % codeblock_delimiter
-            ret += "\n".join(lines)
-            ret += "\n%s" % codeblock_delimiter
+        if e.syntax_id:
+            ret += "%s%s\n" % (codeblock_delimiter, e.syntax_id)
+        else:
+            ret += "%s\n" % (codeblock_delimiter)
+        ret += "\n".join(lines)
+        ret += "\n%s" % codeblock_delimiter
         return ret
+
+    def parsed_text(self, e: ParsedText) -> str:
+        if e.parser_name == "":
+            parser_name = "text"
+        else:
+            parser_name = e.parser_name
+
+        parser = get_parser(parser_name)
+        if not parser:
+            logger.warning("unsupported: parser=%s" % e.parser_name)
+            parser = get_fallback_parser()
+        elem = parser.parse(e.content, e.parser_name, e.parser_args)
+        return self.format(elem)
 
     # Table
     def _is_header_row(self, e: TableRow) -> bool:
@@ -355,7 +368,7 @@ class HugoFormatter(FormatterBase):
         for i, row in enumerate(e.children):
             assert isinstance(row, TableRow)
             if self.config.detect_table_header_heuristically and not header_ends:
-                if self._is_header_row(row):
+                if row.is_header or self._is_header_row(row):
                     num_of_header_lines = i + 1
                 else:
                     header_ends = True
@@ -581,14 +594,20 @@ class HugoFormatter(FormatterBase):
         ret = ""
         url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
+
         filepath = self.path_builder.attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
             attachment_content = f.read()
-        # TODO: parse content with corresponding parser
-        # _, ext = os.path.splitext(e.filename)
-        # Parser = wikiutil.getParserForExtension(self.request.cfg, ext)
-        ret += self.do_format(ParsedText(parser_name="text", content=attachment_content))
-        ret += "\n\n"
+
+        _, ext = os.path.splitext(e.filename)
+        parser_name, parser_args = get_parser_info_from_ext(ext)
+        if parser_name is None:
+            parser_name = 'text'
+        ret += self.do_format(ParsedText(parser_name=parser_name, parser_args=parser_args,
+                                         content=attachment_content))
+        if not ret.endswith("\n"):
+            ret += "\n"
+        ret += "\n"
         ret += self._link(escaped_url, escape_markdown_all(e.link_text))
         return ret
 
