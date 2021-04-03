@@ -129,7 +129,7 @@ Only a part of macros are supported.
 Supported parsers:
 
 * `highlight`
-* `diff`, `cplusplus`, `python`, `java`, `pascal`, `irssi
+* `diff`, `cplusplus`, `python`, `java`, `pascal`, `irssi`
 * `text`
 * `csv`
 
