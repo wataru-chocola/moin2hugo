@@ -1,4 +1,5 @@
 import re
+import os.path
 import textwrap
 import collections
 import html
@@ -21,7 +22,8 @@ from moin2hugo.page_tree import (
     AttachmentInlined, AttachmentImage, Image
 )
 from moin2hugo.page_tree import ObjectAttr, ImageAttr
-from moin2hugo.moin_parser_extensions import parser_extensions, parser_extension_fallback
+from moin2hugo.moin_parser_extensions import get_parser, get_fallback_parser
+from moin2hugo.moin_parser_extensions import get_parser_info_from_ext
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
@@ -342,11 +344,11 @@ class HugoFormatter(FormatterBase):
         else:
             parser_name = e.parser_name
 
-        if parser_name in parser_extensions:
-            elem = parser_extensions[parser_name](e.content, e.parser_name, e.parser_args)
-        else:
+        parser = get_parser(parser_name)
+        if not parser:
             logger.warning("unsupported: parser=%s" % e.parser_name)
-            elem = parser_extension_fallback(e.content, e.parser_name, e.parser_args)
+            parser = get_fallback_parser()
+        elem = parser.parse(e.content, e.parser_name, e.parser_args)
         return self.format(elem)
 
     # Table
@@ -592,14 +594,20 @@ class HugoFormatter(FormatterBase):
         ret = ""
         url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
         escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
+
         filepath = self.path_builder.attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
             attachment_content = f.read()
-        # TODO: parse content with corresponding parser
-        # _, ext = os.path.splitext(e.filename)
-        # Parser = wikiutil.getParserForExtension(self.request.cfg, ext)
-        ret += self.do_format(ParsedText(parser_name="text", content=attachment_content))
-        ret += "\n\n"
+
+        _, ext = os.path.splitext(e.filename)
+        parser_name, parser_args = get_parser_info_from_ext(ext)
+        if parser_name is None:
+            parser_name = 'text'
+        ret += self.do_format(ParsedText(parser_name=parser_name, parser_args=parser_args,
+                                         content=attachment_content))
+        if not ret.endswith("\n"):
+            ret += "\n"
+        ret += "\n"
         ret += self._link(escaped_url, escape_markdown_all(e.link_text))
         return ret
 

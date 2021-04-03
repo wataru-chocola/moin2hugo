@@ -6,6 +6,8 @@ from moin2hugo.config import HugoConfig
 import pytest
 from unittest import mock
 
+import textwrap
+
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
@@ -51,7 +53,6 @@ def test_links(data, expected):
         ("{{attachment:image.png}}", "![](image.png)"),
         ("{{attachment:image.png|title}}", '![title](image.png "title")'),
         ('{{attachment:image.png|title|width=100,height=150,xxx=11}}', '{{< figure src="image.png" title="title" alt="title" width="100" height="150" >}}'),  # noqa
-        ("{{attachment:image.txt}}", "```\nhello\n```\n\n[image.txt](image.txt)"),
         ("{{attachment:image.pdf}}", '<object data="image.pdf" type="application/pdf">image.pdf</object>'),  # noqa
         # page
         ("{{pagename}}", '<object data="/pagename" type="text/html" width="100%">pagename</object>'),  # noqa
@@ -69,10 +70,8 @@ def test_links(data, expected):
     ]
 )
 def test_transclude(data, expected):
-    mock_io = mock.mock_open(read_data="hello")
     page = MoinParser.parse(data, 'PageName')
-    with mock.patch('moin2hugo.formatter.hugo.open', mock_io):
-        assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
 
 
@@ -110,3 +109,51 @@ def test_transclude_without_unsafe(data, expected, caplog):
     ret = HugoFormatter.format(page, config=HugoConfig(goldmark_unsafe=False), pagename='PageName')
     assert ret == expected, page.tree_repr(include_src=True)
     assert 'goldmark_unsafe' in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("text", "content", "expected"), [
+        ("{{attachment:text.txt}}",
+         "hello",
+         """\
+         ```text
+         hello
+         ```
+
+         [text.txt](text.txt)
+         """),
+        ("{{attachment:code.py}}",
+         """\
+         import sys
+         sys.write("hello")
+         """,
+         """\
+         ```python
+         import sys
+         sys.write("hello")
+         ```
+
+         [code.py](code.py)
+         """),
+        ("{{attachment:table.CSV}}",
+         """\
+         a,b,c
+         d,e,f
+         """,
+         """\
+         | a | b | c |
+         | - | - | - |
+         | d | e | f |
+
+         [table.CSV](table.CSV)
+         """),
+    ]
+)
+def test_transclude_inline_attachment(text, content, expected):
+    content = textwrap.dedent(content)
+    expected = textwrap.dedent(expected).rstrip()
+    mock_io = mock.mock_open(read_data=content)
+    page = MoinParser.parse(text, 'PageName')
+    with mock.patch('moin2hugo.formatter.hugo.open', mock_io):
+        assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == text
