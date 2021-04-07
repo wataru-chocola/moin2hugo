@@ -6,7 +6,7 @@ import attr
 from typing import Optional, List, Dict, Any, Type, Literal, TypeVar
 
 
-@attr.s
+@attr.s(slots=True)
 class PageElement(object):
     content: str = attr.ib(default='')
 
@@ -141,59 +141,59 @@ class PageElement(object):
 
 # General Objects
 #
-@attr.s
+@attr.s(slots=True)
 class PageRoot(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Paragraph(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Text(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class SGMLEntity(PageElement):
     pass
 
 
 # Moinwiki Special Objects
 #
-@attr.s
+@attr.s(slots=True)
 class Macro(PageElement):
     macro_name: str = attr.ib(kw_only=True)
     macro_args: Optional[str] = attr.ib(kw_only=True)
     markup: str = attr.ib(kw_only=True)
 
 
-@attr.s
+@attr.s(slots=True)
 class Comment(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Smiley(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Remark(PageElement):
     pass
 
 
 # Codeblock (Parsed Text)
 #
-@attr.s
+@attr.s(slots=True)
 class ParsedText(PageElement):
     parser_name: str = attr.ib(default='')
     parser_args: Optional[str] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(slots=True)
 class Codeblock(PageElement):
     syntax_id: Optional[str] = attr.ib(default=None)
 
@@ -204,7 +204,7 @@ T_TABLE_ATTR = TypeVar('T_TABLE_ATTR', bound='TableAttrBase')
 TableAttrDict = Dict[str, Any]
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class TableAttrBase:
     attribute_prefix: str = ""
 
@@ -242,17 +242,17 @@ class TableAttrBase:
         return obj
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class TableAttr(TableAttrBase):
     attribute_prefix: str = "table"
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class TableRowAttr(TableAttrBase):
     attribute_prefix: str = "row"
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class TableCellAttr(TableAttrBase):
     attribute_prefix: str = ""
 
@@ -263,77 +263,77 @@ class TableCellAttr(TableAttrBase):
     abbr: Optional[str] = attr.ib(kw_only=True, default=None)
 
 
-@attr.s
+@attr.s(slots=True)
 class Table(PageElement):
     attrs: TableAttr = attr.ib(default=attr.Factory(TableAttr))
 
 
-@attr.s
+@attr.s(slots=True)
 class TableRow(PageElement):
     attrs: TableRowAttr = attr.ib(default=attr.Factory(TableRowAttr))
     is_header: bool = attr.ib(default=False)
 
 
-@attr.s
+@attr.s(slots=True)
 class TableCell(PageElement):
     attrs: TableCellAttr = attr.ib(default=attr.Factory(TableCellAttr))
 
 
 # Heading / Horizontal Rule
 #
-@attr.s
+@attr.s(slots=True)
 class Heading(PageElement):
     depth: int = attr.ib(kw_only=True)
 
 
-@attr.s
+@attr.s(slots=True)
 class HorizontalRule(PageElement):
     pass
 
 
 # Decorations
 #
-@attr.s
+@attr.s(slots=True)
 class Underline(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Strike(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Small(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Big(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Emphasis(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Strong(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Sup(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Sub(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Code(PageElement):
     pass
 
@@ -343,7 +343,7 @@ LinkAttrKey = Literal['class', 'title', 'target', 'accesskey', 'rel']
 LinkAttrDict = Dict[LinkAttrKey, Any]
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class LinkAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     title: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -362,24 +362,24 @@ class LinkAttr:
         return obj
 
 
-@attr.s
+@attr.s(slots=True)
 class LinkBase(PageElement):
     attrs: LinkAttr = attr.ib(default=attr.Factory(LinkAttr))
 
 
-@attr.s
+@attr.s(slots=True)
 class Link(LinkBase):
     url: str = attr.ib(kw_only=True)
 
 
-@attr.s
+@attr.s(slots=True)
 class Pagelink(LinkBase):
     pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     anchor: Optional[str] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(slots=True)
 class Interwikilink(LinkBase):
     wikiname: str = attr.ib(kw_only=True)
     pagename: str = attr.ib(kw_only=True)
@@ -387,46 +387,46 @@ class Interwikilink(LinkBase):
     anchor: Optional[str] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(slots=True)
 class AttachmentLink(LinkBase):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
 
 
-@attr.s
+@attr.s(slots=True)
 class Url(PageElement):
     pass
 
 
 # Itemlist
 #
-@attr.s
+@attr.s(slots=True)
 class BulletList(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class NumberList(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class DefinitionList(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class DefinitionTerm(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class DefinitionDesc(PageElement):
     pass
 
 
-@attr.s
+@attr.s(slots=True)
 class Listitem(PageElement):
     pass
 
@@ -436,7 +436,7 @@ ImageAttrKey = Literal['class', 'alt', 'title', 'longdesc', 'width', 'height', '
 ImageAttrDict = Dict[ImageAttrKey, Any]
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class ImageAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     alt: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -457,14 +457,14 @@ class ImageAttr:
         return obj
 
 
-@attr.s
+@attr.s(slots=True)
 class AttachmentImage(PageElement):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     attrs: ImageAttr = attr.ib(default=attr.Factory(ImageAttr))
 
 
-@attr.s
+@attr.s(slots=True)
 class Image(PageElement):
     src: str = attr.ib(kw_only=True)
     attrs: ImageAttr = attr.ib(default=attr.Factory(ImageAttr))
@@ -475,7 +475,7 @@ ObjectAttrKey = Literal['class', 'title', 'width', 'height', 'mimetype', 'standb
 ObjectAttrDict = Dict[ObjectAttrKey, Any]
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True)
 class ObjectAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     title: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -495,13 +495,13 @@ class ObjectAttr:
         return obj
 
 
-@attr.s
+@attr.s(slots=True)
 class Transclude(PageElement):
     pagename: str = attr.ib(kw_only=True)
     attrs: ObjectAttr = attr.ib(default=attr.Factory(ObjectAttr))
 
 
-@attr.s
+@attr.s(slots=True)
 class AttachmentTransclude(PageElement):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
@@ -509,7 +509,7 @@ class AttachmentTransclude(PageElement):
 
 
 # Transclude (Other)
-@attr.s
+@attr.s(slots=True)
 class AttachmentInlined(PageElement):
     pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
