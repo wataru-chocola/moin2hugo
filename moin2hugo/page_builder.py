@@ -15,6 +15,7 @@ from moin2hugo.page_tree import (
 from moin2hugo.page_tree import LinkAttr, LinkAttrDict
 from moin2hugo.page_tree import ImageAttr, ImageAttrDict
 from moin2hugo.page_tree import ObjectAttr, ObjectAttrDict
+from moin2hugo.page_tree import TableAttr, TableRowAttr, TableCellAttr
 
 from typing import List, Dict, Optional, Type
 
@@ -199,21 +200,24 @@ class PageBuilder(object):
 
     # Table
     def table_start(self, attrs: Dict[str, str] = {}):
-        self._start_new_elem(Table(attrs=attrs))
+        table_attrs = TableAttr.from_dict(attrs)
+        self._start_new_elem(Table(attrs=table_attrs))
 
     def table_end(self):
         self._assert_cur_elem(Table)
         self._end_current_elem()
 
     def table_row_start(self, attrs: Dict[str, str] = {}):
-        self._start_new_elem(TableRow(attrs=attrs))
+        row_attrs = TableRowAttr.from_dict(attrs)
+        self._start_new_elem(TableRow(attrs=row_attrs))
 
     def table_row_end(self):
         self._assert_cur_elem(TableRow)
         self._end_current_elem()
 
     def table_cell_start(self, attrs: Dict[str, str] = {}, source_text: str = ''):
-        self._start_new_elem(TableCell(attrs=attrs, source_text=source_text))
+        cell_attrs = TableCellAttr.from_dict(attrs)
+        self._start_new_elem(TableCell(attrs=cell_attrs, source_text=source_text))
 
     def table_cell_end(self):
         self._assert_cur_elem(TableCell)
