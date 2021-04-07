@@ -69,7 +69,7 @@ def test_get_params(data, expected):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
-        ('<bgcolor="#00FF00" rowspan="2">', {'bgcolor': '"#00FF00"', 'rowspan': '"2"'}),
+        ('<bgcolor="#00FF00" rowspan="2">', {'bgcolor': '#00FF00', 'rowspan': '2'}),
         ('<#TGIF rowspan="2">', {}),
     ]
 )

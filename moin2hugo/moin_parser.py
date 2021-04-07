@@ -1181,25 +1181,23 @@ def _getTableAttrs(attrdef: str) -> Dict[str, str]:
                 raise ValueError('Expected "%%" after "%(key)s", got "%(token)s"' % {
                     'key': key, 'token': token})
             _ = int(key)
-            attrs['width'] = '"%s%%"' % key
+            attrs['width'] = "%s%%" % key
         elif key == '-':
             arg = parser.get_token()
-            _ = int(arg)
-            attrs['colspan'] = '"%s"' % arg
+            attrs['colspan'] = int(arg)
         elif key == '|':
             arg = parser.get_token()
-            _ = int(arg)
-            attrs['rowspan'] = '"%s"' % arg
+            attrs['rowspan'] = int(arg)
         elif key in align_keys:
-            attrs['align'] = '"%s"' % align_keys[key]
+            attrs['align'] = align_keys[key]
         elif key in valign_keys:
-            attrs['valign'] = '"%s"' % valign_keys[key]
+            attrs['valign'] = valign_keys[key]
         elif key == '#':
             arg = parser.get_token()
             if len(arg) != 6:
                 raise ValueError()
             _ = int(arg, 16)
-            attrs['bgcolor'] = '"#%s"' % arg
+            attrs['bgcolor'] = '#%s' % arg
         return attrs
 
     # scan attributes

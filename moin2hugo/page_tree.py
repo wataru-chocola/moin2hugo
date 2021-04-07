@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 import attr
 
-from typing import Optional, List, Dict, Any, Type, Literal
+from typing import Optional, List, Dict, Any, Type, Literal, TypeVar
 
 
 @attr.s
@@ -200,20 +200,83 @@ class Codeblock(PageElement):
 
 # Table
 #
+T_TABLE_ATTR = TypeVar('T_TABLE_ATTR', bound='TableAttrBase')
+TableAttrDict = Dict[str, Any]
+
+
+@attr.s(frozen=True)
+class TableAttrBase:
+    attribute_prefix: str = ""
+
+    class_: Optional[str] = attr.ib(kw_only=True, default=None)
+    id_: Optional[str] = attr.ib(kw_only=True, default=None)
+    style: Optional[str] = attr.ib(kw_only=True, default=None)
+
+    width: Optional[str] = attr.ib(kw_only=True, default=None)
+    height: Optional[str] = attr.ib(kw_only=True, default=None)
+
+    align: Optional[str] = attr.ib(kw_only=True, default=None)
+    valign: Optional[str] = attr.ib(kw_only=True, default=None)
+    bgcolor: Optional[str] = attr.ib(kw_only=True, default=None)
+
+    @classmethod
+    def filter_target_attrs(cls, data: TableAttrDict) -> TableAttrDict:
+        result = {}
+        for k, v in data.items():
+            if k.startswith(cls.attribute_prefix):
+                result[k[len(cls.attribute_prefix):]] = v
+        return result
+
+    @classmethod
+    def from_dict(cls: Type[T_TABLE_ATTR], data: TableAttrDict) -> T_TABLE_ATTR:
+        tmp_data: Dict[str, Any] = cls.filter_target_attrs(data)
+        if 'class' in tmp_data:
+            tmp_data['class_'] = tmp_data['class']
+            del tmp_data['class']
+        if 'id' in tmp_data:
+            tmp_data['id_'] = tmp_data['id']
+            del tmp_data['id']
+        initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
+        init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
+        obj = cls(**init_args)
+        return obj
+
+
+@attr.s(frozen=True)
+class TableAttr(TableAttrBase):
+    attribute_prefix: str = "table"
+
+
+@attr.s(frozen=True)
+class TableRowAttr(TableAttrBase):
+    attribute_prefix: str = "row"
+
+
+@attr.s(frozen=True)
+class TableCellAttr(TableAttrBase):
+    attribute_prefix: str = ""
+
+    colspan: Optional[str] = attr.ib(kw_only=True, default=None,
+                                     converter=attr.converters.optional(int))
+    rowspan: Optional[str] = attr.ib(kw_only=True, default=None,
+                                     converter=attr.converters.optional(int))
+    abbr: Optional[str] = attr.ib(kw_only=True, default=None)
+
+
 @attr.s
 class Table(PageElement):
-    attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
+    attrs: TableAttr = attr.ib(default=attr.Factory(TableAttr))
 
 
 @attr.s
 class TableRow(PageElement):
-    attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
+    attrs: TableRowAttr = attr.ib(default=attr.Factory(TableRowAttr))
     is_header: bool = attr.ib(default=False)
 
 
 @attr.s
 class TableCell(PageElement):
-    attrs: Dict[str, str] = attr.ib(default=attr.Factory(dict))
+    attrs: TableCellAttr = attr.ib(default=attr.Factory(TableCellAttr))
 
 
 # Heading / Horizontal Rule

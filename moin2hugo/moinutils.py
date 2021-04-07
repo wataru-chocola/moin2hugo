@@ -1,6 +1,5 @@
 import re
 import urllib.parse
-import html
 import shlex
 import logging
 import mimetypes
@@ -213,7 +212,7 @@ def unquoteWikiname(filename: str) -> str:
     return wikiname
 
 
-def parseAttributes(attrstring: str, endtoken=None, extension=None):
+def parseAttributes(attrstring: str, endtoken=None, extension=None) -> Dict[str, str]:
     parser = shlex.shlex(StringIO(attrstring))
     parser.commenters = ''
     attrs = {}
@@ -241,14 +240,7 @@ def parseAttributes(attrstring: str, endtoken=None, extension=None):
             if not val:
                 raise ValueError('Expected a value for key "%(token)s"' % {'token': key})
 
-            key = html.escape(key, quote=False)  # make sure nobody cheats
-
-            # safely escape and quote value
-            if val[0] in ["'", '"']:
-                val = html.escape(val, quote=False)
-            else:
-                val = '"%s"' % html.escape(val)
-
+            val = shlex.split(val)[0]  # unquote shell quotation
             attrs[key.lower()] = val
     except ValueError as e:
         logger.info("failed to parse attributes: %s by %s" % (attrstring, repr(e)))
