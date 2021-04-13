@@ -206,7 +206,7 @@ TableAttrDict = Dict[str, Any]
 
 @attr.s(frozen=True, slots=True)
 class TableAttrBase:
-    attribute_prefix: str = ""
+    _attribute_prefix: str = ""
 
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     id_: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -223,8 +223,8 @@ class TableAttrBase:
     def filter_target_attrs(cls, data: TableAttrDict) -> TableAttrDict:
         result = {}
         for k, v in data.items():
-            if k.startswith(cls.attribute_prefix):
-                result[k[len(cls.attribute_prefix):]] = v
+            if k.startswith(cls._attribute_prefix):
+                result[k[len(cls._attribute_prefix):]] = v
         return result
 
     @classmethod
@@ -244,17 +244,17 @@ class TableAttrBase:
 
 @attr.s(frozen=True, slots=True)
 class TableAttr(TableAttrBase):
-    attribute_prefix: str = "table"
+    _attribute_prefix: str = "table"
 
 
 @attr.s(frozen=True, slots=True)
 class TableRowAttr(TableAttrBase):
-    attribute_prefix: str = "row"
+    _attribute_prefix: str = "row"
 
 
 @attr.s(frozen=True, slots=True)
 class TableCellAttr(TableAttrBase):
-    attribute_prefix: str = ""
+    _attribute_prefix: str = ""
 
     colspan: Optional[str] = attr.ib(kw_only=True, default=None,
                                      converter=attr.converters.optional(int))
