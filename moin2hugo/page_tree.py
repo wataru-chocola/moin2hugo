@@ -263,7 +263,7 @@ class TableAttrBase:
             elif style.textAlign:
                 init_args['align'] = style.textAlign
             elif style.backgroundColor:
-                init_args['bgclor'] = style.backgroundColor
+                init_args['bgcolor'] = style.backgroundColor
 
         obj = cls(**init_args)
         return obj
