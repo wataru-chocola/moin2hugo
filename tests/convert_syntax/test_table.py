@@ -13,7 +13,7 @@ def test_basic_table():
     """
     expected = """\
     | **A** | **B** | **C** |
-    | - | - | - |
+    |---|---|---|
     | 1 | 2 | 3 |
     """
     data = textwrap.dedent(table_text)
@@ -31,7 +31,7 @@ def test_table_escape():
     """
     expected = """\
     |   |   |   |
-    | - | - | - |
+    |---|---|---|
     | A\\| | B\\| | C\\| |
     | \\-\\- | \\-\\- | \\-\\- |
     | 1 | 2 | 3 |
@@ -91,7 +91,7 @@ def test_detect_header_heuristically_1():
     """
     expected = """\
     | A | B | C |
-    | - | - | - |
+    |---|---|---|
     | a | b | c |
     """
     data = textwrap.dedent(table_text)
@@ -109,7 +109,7 @@ def test_detect_header_heuristically_2():
     """
     expected = """\
     | A | B | C |
-    | - | - | - |
+    |---|---|---|
     | a | b | c |
     """
     data = textwrap.dedent(table_text)
@@ -120,16 +120,19 @@ def test_detect_header_heuristically_2():
     assert page.source_text == data
 
 
-def test_column_alingmnet():
+def test_column_alignment():
     table_text = """\
-    ||<rowclass="header"> A || B || C ||
-    || '''A''' || '''B''' || '''C''' ||
-    ||a ||b || c ||
-    """
+    ||<rowclass="header"> A || B || C || D ||
+    ||<(>a ||<:>b ||<)> c || d ||
+    ||<style="text-align: left">a ||<style="text-align: center">b ||<style="text-align: right">c ||d ||
+    ||a ||b || c || d ||
+    """  # noqa
     expected = """\
-    | a | b | c |
-    | - | - | - |
-    | a | b | c |
+    | A | B | C | D |
+    |:--|:-:|--:|---|
+    | a | b | c | d |
+    | a | b | c | d |
+    | a | b | c | d |
     """
     data = textwrap.dedent(table_text)
     page = MoinParser.parse(data, 'PageName')
@@ -137,7 +140,6 @@ def test_column_alingmnet():
     config = HugoConfig(detect_table_header_heuristically=True)
     assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
     assert page.source_text == data
-
 
 
 def test_extended_table_without_extended_markdown_table():
@@ -149,7 +151,7 @@ def test_extended_table_without_extended_markdown_table():
     """
     expected = """\
     | A | B | C |
-    | - | - | - |
+    |---|---|---|
     | a | b |   |
     |   | b | c |
     |   | b |   |
@@ -168,7 +170,7 @@ def test_normal_table_with_extended_markdown_table():
     """
     expected = """\
     |   |   |   |
-    | - | - | - |
+    |---|---|---|
     | A | B | C |
     | a | b | c |
     """
@@ -190,7 +192,7 @@ def test_extended_table_with_extended_markdown_table():
     expected = """\
     {{< extended-markdown-table >}}
     | A | B | C |
-    | - | - | - |
+    |---|---|---|
     | a | > | b |
     | ^ | b | c |
     | ^ | b | ^ |

@@ -6,6 +6,8 @@ import html
 import logging
 from datetime import datetime
 
+import attr
+
 from .base import FormatterBase
 from moin2hugo.page_tree import (
     PageRoot, PageElement,
@@ -27,7 +29,7 @@ from moin2hugo.moin_parser_extensions import get_parser_info_from_ext
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +103,14 @@ def escape_markdown_all(text: str) -> MarkdownEscapedText:
     '''escape all occurences of these symbols no matter which context they are on.
     '''
     return escape_markdown_symbols(text, all_symbols=True)
+
+
+@attr.s
+class TableProperty:
+    num_of_header_lines: int = attr.ib(default=0)
+    num_of_columns: int = attr.ib(default=0)
+    has_extended_attributes: bool = attr.ib(default=False)
+    col_alignments: List[str] = attr.ib(default=attr.Factory(list))
 
 
 class HugoFormatter(FormatterBase):
@@ -361,31 +371,60 @@ class HugoFormatter(FormatterBase):
                     return False
         return True
 
-    def _detect_table_properties(self, e: Table) -> Tuple[int, int]:
+    def _detect_table_properties(self, e: Table) -> TableProperty:
         num_of_header_lines = 0
         num_of_columns = 0
+        alignments_of_col = collections.defaultdict(list)
         header_ends = False
         for i, row in enumerate(e.children):
             assert isinstance(row, TableRow)
+            is_header = False
             if self.config.detect_table_header_heuristically and not header_ends:
-                if row.is_header or self._is_header_row(row):
+                is_header = row.is_header or self._is_header_row(row)
+                if is_header:
                     num_of_header_lines = i + 1
                 else:
                     header_ends = True
             if len(row.children) > num_of_columns:
                 num_of_columns = len(row.children)
-        return num_of_header_lines, num_of_columns
+
+            if not is_header:
+                # TODO: consider row_span
+                colnum = 0
+                for cell in row.children:
+                    assert isinstance(cell, TableCell)
+                    tmp_align = cell.attrs.align if cell.attrs.align else 'none'
+                    alignments_of_col[colnum].append(tmp_align)
+                    colnum += cell.attrs.colspan if cell.attrs.colspan else 1
+
+        col_alignments = []
+        for i in range(num_of_columns):
+            align = "none"
+            counter = collections.Counter(alignments_of_col[i])
+            tmp = counter.most_common(1)
+            if tmp:
+                align = tmp[0][0]
+            col_alignments.append(align)
+        prop = TableProperty(num_of_header_lines=num_of_header_lines,
+                             num_of_columns=num_of_columns,
+                             col_alignments=col_alignments)
+        return prop
 
     def table(self, e: Table) -> str:
         ret = self._separator_line(e)
 
-        num_of_header_lines, num_of_columns = self._detect_table_properties(e)
-        if num_of_header_lines == 0:
-            ret += "|%s|\n" % "|".join(["   "] * num_of_columns)
+        table_prop = self._detect_table_properties(e)
+        md_table = ""
+        if table_prop.num_of_header_lines == 0:
+            md_table += "|%s|\n" % "|".join(["   "] * table_prop.num_of_columns)
         for i, c in enumerate(e.children):
-            if i == num_of_header_lines:
-                ret += "|%s|\n" % "|".join([" - "] * num_of_columns)
-            ret += self.do_format(c)
+            if i == table_prop.num_of_header_lines:
+                map_sep = {'left': ':--', 'right': '--:', 'center': ':-:'}
+                seps = [map_sep.get(align, '---') for align in table_prop.col_alignments]
+                md_table += "|%s|\n" % "|".join(seps)
+            md_table += self.do_format(c)
+
+        ret += md_table
         return ret
 
     def table_row(self, e: TableRow) -> str:
