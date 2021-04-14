@@ -208,3 +208,20 @@ def test_extended_table_with_extended_markdown_table():
     config = HugoConfig(use_extended_markdown_table=True)
     assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
     assert page.source_text == data
+
+
+def test_invalid_span():
+    table_text = """\
+    ||<tablestyle="width: 90%;" rowstyle="width: 30%;" rowclass="header"> A || B || C ||
+    ||<|3>a ||<colspan=2>b ||
+    """
+    expected = """\
+    | A | B | C |
+    |:-:|---|---|
+    | a |  | b |
+    """
+    data = textwrap.dedent(table_text)
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data

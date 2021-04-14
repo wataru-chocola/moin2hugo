@@ -447,7 +447,11 @@ class HugoFormatter(FormatterBase):
                         stub_text = '^' if self.config.use_extended_markdown_table else ''
                         stub_cell = _gen_stub(stub_text, cell.attrs)
                         stub_cell.attrs.rowspan = 1
-                        e.children[rowidx+i+1].add_child(stub_cell, at=colidx)
+                        try:
+                            e.children[rowidx+i+1].add_child(stub_cell, at=colidx)
+                        except IndexError:
+                            logger.warning("invalid rowspan")
+                            break
                     cell.attrs.rowspan = 1
                 colidx += cell.attrs.colspan if cell.attrs.colspan else 1
         return e, modified
