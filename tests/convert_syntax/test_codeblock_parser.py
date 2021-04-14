@@ -51,7 +51,7 @@ def test_csv_basic():
     """
     expected = """\
     | a | b | c |
-    | - | - | - |
+    |---|---|---|
     | d | e | f |
     """
     data = textwrap.dedent(text)
@@ -70,7 +70,7 @@ def test_csv_old_style_param():
     """
     expected = """\
     | a | b | c |
-    | - | - | - |
+    |---|---|---|
     | d | e | f |
     """
     data = textwrap.dedent(text)
@@ -90,7 +90,7 @@ def test_csv_param1():
     """
     expected = """\
     | c | d | e |
-    | - | - | - |
+    |---|---|---|
     | f | D | E |
     | i | D | E |
     """
@@ -111,7 +111,7 @@ def test_csv_param2():
     """
     expected = """\
     | a | b | c |
-    | - | - | - |
+    |---|---|---|
     | a1 | [desc1](http://example.com/link1) | c1 |
     | a2 | b2 | c2 |
     """

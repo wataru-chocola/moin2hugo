@@ -364,6 +364,8 @@ class HugoFormatter(FormatterBase):
     # Table
     def _is_header_row(self, e: TableRow) -> bool:
         # check if table row is header row by heuristic
+        if e.attrs.class_ or e.attrs.style:
+            return True
         for cell in e.children:
             assert isinstance(cell, TableCell)
             for text in cell.children:

@@ -37,7 +37,7 @@ def test_escape(data, expected):
     ("data", "expected"), [
         ("<<TableOfContents>>", ''),
         ("<<BR>>", '  \n'),
-        ("||a||b<<BR>>c||", '|   |   |\n| - | - |\n| a | b<br />c |\n'),
+        ("||a||b<<BR>>c||", '|   |   |\n|---|---|\n| a | b<br />c |\n'),
         ("<<UnsupportedMacro>>", r'\<\<UnsupportedMacro\>\>'),
     ]
 )
@@ -80,7 +80,7 @@ def test_smiley(data, expected):
          """,
          """\
          |   |   |
-         | - | - |
+         |---|---|
          | a | b |
          | 1 | 2 |
 

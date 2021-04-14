@@ -182,7 +182,7 @@ def test_definition_lists_3():
 
         text1-2.
         |   |   |   |
-        | - | - | - |
+        |---|---|---|
         | a | b | c |
         | x | y | z |
 
