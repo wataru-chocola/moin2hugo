@@ -366,6 +366,23 @@ class HugoFormatter(FormatterBase):
         return self.format(elem)
 
     # Table
+    def _strip_table_cells(self, e: Table) -> Table:
+        for row in e.children:
+            assert isinstance(row, TableRow)
+            for cell in row.children:
+                assert isinstance(cell, TableCell)
+                for elem in cell.children:
+                    if elem.content.lstrip() or elem.children:
+                        elem.content = elem.content.lstrip()
+                        break
+                    cell.del_child(0)
+                for elem in reversed(cell.children):
+                    if elem.content.rstrip() or elem.children:
+                        elem.content = elem.content.rstrip()
+                        break
+                    cell.del_child(len(cell.children)-1)
+        return e
+
     def _is_header_row(self, e: TableRow) -> bool:
         # check if table row is header row by heuristic
         if e.attrs.class_ or e.attrs.style:
@@ -377,6 +394,20 @@ class HugoFormatter(FormatterBase):
                     return False
         return True
 
+    def _destrongfy_table_header(self, row: TableRow):
+        for cell in row.children:
+            assert isinstance(cell, TableCell)
+            new_elems = []
+            for elem in cell.children:
+                if isinstance(elem, (Emphasis, Strong)):
+                    new_elems.extend(elem.children)
+                else:
+                    new_elems.append(elem)
+            for i in range(len(cell.children)):
+                cell.del_child(0)
+            for new_elem in new_elems:
+                cell.add_child(new_elem, propagate_source_text=False)
+
     def _make_table_header_heuristically(self, e: Table) -> Table:
         for row in e.children:
             assert isinstance(row, TableRow)
@@ -384,6 +415,7 @@ class HugoFormatter(FormatterBase):
                 continue
             elif self._is_header_row(row):
                 row.is_header = True
+                self._destrongfy_table_header(row)
         return e
 
     def _get_table_colinfo(self, e: Table) -> Tuple[int, List[str]]:
@@ -457,6 +489,7 @@ class HugoFormatter(FormatterBase):
         return e, modified
 
     def _process_table(self, e: Table) -> Tuple[Table, TableProperty]:
+        e = self._strip_table_cells(e)
         if self.config.detect_table_header_heuristically:
             e = self._make_table_header_heuristically(e)
         e, has_extended_attributes = self._process_table_span(e)
@@ -464,7 +497,6 @@ class HugoFormatter(FormatterBase):
         table_prop = TableProperty(num_of_columns=num_of_columns,
                                    col_alignments=col_alignments,
                                    has_extended_attributes=has_extended_attributes)
-
         return e, table_prop
 
     def table(self, e: Table) -> str:
