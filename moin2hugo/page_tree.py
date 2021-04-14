@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import textwrap
 import attr
+import cssutils  # type: ignore
 
 from typing import Optional, List, Dict, Any, Type, Literal, TypeVar
 
@@ -238,6 +239,18 @@ class TableAttrBase:
             del tmp_data['id']
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
+
+        if 'style' in init_args:
+            style = cssutils.parseStyle(init_args['style'])
+            if style.width:
+                init_args['width'] = style.width
+            elif style.height:
+                init_args['height'] = style.height
+            elif style.textAlign:
+                init_args['align'] = style.textAlign
+            elif style.backgroundColor:
+                init_args['bgclor'] = style.backgroundColor
+
         obj = cls(**init_args)
         return obj
 
@@ -256,9 +269,9 @@ class TableRowAttr(TableAttrBase):
 class TableCellAttr(TableAttrBase):
     _attribute_prefix: str = ""
 
-    colspan: Optional[str] = attr.ib(kw_only=True, default=None,
+    colspan: Optional[int] = attr.ib(kw_only=True, default=None,
                                      converter=attr.converters.optional(int))
-    rowspan: Optional[str] = attr.ib(kw_only=True, default=None,
+    rowspan: Optional[int] = attr.ib(kw_only=True, default=None,
                                      converter=attr.converters.optional(int))
     abbr: Optional[str] = attr.ib(kw_only=True, default=None)
 

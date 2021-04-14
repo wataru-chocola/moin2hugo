@@ -45,7 +45,8 @@ def test_table_escape():
 
 def test_table_attrs():
     table_text = """\
-    ||<tablestyle="width: 90%;" rowstyle="width: 30%;" rowclass="header"> A || B || C ||
+    ||<tablestyle="width: 90%;" rowclass="header"> A || B || C ||
+    ||<rowstyle="width: 30%;" rowwidth="100px" rowheight="50px"> a || b || c ||
     ||<^> 1 ||<colspan=2> 2 ||
     """
     data = textwrap.dedent(table_text)
@@ -53,26 +54,34 @@ def test_table_attrs():
     table = page.children[0]
     assert isinstance(table, Table)
 
-    row1, row2 = table.children
+    row1, row2, row3 = table.children
     assert isinstance(row1, TableRow)
     assert isinstance(row2, TableRow)
+    assert isinstance(row3, TableRow)
 
     cell_11, cell_12, cell_13 = row1.children
-    cell_21, cell_22 = row2.children
+    cell_21, cell_22, cell_23 = row2.children
+    cell_31, cell_32 = row3.children
     assert isinstance(cell_11, TableCell)
     assert isinstance(cell_12, TableCell)
     assert isinstance(cell_13, TableCell)
     assert isinstance(cell_21, TableCell)
     assert isinstance(cell_22, TableCell)
+    assert isinstance(cell_23, TableCell)
+    assert isinstance(cell_31, TableCell)
+    assert isinstance(cell_32, TableCell)
 
     assert table.attrs.class_ is None, table.tree_repr()
     assert table.attrs.style == "width: 90%;", table.tree_repr()
+    assert table.attrs.width == "90%", table.tree_repr()
 
     assert row1.attrs.class_ == "header", table.tree_repr()
-    assert row1.attrs.style == "width: 30%;", table.tree_repr()
+    assert row2.attrs.style == "width: 30%;", table.tree_repr()
+    assert row2.attrs.width == "30%", table.tree_repr()
+    assert row2.attrs.height == "50px", table.tree_repr()
 
-    assert cell_21.attrs.valign == "top", table.tree_repr()
-    assert cell_22.attrs.colspan == 2, table.tree_repr()
+    assert cell_31.attrs.valign == "top", table.tree_repr()
+    assert cell_32.attrs.colspan == 2, table.tree_repr()
 
 
 def test_detect_header_heuristically_1():
@@ -81,7 +90,7 @@ def test_detect_header_heuristically_1():
     ||a ||b || c ||
     """
     expected = """\
-    | a | b | c |
+    | A | B | C |
     | - | - | - |
     | a | b | c |
     """
@@ -99,7 +108,7 @@ def test_detect_header_heuristically_2():
     ||a ||b || c ||
     """
     expected = """\
-    | a | b | c |
+    | A | B | C |
     | - | - | - |
     | a | b | c |
     """
@@ -109,6 +118,26 @@ def test_detect_header_heuristically_2():
     config = HugoConfig(use_extended_markdown_table=True)
     assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
     assert page.source_text == data
+
+
+def test_column_alingmnet():
+    table_text = """\
+    ||<rowclass="header"> A || B || C ||
+    || '''A''' || '''B''' || '''C''' ||
+    ||a ||b || c ||
+    """
+    expected = """\
+    | a | b | c |
+    | - | - | - |
+    | a | b | c |
+    """
+    data = textwrap.dedent(table_text)
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    config = HugoConfig(detect_table_header_heuristically=True)
+    assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
+    assert page.source_text == data
+
 
 
 def test_extended_table_without_extended_markdown_table():
