@@ -142,7 +142,7 @@ def test_transclude_without_unsafe(data, expected, caplog):
          """,
          """\
          | a | b | c |
-         | - | - | - |
+         |---|---|---|
          | d | e | f |
 
          [table.CSV](table.CSV)

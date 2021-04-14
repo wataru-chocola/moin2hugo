@@ -45,12 +45,15 @@ Hugo formatting configuration.
 Paramater | Default | Description
 -- | -- | --
 `detect_table_header_heuristically` | `True` | make table header by heuristics
+`use_extended_markdown_table` | `False` | use [hugo-shortcode-extended-markdown-table][hugo-shortcode-extended-markdown-table] to support table colspan/rowspan
 `increment_heading_level` | `True` | increment heading level (e.g. Moin's h1 -> Hugo's h2)
 `root_path` | `/` | root path of hugo site in url
 `use_figure_shortcode` | `True` | use `figure` shortcode
 `goldmark_unsafe` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
 `disable_path_to_lower` | `True` | corresponding with hugo config: `disablePathLower`
 `remove_path_accents` | `False` | corresponding with hugo config: `removePathAccents`
+
+[hugo-shortcode-extended-markdown-table]: https://github.com/wataru-chocola/hugo-shortcode-extended-markdown-table
 
 ## Notes
 
@@ -114,6 +117,34 @@ Object |`mimetype`  | supported
 Object |`width`     | supported
 Object |`height`    | supported
 Object |`standby`   | unsupported (deprecated in HTML5)
+
+
+### Table attributes
+
+In Moinmoin, you can specify table attributes in table, table row and table cell.
+
+```
+||<tablestyle="width: 90%;" rowstyle="width: 30%;" rowclass="header"> A || B || C ||
+||<|2> old-style rowspan ||<colspan=2> new-style colspan ||
+||b ||c ||
+```
+
+The support status for these attributes is here:
+
+Element | Attribute | Support Status
+--- | --------- | --------------
+Table, Row, Cell |`class`   | unsupported
+Table, Row, Cell |`id`      | unsupported
+Table, Row, Cell |`style`   | unsupported
+Table, Row, Cell |`width`   | unsupported
+Table, Row, Cell |`height`  | unsupported
+Table, Row, Cell |`align`   | partially supported
+Table, Row, Cell |`valign`  | unsupported
+Table, Row, Cell |`bgcolor` | unsupported
+Cell             |`colspan` | supported if `hugo_config.use_extended_markdown_table` enabled
+Cell             |`rowspan` | supported if `hugo_config.use_extended_markdown_table` enabled
+Cell             |`abbr`    | unsupported
+
 
 
 ### Macro

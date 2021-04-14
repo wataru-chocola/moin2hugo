@@ -935,9 +935,9 @@ class MoinParser(object):
                 if 'align' not in attrs and \
                    not ('style' in attrs and 'text-align' in attrs['style'].lower()):
                     # add center alignment if we don't have some alignment already
-                    attrs['align'] = '"center"'
+                    attrs['align'] = 'center'
                 if 'colspan' not in attrs:
-                    attrs['colspan'] = '"%d"' % (word.count("|")/2)
+                    attrs['colspan'] = '%d' % (word.count("|")/2)
 
             self.builder.table_cell_start(attrs, source_text=word)
         else:

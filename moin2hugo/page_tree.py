@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import textwrap
 import attr
+import cssutils  # type: ignore
 
 from typing import Optional, List, Dict, Any, Type, Literal, TypeVar
 
@@ -98,11 +99,20 @@ class PageElement(object):
     def add_content(self, content: str):
         self.content += content
 
-    def add_child(self, child: PageElement, propagate_source_text: bool = True):
-        self.children.append(child)
+    def add_child(self, child: PageElement, propagate_source_text: bool = True,
+                  at: Optional[int] = None):
+        if at is None:
+            self.children.append(child)
+        else:
+            self.children.insert(at, child)
         child.parent = self
         if propagate_source_text:
             child.propagate_source_text(child.source_text)
+
+    def del_child(self, at: int):
+        child = self.children[at]
+        self.children = self.children[0:at] + self.children[at+1:]
+        del child
 
     def add_source_text(self, source_text: str, freeze: bool = False):
         self.source_text += source_text
@@ -143,6 +153,11 @@ class PageElement(object):
 #
 @attr.s(slots=True)
 class PageRoot(PageElement):
+    pass
+
+
+@attr.s(slots=True)
+class Raw(PageElement):
     pass
 
 
@@ -204,9 +219,9 @@ T_TABLE_ATTR = TypeVar('T_TABLE_ATTR', bound='TableAttrBase')
 TableAttrDict = Dict[str, Any]
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableAttrBase:
-    attribute_prefix: str = ""
+    _attribute_prefix: str = ""
 
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     id_: Optional[str] = attr.ib(kw_only=True, default=None)
@@ -223,8 +238,8 @@ class TableAttrBase:
     def filter_target_attrs(cls, data: TableAttrDict) -> TableAttrDict:
         result = {}
         for k, v in data.items():
-            if k.startswith(cls.attribute_prefix):
-                result[k[len(cls.attribute_prefix):]] = v
+            if k.startswith(cls._attribute_prefix):
+                result[k[len(cls._attribute_prefix):]] = v
         return result
 
     @classmethod
@@ -238,27 +253,39 @@ class TableAttrBase:
             del tmp_data['id']
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
+
+        if 'style' in init_args:
+            style = cssutils.parseStyle(init_args['style'])
+            if style.width:
+                init_args['width'] = style.width
+            elif style.height:
+                init_args['height'] = style.height
+            elif style.textAlign:
+                init_args['align'] = style.textAlign
+            elif style.backgroundColor:
+                init_args['bgclor'] = style.backgroundColor
+
         obj = cls(**init_args)
         return obj
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableAttr(TableAttrBase):
-    attribute_prefix: str = "table"
+    _attribute_prefix: str = "table"
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableRowAttr(TableAttrBase):
-    attribute_prefix: str = "row"
+    _attribute_prefix: str = "row"
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableCellAttr(TableAttrBase):
-    attribute_prefix: str = ""
+    _attribute_prefix: str = ""
 
-    colspan: Optional[str] = attr.ib(kw_only=True, default=None,
+    colspan: Optional[int] = attr.ib(kw_only=True, default=None,
                                      converter=attr.converters.optional(int))
-    rowspan: Optional[str] = attr.ib(kw_only=True, default=None,
+    rowspan: Optional[int] = attr.ib(kw_only=True, default=None,
                                      converter=attr.converters.optional(int))
     abbr: Optional[str] = attr.ib(kw_only=True, default=None)
 
