@@ -3,6 +3,7 @@ import os.path
 import textwrap
 import collections
 import html
+import copy
 import logging
 from datetime import datetime
 
@@ -10,7 +11,7 @@ import attr
 
 from .base import FormatterBase
 from moin2hugo.page_tree import (
-    PageRoot, PageElement,
+    PageRoot, Raw, PageElement,
     Macro, Comment, Smiley, Remark,
     ParsedText, Codeblock,
     Table, TableRow, TableCell,
@@ -24,12 +25,13 @@ from moin2hugo.page_tree import (
     AttachmentInlined, AttachmentImage, Image
 )
 from moin2hugo.page_tree import ObjectAttr, ImageAttr
+from moin2hugo.page_tree import TableCellAttr
 from moin2hugo.moin_parser_extensions import get_parser, get_fallback_parser
 from moin2hugo.moin_parser_extensions import get_parser_info_from_ext
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +109,6 @@ def escape_markdown_all(text: str) -> MarkdownEscapedText:
 
 @attr.s
 class TableProperty:
-    num_of_header_lines: int = attr.ib(default=0)
     num_of_columns: int = attr.ib(default=0)
     has_extended_attributes: bool = attr.ib(default=False)
     col_alignments: List[str] = attr.ib(default=attr.Factory(list))
@@ -214,6 +215,9 @@ class HugoFormatter(FormatterBase):
         new_e = self._consolidate(e)
         logger.debug("+ Format page...")
         return self._generic_container(new_e)
+
+    def raw(self, e: Raw) -> str:
+        return e.content
 
     def paragraph(self, e: Paragraph) -> str:
         return self._separator_line(e) + self._generic_container(e)
@@ -373,31 +377,28 @@ class HugoFormatter(FormatterBase):
                     return False
         return True
 
-    def _detect_table_properties(self, e: Table) -> TableProperty:
-        num_of_header_lines = 0
+    def _make_table_header_heuristically(self, e: Table) -> Table:
+        for row in e.children:
+            assert isinstance(row, TableRow)
+            if row.is_header:
+                continue
+            elif self._is_header_row(row):
+                row.is_header = True
+        return e
+
+    def _get_table_colinfo(self, e: Table) -> Tuple[int, List[str]]:
         num_of_columns = 0
         alignments_of_col = collections.defaultdict(list)
-        header_ends = False
         for i, row in enumerate(e.children):
             assert isinstance(row, TableRow)
-            is_header = False
-            if self.config.detect_table_header_heuristically and not header_ends:
-                is_header = row.is_header or self._is_header_row(row)
-                if is_header:
-                    num_of_header_lines = i + 1
-                else:
-                    header_ends = True
             if len(row.children) > num_of_columns:
                 num_of_columns = len(row.children)
 
-            if not is_header:
-                # TODO: consider row_span
-                colnum = 0
-                for cell in row.children:
+            if not row.is_header:
+                for colidx, cell in enumerate(row.children):
                     assert isinstance(cell, TableCell)
                     tmp_align = cell.attrs.align if cell.attrs.align else 'none'
-                    alignments_of_col[colnum].append(tmp_align)
-                    colnum += cell.attrs.colspan if cell.attrs.colspan else 1
+                    alignments_of_col[colidx].append(tmp_align)
 
         col_alignments = []
         for i in range(num_of_columns):
@@ -407,25 +408,84 @@ class HugoFormatter(FormatterBase):
             if tmp:
                 align = tmp[0][0]
             col_alignments.append(align)
-        prop = TableProperty(num_of_header_lines=num_of_header_lines,
-                             num_of_columns=num_of_columns,
-                             col_alignments=col_alignments)
-        return prop
+
+        return (num_of_columns, col_alignments)
+
+    def _process_table_span(self, e: Table) -> Tuple[Table, bool]:
+        def _gen_stub(text: str, attrs: TableCellAttr) -> TableCell:
+            new_attrs = copy.deepcopy(attrs)
+            stub_cell = TableCell(attrs=new_attrs)
+            stub_cell.add_child(Raw(text))
+            return stub_cell
+
+        modified = False
+        # first, process colspan within each row.
+        for row in e.children:
+            colidx = 0
+            row_cells = copy.copy(row.children)
+            for cell in row_cells:
+                assert isinstance(cell, TableCell)
+                if cell.attrs.colspan and cell.attrs.colspan > 1:
+                    modified = True
+                    for i in range(cell.attrs.colspan - 1):
+                        stub_text = '>' if self.config.use_extended_markdown_table else ''
+                        stub_cell = _gen_stub(stub_text, cell.attrs)
+                        stub_cell.attrs.colspan = 1
+                        row.add_child(_gen_stub(stub_text, cell.attrs), at=colidx)
+                    cell.attrs.colspan = 1
+                colidx += cell.attrs.colspan if cell.attrs.colspan else 1
+
+        # then, process rowspan
+        for rowidx, row in enumerate(e.children):
+            colidx = 0
+            row_cells = copy.copy(row.children)
+            for cell in row_cells:
+                assert isinstance(cell, TableCell)
+                if cell.attrs.rowspan and cell.attrs.rowspan > 1:
+                    modified = True
+                    for i in range(cell.attrs.rowspan - 1):
+                        stub_text = '^' if self.config.use_extended_markdown_table else ''
+                        stub_cell = _gen_stub(stub_text, cell.attrs)
+                        stub_cell.attrs.rowspan = 1
+                        e.children[rowidx+i+1].add_child(stub_cell, at=colidx)
+                    cell.attrs.rowspan = 1
+                colidx += cell.attrs.colspan if cell.attrs.colspan else 1
+        return e, modified
+
+    def _process_table(self, e: Table) -> Tuple[Table, TableProperty]:
+        if self.config.detect_table_header_heuristically:
+            e = self._make_table_header_heuristically(e)
+        e, has_extended_attributes = self._process_table_span(e)
+        num_of_columns, col_alignments = self._get_table_colinfo(e)
+        table_prop = TableProperty(num_of_columns=num_of_columns,
+                                   col_alignments=col_alignments,
+                                   has_extended_attributes=has_extended_attributes)
+
+        return e, table_prop
 
     def table(self, e: Table) -> str:
         ret = self._separator_line(e)
-
-        table_prop = self._detect_table_properties(e)
         md_table = ""
-        if table_prop.num_of_header_lines == 0:
-            md_table += "|%s|\n" % "|".join(["   "] * table_prop.num_of_columns)
-        for i, c in enumerate(e.children):
-            if i == table_prop.num_of_header_lines:
+
+        e, table_prop = self._process_table(e)
+        in_header = True
+        for i, row in enumerate(e.children):
+            assert isinstance(row, TableRow)
+            if in_header and row.is_header is False:
+                if i == 0:
+                    md_table += "|%s|\n" % "|".join(["   "] * table_prop.num_of_columns)
                 map_sep = {'left': ':--', 'right': '--:', 'center': ':-:'}
                 seps = [map_sep.get(align, '---') for align in table_prop.col_alignments]
                 md_table += "|%s|\n" % "|".join(seps)
-            md_table += self.do_format(c)
+                in_header = False
+            md_table += self.do_format(row)
 
+        if self.config.use_extended_markdown_table and table_prop.has_extended_attributes:
+            shortcode = "extended-markdown-table"
+            tmp = "{{< %s >}}\n" % shortcode
+            tmp += "%s\n" % md_table.rstrip()
+            tmp += "{{< /%s >}}\n" % shortcode
+            md_table = tmp
         ret += md_table
         return ret
 

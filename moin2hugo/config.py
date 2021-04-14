@@ -11,6 +11,7 @@ class HugoConfig(BaseSettings):
     detect_table_header_heuristically: bool = True
     increment_heading_level: bool = True
     use_figure_shortcode: bool = True
+    use_extended_markdown_table: bool = False
 
     goldmark_unsafe: bool = True
     disable_path_to_lower: bool = True

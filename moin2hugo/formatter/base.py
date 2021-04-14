@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 from moin2hugo.page_tree import (
-    PageRoot, PageElement,
+    PageRoot, Raw, PageElement,
     Macro, Comment, Smiley, Remark,
     ParsedText, Codeblock,
     Table, TableRow, TableCell,
@@ -35,6 +35,7 @@ class FormatterBase(metaclass=ABCMeta):
     def format_dispatcher(self, e: PageElement) -> str:
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self.page_root,
+            Raw: self.raw,
 
             # General Objects
             Paragraph: self.paragraph,
@@ -97,6 +98,10 @@ class FormatterBase(metaclass=ABCMeta):
 
     @abstractmethod
     def page_root(self, e: PageRoot) -> str:
+        pass
+
+    @abstractmethod
+    def raw(self, e: Raw) -> str:
         pass
 
     @abstractmethod

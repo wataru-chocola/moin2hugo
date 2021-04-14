@@ -99,11 +99,20 @@ class PageElement(object):
     def add_content(self, content: str):
         self.content += content
 
-    def add_child(self, child: PageElement, propagate_source_text: bool = True):
-        self.children.append(child)
+    def add_child(self, child: PageElement, propagate_source_text: bool = True,
+                  at: Optional[int] = None):
+        if at is None:
+            self.children.append(child)
+        else:
+            self.children.insert(at, child)
         child.parent = self
         if propagate_source_text:
             child.propagate_source_text(child.source_text)
+
+    def del_child(self, at: int):
+        child = self.children[at]
+        self.children = self.children[0:at] + self.children[at+1:]
+        del child
 
     def add_source_text(self, source_text: str, freeze: bool = False):
         self.source_text += source_text
@@ -144,6 +153,11 @@ class PageElement(object):
 #
 @attr.s(slots=True)
 class PageRoot(PageElement):
+    pass
+
+
+@attr.s(slots=True)
+class Raw(PageElement):
     pass
 
 
@@ -205,7 +219,7 @@ T_TABLE_ATTR = TypeVar('T_TABLE_ATTR', bound='TableAttrBase')
 TableAttrDict = Dict[str, Any]
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableAttrBase:
     _attribute_prefix: str = ""
 
@@ -255,17 +269,17 @@ class TableAttrBase:
         return obj
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableAttr(TableAttrBase):
     _attribute_prefix: str = "table"
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableRowAttr(TableAttrBase):
     _attribute_prefix: str = "row"
 
 
-@attr.s(frozen=True, slots=True)
+@attr.s
 class TableCellAttr(TableAttrBase):
     _attribute_prefix: str = ""
 

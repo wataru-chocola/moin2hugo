@@ -145,16 +145,16 @@ def test_column_alignment():
 def test_extended_table_without_extended_markdown_table():
     table_text = """\
     ||<tablestyle="width: 90%;" rowstyle="width: 30%;" rowclass="header"> A || B || C ||
-    ||a   ||<colspan=2>b ||
-    ||<^> ||b ||<rowspan=2>c ||
-    ||<^> ||b ||
+    ||<|3>a ||<colspan=2>b ||
+    ||b ||<rowspan=2>c ||
+    ||b ||
     """
     expected = """\
     | A | B | C |
-    |---|---|---|
-    | a | b |   |
-    |   | b | c |
-    |   | b |   |
+    |:-:|---|---|
+    | a |  | b |
+    |  | b | c |
+    |  | b |  |
     """
     data = textwrap.dedent(table_text)
     page = MoinParser.parse(data, 'PageName')
@@ -185,17 +185,21 @@ def test_normal_table_with_extended_markdown_table():
 def test_extended_table_with_extended_markdown_table():
     table_text = """\
     ||<tablestyle="width: 90%;" rowstyle="width: 30%;" rowclass="header"> A || B || C ||
-    ||a   ||<colspan=2>b ||
-    ||<^> ||b ||<rowspan=2>c ||
-    ||<^> ||b ||
+    ||<|3>a ||<colspan=2>b ||
+    ||b ||<rowspan=2>c ||
+    ||b ||
+    ||a ||<rowspan=2 colspan=2>b ||
+    ||a ||
     """
     expected = """\
     {{< extended-markdown-table >}}
     | A | B | C |
-    |---|---|---|
+    |:-:|---|---|
     | a | > | b |
     | ^ | b | c |
     | ^ | b | ^ |
+    | a | > | b |
+    | a | ^ | ^ |
     {{< /extended-markdown-table >}}
     """
     data = textwrap.dedent(table_text)
