@@ -52,9 +52,12 @@ class HugoPathBuilder(object):
                 prepend_hyphen = True
         return sanitized_path
 
-    def page_to_hugo_bundle_path(self, pagename: str) -> str:
+    def convert_pagename(self, pagename: str) -> str:
         if pagename == self.page_front_page:
             pagename = ''
+        return pagename
+
+    def page_to_hugo_bundle_path(self, pagename: str) -> str:
         return self._sanitize_path(pagename)
 
     def attachment_filepath(self, pagename: str, filename: str) -> str:
