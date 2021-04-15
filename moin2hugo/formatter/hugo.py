@@ -31,7 +31,7 @@ from moin2hugo.moin_parser_extensions import get_parser_info_from_ext
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +240,13 @@ class HugoFormatter(FormatterBase):
             else:
                 return False
             break
+
+        if e.parent and e.parent.in_x(
+            [Table, Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
+             BulletList, NumberList, DefinitionList, Heading,
+             Link, Pagelink, Interwikilink, Url, AttachmentLink,
+             AttachmentTransclude, Transclude]):
+            return False
 
         return True
 
@@ -562,11 +569,36 @@ class HugoFormatter(FormatterBase):
     def big(self, e: Big) -> str:
         return self._raw_html(e, 'big', content=self._generic_container(e))
 
+    def _process_flanking_delimiter(self, e: Union[Strong, Emphasis]) -> Tuple[str, str, str]:
+        preceding_text = ""
+        inner_text = self._generic_container(e)
+        following_text = ""
+
+        if not self._is_at_beginning_of_line(e):
+            m_leading_unicode_spaces = re.search(r'^\s+', inner_text)
+            if m_leading_unicode_spaces:
+                preceding_text = m_leading_unicode_spaces.group(0)
+                inner_text = re.sub(r'^\s+', '', inner_text)
+            elif re.search(r"^[^\w\s*]", inner_text):
+                preceding_text = " "
+
+        m_trailing_unicode_spaces = re.search(r'\s+$', inner_text)
+        if m_trailing_unicode_spaces:
+            following_text = m_trailing_unicode_spaces.group(0)
+            inner_text = re.sub(r'\s+$', '', inner_text)
+        elif re.search(r"[^\w\s]$", inner_text):
+            if not re.search(r"(?<!\\)[*]$", inner_text):
+                following_text = " "
+
+        return preceding_text, inner_text, following_text
+
     def strong(self, e: Strong) -> str:
-        return "**%s**" % self._generic_container(e)
+        preceding_text, inner_text, following_text = self._process_flanking_delimiter(e)
+        return preceding_text + "**%s**" % inner_text + following_text
 
     def emphasis(self, e: Emphasis) -> str:
-        return "*%s*" % self._generic_container(e)
+        preceding_text, inner_text, following_text = self._process_flanking_delimiter(e)
+        return preceding_text + "*%s*" % inner_text + following_text
 
     # Decoration (cannot be multilined)
     def sup(self, e: Sup) -> str:
