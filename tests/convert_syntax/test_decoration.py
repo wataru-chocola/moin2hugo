@@ -48,6 +48,30 @@ def test_decorations_sl(data, expected):
 
 @pytest.mark.parametrize(
     ("data", "expected"), [
+        ("a'''b'''c", "a**b**c"),
+        ("a''b''c", "a*b*c"),
+
+        ("a'''(b'''c", "a **(b**c"),
+        ("'''(b'''c", "**(b**c"),
+        ("a'''b)'''c", "a**b)** c"),
+        ("a'''(b)'''c", "a **(b)** c"),
+        ("a''(b)''c", "a *(b)* c"),
+
+        ("a'''''b'''''c", "a***b***c"),
+        ("a'''b*'''c", r"a**b\*** c"),
+        ("a''' b '''c", "a **b** c"),
+    ]
+)
+def test_strong_and_emphasis_spaces(data, expected):
+    # see: https://spec.commonmark.org/0.29/#emphasis-and-strong-emphasis
+    # left-flanking delimiter run, right-flanking delimiter run
+    page = MoinParser.parse(data, 'PageName')
+    assert HugoFormatter.format(page, pagename='PageName') == expected, page.tree_repr()
+    assert page.source_text == data
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
         ("__underlined '''x''' text__", "<u>underlined **x** text</u>"),
     ]
 )

@@ -24,7 +24,7 @@ def test_endling_newline(data, expected):
         ("line1\n/* xyz */    line2", "line1\nline2"),
         ("line1  /* xyz */  \nline2", "line1\nline2"),
         ("_test_", r"\_test\_"),
-        ("'''***'''", r"**\*\*\***"),
+        ("'''***'''", r"**\*\*\*** "),
     ]
 )
 def test_escape(data, expected):
