@@ -255,7 +255,7 @@ class HugoFormatter(FormatterBase):
         text = re.sub(r'\\', r'\\\\', text)
 
         # target symbols of which all occurences are escaped
-        targets = set(['[', ']', '{', '}', '(', ')', '*', '_', '`', '~', '<', '>', '|', '#'])
+        targets = set(['[', ']', '{', '}', '*', '_', '`', '~', '<', '>', '|', '#'])
         symbol_re = re.compile('([%s])' % re.escape("".join(targets)))
 
         is_at_beginning_of_line = self._is_at_beginning_of_line(e)
