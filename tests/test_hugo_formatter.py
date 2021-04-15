@@ -71,10 +71,10 @@ def test_consolidate(data, expected):
         ("    foo\n  bar", "foo\nbar"),
         ("`test`", r"\`test\`"),
         ("---\n", "\\-\\-\\-\n"),
-        ("[aa](something)", r"\[aa\]\(something\)"),
+        ("[aa](something)", r"\[aa\](something)"),
         ("[aa][1]", r"\[aa\]\[1\]"),
         ("[1]: something", r"\[1\]: something"),
-        ("![aa](something)", r"\!\[aa\]\(something\)"),
+        ("![aa](something)", r"\!\[aa\](something)"),
         ("<fake@example.com>", r"\<fake@example.com\>"),
         (r"\10,000", r"\\10,000"),
         (r"{{% test %}}", r"\{\{% test %\}\}"),
@@ -93,6 +93,7 @@ def test_consolidate(data, expected):
         ("1 - 2", "1 - 2"),
         ("hello, world!", "hello, world!"),
         ("term: definition", "term: definition"),
+        ("word (desc)", "word (desc)"),
 
         ("<br>", r"\<br\>"),
     ]
