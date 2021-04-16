@@ -1,0 +1,9 @@
+## Please edit system and help pages ONLY in the master wiki!
+## For more information, please see MoinMoin:MoinDev/Translation.
+##master-page:FrontPage
+#format wiki
+#language en
+#pragma section-numbers off
+= WikiName Wiki =
+
+This is Front Page.
