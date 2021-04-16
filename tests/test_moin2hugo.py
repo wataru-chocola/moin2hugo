@@ -1,5 +1,8 @@
 import pytest
 import os
+import tempfile
+import filecmp
+import difflib
 from datetime import datetime
 
 from moin2hugo import __version__
@@ -12,9 +15,15 @@ def moin_sitedir():
 
 
 @pytest.fixture
+def hugo_sitedir():
+    return os.path.join(os.path.dirname(__file__), 'data/hugo_site')
+
+
+@pytest.fixture
 def moin2hugo_object(moin_sitedir):
-    moin2hugo = Moin2Hugo(moin_sitedir, 'dst_dir')
-    return moin2hugo
+    with tempfile.TemporaryDirectory() as d:
+        moin2hugo = Moin2Hugo(moin_sitedir, d)
+        yield moin2hugo
 
 
 @pytest.fixture
@@ -27,6 +36,12 @@ def moin_abspath(moin_sitedir):
 @pytest.fixture
 def moin_pages(moin_sitedir, moin_abspath):
     pages = []
+
+    pages.append(MoinPageInfo(
+        name='FrontPage',
+        filepath=moin_abspath('FrontPage/revisions/00000002'),
+        updated=datetime(2019, 5, 22, 13, 16, 17, 699187),
+        attachments=[]))
 
     pages.append(MoinPageInfo(
         name='テスト',
@@ -76,6 +91,35 @@ def test_scan_pages(moin2hugo_object, moin_pages):
 
 
 def test_hugo_site_structure(moin2hugo_object):
+    assert moin2hugo_object.hugo_site_structure[''] == moin2hugo_object.BRANCH_BUNDLE
     assert moin2hugo_object.hugo_site_structure['テスト'] == moin2hugo_object.BRANCH_BUNDLE
     assert moin2hugo_object.hugo_site_structure['テスト/attachments_test'] == moin2hugo_object.LEAF_BUNDLE  # noqa
     assert moin2hugo_object.hugo_site_structure['テスト/page_test/ページ'] == moin2hugo_object.LEAF_BUNDLE  # noqa
+
+
+def assert_equal_directory(dcmp: filecmp.dircmp):
+    assert not dcmp.left_only, dcmp.left_only
+    assert not dcmp.right_only, dcmp.right_only
+    if dcmp.diff_files:
+        diff_text = ""
+        for filename in dcmp.diff_files:
+            left_filepath = os.path.join(dcmp.left, filename)
+            right_filepath = os.path.join(dcmp.right, filename)
+            diffs = difflib.unified_diff(open(left_filepath, 'r').read().splitlines(),
+                                         open(right_filepath, 'r').read().splitlines(),
+                                         fromfile=left_filepath, tofile=right_filepath)
+            diff_text += "\n".join(diffs)
+            diff_text += "\n"
+        raise AssertionError("found diff\n" + diff_text)
+
+    for subdir, subdir_dcmp in dcmp.subdirs.items():
+        print("subdir:" + subdir)
+        assert_equal_directory(subdir_dcmp)
+
+
+def test_convert(moin_sitedir, hugo_sitedir):
+    with tempfile.TemporaryDirectory() as d:
+        moin2hugo = Moin2Hugo(moin_sitedir, d)
+        moin2hugo.convert()
+        dcmp = filecmp.dircmp(d, hugo_sitedir)
+        assert_equal_directory(dcmp)
