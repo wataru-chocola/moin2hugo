@@ -59,13 +59,13 @@ class Moin2Hugo(object):
 
         self._hugo_site_structure = {}
         for page in self.scan_pages(self.src_dir):
-            page_name = self.path_builder.convert_pagename(page.name)
-            elems = page_name.split("/")
+            hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
+            elems = hugo_bundle_path.split("/")
             for i in range(len(elems) - 1):
                 branch_path = "/".join(elems[:i+1])
                 self._hugo_site_structure[branch_path] = self.BRANCH_BUNDLE
-            if page_name not in self._hugo_site_structure:
-                self._hugo_site_structure[page_name] = self.LEAF_BUNDLE
+            if hugo_bundle_path not in self._hugo_site_structure:
+                self._hugo_site_structure[hugo_bundle_path] = self.LEAF_BUNDLE
 
         if '' in self._hugo_site_structure:
             # make top page into branch bandle
@@ -143,18 +143,16 @@ class Moin2Hugo(object):
             page_obj, pagename=page.name, path_builder=self.path_builder,
             config=self.config.hugo_config)
 
-        page_name = self.path_builder.convert_pagename(page.name)
-        hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page_name)
-        hugo_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)
-        os.makedirs(hugo_bundle_path, exist_ok=True)
+        hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
+        dst_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)
+        os.makedirs(dst_bundle_path, exist_ok=True)
 
-        # TODO: FrontPage -> /
-        if self.hugo_site_structure[page_name] == self.LEAF_BUNDLE:
-            dst_filepath = safe_path_join(hugo_bundle_path, "index.md")
-        elif self.hugo_site_structure[page_name] == self.BRANCH_BUNDLE:
-            dst_filepath = safe_path_join(hugo_bundle_path, "_index.md")
+        if self.hugo_site_structure[hugo_bundle_path] == self.LEAF_BUNDLE:
+            dst_filepath = safe_path_join(dst_bundle_path, "index.md")
+        elif self.hugo_site_structure[hugo_bundle_path] == self.BRANCH_BUNDLE:
+            dst_filepath = safe_path_join(dst_bundle_path, "_index.md")
 
-        frontmatter = HugoFormatter.create_frontmatter(page_name, updated=page.updated)
+        frontmatter = HugoFormatter.create_frontmatter(page.name, updated=page.updated)
 
         logger.info("++ output: %s" % dst_filepath)
         with open(dst_filepath, 'w') as f:
@@ -165,7 +163,7 @@ class Moin2Hugo(object):
         if page.attachments:
             logger.info("++ copy attachments")
             for attachment in page.attachments:
-                attach_filepath = self.path_builder.attachment_filepath(page_name, attachment.name)
+                attach_filepath = self.path_builder.attachment_filepath(page.name, attachment.name)
                 dst_path = safe_path_join(self.dst_dir, attach_filepath)
                 shutil.copy(attachment.filepath, dst_path)
 
