@@ -24,10 +24,25 @@ Options:
 
 ## Configuration
 
+### Config File Format
+
+Write config file in YAML format.
+
+```yaml
+# config.yaml
+hugo_config:
+  root_path: /docs
+  use_extended_markdown_table: true
+```
+
+### Paramaters
+
+Configurable paramaters are below.
+
 Paramater | Default | Description
 -- | -- | --
-`moin_site_config.*` | - | see below
-`hugo_config.*` | - | see below
+`moin_site_config.*` | - | see `MoinSiteConfig`
+`hugo_config.*` | - | see `HugoConfig`
 
 ### MoinSiteConfig
 
