@@ -1,6 +1,7 @@
 ---
 title: "FrontPage"
-date: 2019-05-22T13:16:17.699187
+no_list: true
+toc_root: true
 ---
 
 ## WikiName Wiki
