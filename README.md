@@ -41,6 +41,7 @@ Configurable paramaters are below.
 
 Paramater | Default | Description
 -- | -- | --
+`template_file` |`None` |template file for rendering page
 `moin_site_config.*` | - | see `MoinSiteConfig`
 `hugo_config.*` | - | see `HugoConfig`
 
@@ -69,6 +70,26 @@ Paramater | Default | Description
 `remove_path_accents` | `False` | corresponding with hugo config: `removePathAccents`
 
 [hugo-shortcode-extended-markdown-table]: https://github.com/wataru-chocola/hugo-shortcode-extended-markdown-table
+
+## Template
+
+You can customize how to render pages by writing your own Jinja2 template.
+Available template variables are here.
+
+ * `page`: page matadata which is `HugoPageInfo` type object.
+ * `content`: markdown text which is converted from moinwiki source.
+
+```python
+@attr.s(frozen=True)
+class HugoPageInfo:
+    filepath: str = attr.ib()
+    name: str = attr.ib()
+    title: str = attr.ib()
+    attachments: List[MoinAttachment] = attr.ib()
+    is_branch: bool = attr.ib(default=False)
+    updated: Optional[datetime] = attr.ib(default=None)
+```
+
 
 ## Notes
 
