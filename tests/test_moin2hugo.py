@@ -98,8 +98,12 @@ def test_hugo_site_structure(moin2hugo_object):
 
 
 def assert_equal_directory(dcmp: filecmp.dircmp):
+    dcmp.left_only = list(filter(lambda x: not x.startswith("."), dcmp.left_only))
+    dcmp.right_only = list(filter(lambda x: not x.startswith("."), dcmp.right_only))
     assert not dcmp.left_only, dcmp.left_only
     assert not dcmp.right_only, dcmp.right_only
+
+    dcmp.diff_files = list(filter(lambda x: not x.startswith("."), dcmp.diff_files))
     if dcmp.diff_files:
         diff_text = ""
         for filename in dcmp.diff_files:

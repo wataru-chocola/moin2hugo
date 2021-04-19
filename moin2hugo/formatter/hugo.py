@@ -820,14 +820,3 @@ class HugoFormatter(FormatterBase):
             return self._figure_shortcode(url, e, e.attrs)
         else:
             return self._image(url, e.attrs)
-
-    # Frontmatter
-    @staticmethod
-    def create_frontmatter(pagename: str, updated: Optional[datetime] = None):
-        ret = "---\n"
-        title = pagename.split("/")[-1]
-        ret += 'title: "%s"\n' % title
-        if updated is not None:
-            ret += 'date: %s\n' % updated.isoformat()
-        ret += "---"
-        return ret

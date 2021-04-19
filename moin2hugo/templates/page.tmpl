@@ -1,0 +1,9 @@
+---
+title: "{{ page.title }}"
+{%- if page.is_branch %}
+no_list: true
+toc_root: true
+{%- endif %}
+---
+
+{{ content }}

@@ -1,4 +1,5 @@
-from pydantic import BaseSettings, Field
+from pydantic import BaseSettings, Field, FilePath
+from typing import Optional
 
 
 class MoinSiteConfig(BaseSettings):
@@ -21,6 +22,7 @@ class HugoConfig(BaseSettings):
 class Config(BaseSettings):
     moin_site_config: MoinSiteConfig = Field(default_factory=MoinSiteConfig)
     hugo_config: HugoConfig = Field(default_factory=HugoConfig)
+    template_file: Optional[FilePath] = None
 
 
 def load_config(config_dict: dict) -> Config:

@@ -7,6 +7,7 @@ from typing import Iterator, List, Optional
 import attr
 import yaml
 import click
+import jinja2
 
 from moin2hugo.config import load_config, Config
 from moin2hugo.moin_parser import MoinParser
@@ -29,6 +30,16 @@ class MoinPageInfo:
     filepath: str = attr.ib()
     name: str = attr.ib()
     attachments: List[MoinAttachment] = attr.ib()
+    updated: Optional[datetime] = attr.ib(default=None)
+
+
+@attr.s(frozen=True)
+class HugoPageInfo:
+    filepath: str = attr.ib()
+    name: str = attr.ib()
+    title: str = attr.ib()
+    attachments: List[MoinAttachment] = attr.ib()
+    is_branch: bool = attr.ib(default=False)
     updated: Optional[datetime] = attr.ib(default=None)
 
 
@@ -131,6 +142,18 @@ class Moin2Hugo(object):
             if page is not None:
                 yield page
 
+    def render_page(self, page: HugoPageInfo, content: str) -> str:
+        if self.config.template_file:
+            tmpl_dir, tmpl_file = os.path.split(self.config.template_file)
+            env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_dir))
+        else:
+            tmpl_file = 'page.tmpl'
+            env = jinja2.Environment(loader=jinja2.PackageLoader('moin2hugo', 'templates'))
+
+        tmpl = env.get_template(tmpl_file)
+        ret = tmpl.render(page=page, content=content)
+        return ret
+
     def convert_page(self, page: MoinPageInfo):
         logger.debug("++ filepath: %s" % page.filepath)
         with open(page.filepath, 'r') as f:
@@ -147,18 +170,21 @@ class Moin2Hugo(object):
         dst_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)
         os.makedirs(dst_bundle_path, exist_ok=True)
 
+        is_branch = False
         if self.hugo_site_structure[hugo_bundle_path] == self.LEAF_BUNDLE:
             dst_filepath = safe_path_join(dst_bundle_path, "index.md")
         elif self.hugo_site_structure[hugo_bundle_path] == self.BRANCH_BUNDLE:
             dst_filepath = safe_path_join(dst_bundle_path, "_index.md")
+            is_branch = True
 
-        frontmatter = HugoFormatter.create_frontmatter(page.name, updated=page.updated)
+        title = page.name.split("/")[-1]
+        hugo_page = HugoPageInfo(filepath=dst_filepath, name=page.name, title=title,
+                                 attachments=page.attachments, updated=page.updated,
+                                 is_branch=is_branch)
 
         logger.info("++ output: %s" % dst_filepath)
         with open(dst_filepath, 'w') as f:
-            f.write(frontmatter)
-            f.write("\n\n")
-            f.write(converted)
+            f.write(self.render_page(hugo_page, converted))
 
         if page.attachments:
             logger.info("++ copy attachments")

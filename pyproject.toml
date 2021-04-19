@@ -12,6 +12,7 @@ click = "^7.1.2"
 PyYAML = "^5.4.1"
 Pygments = "^2.8.1"
 cssutils = "^2.2.0"
+Jinja2 = "^2.11.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
