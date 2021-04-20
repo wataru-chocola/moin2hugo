@@ -2,7 +2,7 @@ import os
 import logging
 import shutil
 from datetime import datetime
-from typing import Iterator, List, Optional
+from typing import List, Optional
 
 import attr
 import yaml
@@ -10,27 +10,13 @@ import click
 import jinja2
 
 from moin2hugo.config import load_config, Config
+from moin2hugo.moin_site_scanner import MoinSiteScanner, MoinPageInfo, MoinAttachment
 from moin2hugo.moin_parser import MoinParser
-from moin2hugo.moinutils import unquoteWikiname
 from moin2hugo.formatter import HugoFormatter
 from moin2hugo.path_builder import HugoPathBuilder
 from moin2hugo.utils import safe_path_join
 
 logger = logging.getLogger(__name__)
-
-
-@attr.s(frozen=True)
-class MoinAttachment:
-    filepath: str = attr.ib()
-    name: str = attr.ib()
-
-
-@attr.s(frozen=True)
-class MoinPageInfo:
-    filepath: str = attr.ib()
-    name: str = attr.ib()
-    attachments: List[MoinAttachment] = attr.ib()
-    updated: Optional[datetime] = attr.ib(default=None)
 
 
 @attr.s(frozen=True)
@@ -56,6 +42,7 @@ class Moin2Hugo(object):
         self.dst_dir = dst_dir
         self._hugo_site_structure = None
 
+        self.moin_site_scanner = MoinSiteScanner(self.src_dir)
         self.path_builder = HugoPathBuilder(
             page_front_page=self.config.moin_site_config.page_front_page,
             root_path=self.config.hugo_config.root_path,
@@ -69,7 +56,7 @@ class Moin2Hugo(object):
             return self._hugo_site_structure
 
         self._hugo_site_structure = {}
-        for page in self.scan_pages(self.src_dir):
+        for page in self.moin_site_scanner.scan_pages():
             hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
             elems = hugo_bundle_path.split("/")
             for i in range(len(elems) - 1):
@@ -82,65 +69,6 @@ class Moin2Hugo(object):
             # make top page into branch bandle
             self._hugo_site_structure[''] = self.BRANCH_BUNDLE
         return self._hugo_site_structure
-
-    def _scan_page(self, entryname: str, page_dir: str) -> Optional[MoinPageInfo]:
-        ignorable_pages = ['BadContent', 'SideBar']
-
-        pagename = unquoteWikiname(entryname)
-        if pagename in ignorable_pages:
-            return None
-
-        pagedir = os.path.join(page_dir, entryname)
-        current_file = os.path.join(pagedir, 'current')
-        try:
-            with open(current_file, 'r') as f:
-                current_revision = f.read().rstrip()
-        except FileNotFoundError:
-            logger.debug("++ not content page")
-            return None
-
-        edit_log = os.path.join(pagedir, 'edit-log')
-        with open(edit_log, 'r') as f:
-            edit_log_content = f.read()
-        if not edit_log_content:
-            logger.debug("++ skip built-in page having no edit history")
-            return None
-        last_edit_log = edit_log_content.splitlines()[-1]
-        updated_us = int(last_edit_log.split()[0])
-        updated = datetime.fromtimestamp(updated_us / 1000 ** 2)
-
-        content_file = os.path.join(pagedir, 'revisions', current_revision)
-        if not os.path.isfile(content_file):
-            logger.debug("++ not found: %s/revisions/%s" % (entryname, current_revision))
-            logger.debug("++ already deleted")
-            return None
-
-        attachments: List[MoinAttachment] = []
-        attachments_dir = os.path.join(pagedir, 'attachments')
-        if os.path.isdir(attachments_dir):
-            for attachment_entry in os.scandir(attachments_dir):
-                if attachment_entry.name.startswith("."):
-                    return None
-                attachment_file = os.path.join(attachments_dir, attachment_entry.name)
-                attachment = MoinAttachment(filepath=attachment_file,
-                                            name=attachment_entry.name)
-                attachments.append(attachment)
-
-        page = MoinPageInfo(filepath=content_file, name=pagename,
-                            updated=updated, attachments=attachments)
-        return page
-
-    def scan_pages(self, page_dir: str) -> Iterator[MoinPageInfo]:
-        for entry in os.scandir(page_dir):
-            if not entry.is_dir():
-                continue
-            if entry.name.startswith("."):
-                continue
-
-            logger.debug("+ Page Found: %s" % unquoteWikiname(entry.name))
-            page = self._scan_page(entry.name, page_dir)
-            if page is not None:
-                yield page
 
     def render_page(self, page: HugoPageInfo, content: str) -> str:
         if self.config.template_file:
@@ -206,7 +134,7 @@ class Moin2Hugo(object):
                 raise ValueError("dst_dir must be non-existing path or directory path")
         logger.info("")
 
-        for page in self.scan_pages(self.src_dir):
+        for page in self.moin_site_scanner.scan_pages():
             logger.info("+ Convert Page: %s" % page.name)
             self.convert_page(page)
             logger.info("++ done.")
