@@ -4,7 +4,6 @@ import tempfile
 import filecmp
 import difflib
 
-from moin2hugo import __version__
 from moin2hugo.moin2hugo import Moin2Hugo
 
 
@@ -13,10 +12,6 @@ def moin2hugo_object(moin_sitedir):
     with tempfile.TemporaryDirectory() as d:
         moin2hugo = Moin2Hugo(moin_sitedir, d)
         yield moin2hugo
-
-
-def test_version():
-    assert __version__ == '0.1.0'
 
 
 def test_hugo_site_structure(moin2hugo_object):

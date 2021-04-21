@@ -9,6 +9,7 @@ import yaml
 import click
 import jinja2
 
+from moin2hugo import __version__
 from moin2hugo.config import load_config, Config
 from moin2hugo.moin_site_scanner import MoinSiteScanner, MoinPageInfo, MoinAttachment
 from moin2hugo.moin_parser import MoinParser
@@ -153,11 +154,19 @@ def config_logger(verbose: bool):
     app_logger.addHandler(handler)
 
 
+def print_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(__version__)
+    ctx.exit()
+
+
 @click.command()
 @click.argument('src', type=click.Path(exists=True))
 @click.argument('dst', type=click.Path())
 @click.option('--config', '-c', 'configfile', type=click.Path(exists=True), default=None)
-@click.option('--verbose', '-v', 'verbose', type=bool, default=None, is_flag=True)
+@click.option('--verbose', '-v', 'verbose', type=bool, default=False, is_flag=True)
+@click.option('--version', '-V', 'version', is_flag=True, callback=print_version)
 def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool):
     '''Convert MoinMoin site directory to Hugo content directory.
     '''
