@@ -4,7 +4,7 @@ import tempfile
 import filecmp
 import difflib
 
-from moin2hugo.moin2hugo import Moin2Hugo
+from moin2hugo.moin2hugo import Moin2Hugo, print_version
 
 
 @pytest.fixture
@@ -12,6 +12,10 @@ def moin2hugo_object(moin_sitedir):
     with tempfile.TemporaryDirectory() as d:
         moin2hugo = Moin2Hugo(moin_sitedir, d)
         yield moin2hugo
+
+
+def test_print_version():
+    print_version()
 
 
 def test_hugo_site_structure(moin2hugo_object):
