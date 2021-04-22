@@ -170,7 +170,8 @@ def cmd_print_version(ctx, param, value):
 @click.argument('dst', type=click.Path())
 @click.option('--config', '-c', 'configfile', type=click.Path(exists=True), default=None)
 @click.option('--verbose', '-v', 'verbose', type=bool, default=False, is_flag=True)
-@click.option('--version', '-V', 'version', is_flag=True, callback=cmd_print_version)
+@click.option('--version', '-V', 'version', is_flag=True, callback=cmd_print_version,
+              is_eager=True, expose_value=False)
 def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool):
     '''Convert MoinMoin site directory to Hugo content directory.
     '''
