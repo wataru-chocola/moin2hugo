@@ -263,11 +263,11 @@ class TableAttrBase:
             style = cssutils.parseStyle(init_args['style'])
             if style.width:
                 init_args['width'] = style.width
-            elif style.height:
+            if style.height:
                 init_args['height'] = style.height
-            elif style.textAlign:
+            if style.textAlign:
                 init_args['align'] = style.textAlign
-            elif style.backgroundColor:
+            if style.backgroundColor:
                 init_args['bgcolor'] = style.backgroundColor
 
         obj = cls(**init_args)

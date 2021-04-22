@@ -392,7 +392,7 @@ class HugoFormatter(FormatterBase):
 
     def _is_header_row(self, e: TableRow) -> bool:
         # check if table row is header row by heuristic
-        if e.attrs.class_ or e.attrs.style:
+        if e.attrs.class_ or e.attrs.bgcolor:
             return True
         for cell in e.children:
             assert isinstance(cell, TableCell)
@@ -425,10 +425,10 @@ class HugoFormatter(FormatterBase):
                 self._destrongfy_table_header(row)
         return e
 
-    def _get_table_colinfo(self, e: Table) -> Tuple[int, List[str]]:
+    def _get_table_colinfo(self, tbl: Table) -> Tuple[int, List[str]]:
         num_of_columns = 0
         alignments_of_col = collections.defaultdict(list)
-        for i, row in enumerate(e.children):
+        for i, row in enumerate(tbl.children):
             assert isinstance(row, TableRow)
             if len(row.children) > num_of_columns:
                 num_of_columns = len(row.children)
@@ -436,7 +436,11 @@ class HugoFormatter(FormatterBase):
             if not row.is_header:
                 for colidx, cell in enumerate(row.children):
                     assert isinstance(cell, TableCell)
-                    tmp_align = cell.attrs.align if cell.attrs.align else 'none'
+                    tmp_align = 'none'
+                    for align in (cell.attrs.align, row.attrs.align, tbl.attrs.align):
+                        if align is not None:
+                            tmp_align = align
+                            break
                     alignments_of_col[colidx].append(tmp_align)
 
         col_alignments = []
@@ -509,19 +513,25 @@ class HugoFormatter(FormatterBase):
     def table(self, e: Table) -> str:
         ret = self._separator_line(e)
         md_table = ""
-
         e, table_prop = self._process_table(e)
+
+        def _make_header_separator():
+            map_sep = {'left': ':--', 'right': '--:', 'center': ':-:'}
+            seps = [map_sep.get(align, '---') for align in table_prop.col_alignments]
+            return "|%s|\n" % "|".join(seps)
+
         in_header = True
         for i, row in enumerate(e.children):
             assert isinstance(row, TableRow)
             if in_header and row.is_header is False:
                 if i == 0:
                     md_table += "|%s|\n" % "|".join(["   "] * table_prop.num_of_columns)
-                map_sep = {'left': ':--', 'right': '--:', 'center': ':-:'}
-                seps = [map_sep.get(align, '---') for align in table_prop.col_alignments]
-                md_table += "|%s|\n" % "|".join(seps)
+                md_table += _make_header_separator()
                 in_header = False
             md_table += self.do_format(row)
+        if in_header:
+            md_table += _make_header_separator()
+            in_header = False
 
         if self.config.use_extended_markdown_table and table_prop.has_extended_attributes:
             shortcode = "extended-markdown-table"
