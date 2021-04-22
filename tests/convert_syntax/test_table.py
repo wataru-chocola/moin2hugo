@@ -225,3 +225,41 @@ def test_invalid_span():
     expected = textwrap.dedent(expected)
     assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
+
+
+def test_all_rows_having_rowstyle():
+    table_text = """\
+    ||<rowstyle="background-color:#444; color:#eee; text-align:center;">A ||B ||
+    ||<rowstyle="text-align:center;">a1 ||b1 ||
+    ||<rowstyle="text-align:center;">a2 ||b2 ||
+    """
+    expected = """\
+    | A | B |
+    |:-:|:-:|
+    | a1 | b1 |
+    | a2 | b2 |
+    """
+    data = textwrap.dedent(table_text)
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data
+
+
+def test_every_row_seems_header():
+    table_text = """\
+    ||<rowstyle="background-color:#444; color:#eee; text-align:center;">A ||B ||
+    ||<rowstyle="background-color:#444; color:#eee; text-align:center;">a1 ||b1 ||
+    ||<rowstyle="background-color:#444; color:#eee; text-align:center;">a2 ||b2 ||
+    """
+    expected = """\
+    | A | B |
+    | a1 | b1 |
+    | a2 | b2 |
+    |---|---|
+    """
+    data = textwrap.dedent(table_text)
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data
