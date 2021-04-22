@@ -8,6 +8,19 @@ Moin2Hugo converts MoinMoin site directory to hugo content directory.
 * Generate clean and tidy markdown source text.
 * Keep semantics as possible.
 
+## Requirements
+
+* python >= 3.7
+
+## Installation
+
+Use `poetry` or `pip >= v19.0`.
+
+```console
+$ git clone https://github.com/wataru-chocola/moin2hugo.git
+$ cd moin2hugo
+$ pip install .
+```
 
 ## Usage
 
