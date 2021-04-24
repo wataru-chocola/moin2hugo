@@ -27,13 +27,17 @@ $ pip install .
 ```
 Usage: moin2hugo [OPTIONS] SRC DST
 
-  Convert MoinMoin site directory to Hugo content directory.
+  Convert MoinMoin pages directory to Hugo content directory.
+
+  SRC is the MoinMoin pages directory to convert (e.g. yourwiki/data/pages)
+  DST is the output directory
 
 Options:
   -c, --config PATH
   -v, --verbose
   --help             Show this message and exit.
 ```
+
 
 ## Configuration
 
