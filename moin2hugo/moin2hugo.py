@@ -173,7 +173,11 @@ def cmd_print_version(ctx, param, value):
 @click.option('--version', '-V', 'version', is_flag=True, callback=cmd_print_version,
               is_eager=True, expose_value=False)
 def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool):
-    '''Convert MoinMoin site directory to Hugo content directory.
+    '''Convert MoinMoin pages directory to Hugo content directory.
+
+    \b
+    SRC is the MoinMoin pages directory to convert (e.g. yourwiki/data/pages)
+    DST is the output directory
     '''
     config_logger(verbose)
     if configfile:
