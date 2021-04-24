@@ -15,7 +15,7 @@ from moin2hugo.moin_site_scanner import MoinSiteScanner, MoinPageInfo, MoinAttac
 from moin2hugo.moin_parser import MoinParser
 from moin2hugo.formatter import HugoFormatter
 from moin2hugo.path_builder import HugoPathBuilder
-from moin2hugo.utils import safe_path_join
+from moin2hugo.utils import safe_path_join, set_console_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -144,14 +144,7 @@ class Moin2Hugo(object):
 def config_logger(verbose: bool):
     app_logger = logging.getLogger('moin2hugo')
     app_logger.propagate = False
-    handler = logging.StreamHandler()
-    if verbose:
-        app_logger.setLevel(logging.DEBUG)
-        handler.setLevel(logging.DEBUG)
-    else:
-        app_logger.setLevel(logging.INFO)
-        handler.setLevel(logging.INFO)
-    app_logger.addHandler(handler)
+    set_console_handlers(app_logger, verbose)
 
 
 def print_version():
