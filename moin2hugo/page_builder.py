@@ -21,9 +21,10 @@ from typing import List, Dict, Optional, Type
 
 
 class PageBuilder(object):
-    def __init__(self):
-        self.page_root = PageRoot()
-        self.cur = self.page_root
+    def __init__(self, verify_doc_structure: bool = False):
+        self.page_root: PageRoot = PageRoot()
+        self.cur: PageElement = self.page_root
+        self.verify_doc_structure = verify_doc_structure
 
     # Page Bulding Status
     @property
@@ -44,7 +45,7 @@ class PageBuilder(object):
 
     @property
     def is_found_parser(self) -> bool:
-        assert self.in_pre
+        assert isinstance(self.cur, ParsedText)
         return bool(self.cur.parser_name)
 
     @property
@@ -122,8 +123,14 @@ class PageBuilder(object):
         return list_types
 
     # Helpers
-    def _assert_cur_elem(self, x: Type[PageElement]):
-        if not isinstance(self.cur, x):
+    def _ensure_cur_elem(self, x: Type[PageElement]):
+        if isinstance(self.cur, x):
+            return
+
+        if not self.verify_doc_structure and self.cur.in_x([x]):
+            while not isinstance(self.cur, x):
+                self._end_current_elem()
+        else:
             emsg = "Tree Structure:\n" + self.page_root.tree_repr() + "\n"
             emsg += "Current Elemnt: " + repr(self.cur)
             raise AssertionError(emsg)
@@ -142,7 +149,7 @@ class PageBuilder(object):
         if not self.cur.in_x([cls]):
             self._start_new_elem(cls(source_text=source_text))
         else:
-            self._assert_cur_elem(cls)
+            self._ensure_cur_elem(cls)
             self.feed_src(source_text)
             self._end_current_elem()
 
@@ -155,7 +162,7 @@ class PageBuilder(object):
         self._start_new_elem(Paragraph())
 
     def paragraph_end(self):
-        self._assert_cur_elem(Paragraph)
+        self._ensure_cur_elem(Paragraph)
         self._end_current_elem()
 
     def text(self, text: str, source_text: str = ''):
@@ -185,16 +192,17 @@ class PageBuilder(object):
         self._start_new_elem(e)
 
     def parsed_text_parser(self, parser_name: str, parser_args: Optional[str] = None):
-        self._assert_cur_elem(ParsedText)
+        self._ensure_cur_elem(ParsedText)
+        assert isinstance(self.cur, ParsedText)
         self.cur.parser_name = parser_name
         self.cur.parser_args = parser_args
 
     def add_parsed_text(self, content: str):
-        self._assert_cur_elem(ParsedText)
+        self._ensure_cur_elem(ParsedText)
         self.cur.add_content(content)
 
     def parsed_text_end(self, source_text: str = ''):
-        self._assert_cur_elem(ParsedText)
+        self._ensure_cur_elem(ParsedText)
         self.feed_src(source_text)
         self._end_current_elem()
 
@@ -204,7 +212,7 @@ class PageBuilder(object):
         self._start_new_elem(Table(attrs=table_attrs))
 
     def table_end(self):
-        self._assert_cur_elem(Table)
+        self._ensure_cur_elem(Table)
         self._end_current_elem()
 
     def table_row_start(self, attrs: Dict[str, str] = {}):
@@ -212,7 +220,7 @@ class PageBuilder(object):
         self._start_new_elem(TableRow(attrs=row_attrs))
 
     def table_row_end(self):
-        self._assert_cur_elem(TableRow)
+        self._ensure_cur_elem(TableRow)
         self._end_current_elem()
 
     def table_cell_start(self, attrs: Dict[str, str] = {}, source_text: str = ''):
@@ -220,7 +228,7 @@ class PageBuilder(object):
         self._start_new_elem(TableCell(attrs=cell_attrs, source_text=source_text))
 
     def table_cell_end(self):
-        self._assert_cur_elem(TableCell)
+        self._ensure_cur_elem(TableCell)
         self._end_current_elem()
 
     # Heading / Horizontal Rule
@@ -266,7 +274,7 @@ class PageBuilder(object):
                                   source_frozen=freeze_source))
 
     def link_end(self):
-        self._assert_cur_elem(Link)
+        self._ensure_cur_elem(Link)
         self._end_current_elem()
 
     def pagelink_start(self, pagename: str, queryargs: Optional[Dict[str, str]] = None,
@@ -280,7 +288,7 @@ class PageBuilder(object):
         self._start_new_elem(e)
 
     def pagelink_end(self):
-        self._assert_cur_elem(Pagelink)
+        self._ensure_cur_elem(Pagelink)
         self._end_current_elem()
 
     def interwikilink_start(self, wikiname: str, pagename: str,
@@ -295,7 +303,7 @@ class PageBuilder(object):
         self._start_new_elem(e)
 
     def interwikilink_end(self):
-        self._assert_cur_elem(Interwikilink)
+        self._ensure_cur_elem(Interwikilink)
         self._end_current_elem()
 
     def attachment_link_start(self, pagename: str, filename: str,
@@ -309,7 +317,7 @@ class PageBuilder(object):
         self._start_new_elem(e)
 
     def attachment_link_end(self):
-        self._assert_cur_elem(AttachmentLink)
+        self._ensure_cur_elem(AttachmentLink)
         self._end_current_elem()
 
     def url(self, text: str, source_text: str = ''):
@@ -320,42 +328,42 @@ class PageBuilder(object):
         self._start_new_elem(BulletList())
 
     def bullet_list_end(self):
-        self._assert_cur_elem(BulletList)
+        self._ensure_cur_elem(BulletList)
         self._end_current_elem()
 
     def number_list_start(self, numtype: str = '1', numstart: str = '1'):
         self._start_new_elem(NumberList())
 
     def number_list_end(self):
-        self._assert_cur_elem(NumberList)
+        self._ensure_cur_elem(NumberList)
         self._end_current_elem()
 
     def listitem_start(self):
         self._start_new_elem(Listitem())
 
     def listitem_end(self):
-        self._assert_cur_elem(Listitem)
+        self._ensure_cur_elem(Listitem)
         self._end_current_elem()
 
     def definition_list_start(self):
         self._start_new_elem(DefinitionList())
 
     def definition_list_end(self):
-        self._assert_cur_elem(DefinitionList)
+        self._ensure_cur_elem(DefinitionList)
         self._end_current_elem()
 
     def definition_term_start(self, source_text: str = '', freeze_source: bool = False):
         self._start_new_elem(DefinitionTerm(source_text=source_text, source_frozen=freeze_source))
 
     def definition_term_end(self):
-        self._assert_cur_elem(DefinitionTerm)
+        self._ensure_cur_elem(DefinitionTerm)
         self._end_current_elem()
 
     def definition_desc_start(self):
         self._start_new_elem(DefinitionDesc())
 
     def definition_desc_end(self):
-        self._assert_cur_elem(DefinitionDesc)
+        self._ensure_cur_elem(DefinitionDesc)
         self._end_current_elem()
 
     # Transclude (Image Embedding)
@@ -379,7 +387,7 @@ class PageBuilder(object):
         self._start_new_elem(e)
 
     def transclusion_end(self):
-        self._assert_cur_elem(Transclude)
+        self._ensure_cur_elem(Transclude)
         self._end_current_elem()
 
     def attachment_transclusion_start(self, pagename: str, filename: str,
@@ -391,7 +399,7 @@ class PageBuilder(object):
         self._start_new_elem(e)
 
     def attachment_transclusion_end(self):
-        self._assert_cur_elem(AttachmentTransclude)
+        self._ensure_cur_elem(AttachmentTransclude)
         self._end_current_elem()
 
     # Transclude (Other)

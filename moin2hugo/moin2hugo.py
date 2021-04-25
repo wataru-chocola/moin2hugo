@@ -88,7 +88,8 @@ class Moin2Hugo(object):
         with open(page.filepath, 'r') as f:
             content = f.read()
         page_obj = MoinParser.parse(content, page.name,
-                                    site_config=self.config.moin_site_config)
+                                    site_config=self.config.moin_site_config,
+                                    strict_mode=self.config.strict_mode)
 
         logger.debug("++ translate")
         converted = HugoFormatter.format(
@@ -137,7 +138,12 @@ class Moin2Hugo(object):
 
         for page in self.moin_site_scanner.scan_pages():
             logger.info("+ Convert Page: %s" % page.name)
-            self.convert_page(page)
+            try:
+                self.convert_page(page)
+            except AssertionError as e:
+                logger.error("++ fail to convert.")
+                logger.exception(e)
+                continue
             logger.info("++ done.")
 
 

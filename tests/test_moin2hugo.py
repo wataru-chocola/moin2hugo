@@ -3,6 +3,7 @@ import os
 import tempfile
 import filecmp
 import difflib
+from unittest.mock import patch
 
 from moin2hugo.moin2hugo import Moin2Hugo, print_version
 
@@ -55,3 +56,11 @@ def test_convert(moin_sitedir, hugo_sitedir):
         moin2hugo.convert()
         dcmp = filecmp.dircmp(d, hugo_sitedir)
         assert_equal_directory(dcmp)
+
+
+def test_convert_assertion_error(moin_sitedir, hugo_sitedir, caplog):
+    with tempfile.TemporaryDirectory() as d:
+        moin2hugo = Moin2Hugo(moin_sitedir, d)
+        with patch.object(moin2hugo, 'convert_page', side_effect=AssertionError):
+            moin2hugo.convert()
+        assert 'fail to convert' in caplog.text

@@ -22,6 +22,7 @@ class HugoConfig(BaseSettings):
 class Config(BaseSettings):
     moin_site_config: MoinSiteConfig = Field(default_factory=MoinSiteConfig)
     hugo_config: HugoConfig = Field(default_factory=HugoConfig)
+    strict_mode: bool = False
     template_file: Optional[FilePath] = None
 
 
