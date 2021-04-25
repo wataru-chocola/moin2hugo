@@ -56,35 +56,36 @@ hugo_config:
 
 Configurable paramaters are below.
 
-Paramater | Default | Description
--- | -- | --
-`template_file` |`None` |template file for rendering page
-`moin_site_config.*` | - | see `MoinSiteConfig`
-`hugo_config.*` | - | see `HugoConfig`
+Paramater | Type | Default | Description
+-- | -- | -- | --
+`template_file` | `FilePath` |`None` |template file for rendering page
+`moin_site_config.*` | `MoinSiteConfig` | - | see `MoinSiteConfig`
+`hugo_config.*` | `HugoConfig` | - | see `HugoConfig`
+`strict_mode` | `bool` | `False` |check doc structure (for development purpose)
 
 ### MoinSiteConfig
 
 Moin wiki parser configuration.
 
-Paramater | Default | Description
--- | -- | --
-`bang_meta` |`True` | corresponding with moin site config: `bang_meta`
-`page_front_page` |`FrontPage` | corresponding with moin site config: `page_front_page`
+Paramater | Type | Default | Description
+-- | -- | -- | --
+`bang_meta` |`bool` |`True` | corresponding with moin site config: `bang_meta`
+`page_front_page` |`str` |`FrontPage` | corresponding with moin site config: `page_front_page`
 
 ### HugoConfig
 
 Hugo formatting configuration.
 
-Paramater | Default | Description
--- | -- | --
-`detect_table_header_heuristically` | `True` | make table header by heuristics
-`use_extended_markdown_table` | `False` | use [hugo-shortcode-extended-markdown-table][hugo-shortcode-extended-markdown-table] to support table colspan/rowspan
-`increment_heading_level` | `True` | increment heading level (e.g. Moin's h1 -> Hugo's h2)
-`root_path` | `/` | root path of hugo site in url
-`use_figure_shortcode` | `True` | use `figure` shortcode
-`goldmark_unsafe` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
-`disable_path_to_lower` | `True` | corresponding with hugo config: `disablePathLower`
-`remove_path_accents` | `False` | corresponding with hugo config: `removePathAccents`
+Paramater | Type | Default | Description
+-- | -- | -- | --
+`detect_table_header_heuristically` |`bool` | `True` | make table header by heuristics
+`use_extended_markdown_table` |`bool` | `False` | use [hugo-shortcode-extended-markdown-table][hugo-shortcode-extended-markdown-table] to support table colspan/rowspan
+`increment_heading_level` |`bool` | `True` | increment heading level (e.g. Moin's h1 -> Hugo's h2)
+`root_path` |`URLPath` | `/` | root path of hugo site in url
+`use_figure_shortcode` |`bool` | `True` | use `figure` shortcode
+`goldmark_unsafe` |`bool` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
+`disable_path_to_lower` |`bool` | `True` | corresponding with hugo config: `disablePathLower`
+`remove_path_accents` |`bool` | `False` | corresponding with hugo config: `removePathAccents`
 
 [hugo-shortcode-extended-markdown-table]: https://github.com/wataru-chocola/hugo-shortcode-extended-markdown-table
 
