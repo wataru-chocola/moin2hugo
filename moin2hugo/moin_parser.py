@@ -334,20 +334,22 @@ class MoinParser(object):
         'smiley': '|'.join([re.escape(s) for s in settings.smileys])}
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    def __init__(self, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None):
+    def __init__(self, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None,
+                 strict_mode: bool = False):
         if site_config:
             self.site_config = site_config
         else:
             self.site_config = MoinSiteConfig()
-        self.builder = moin2hugo.page_builder.PageBuilder()
+        self.builder = moin2hugo.page_builder.PageBuilder(verify_doc_structure=strict_mode)  # noqa
         self.lines = text.expandtabs().splitlines(keepends=True)
         self.page_name = page_name
         self.list_indents: List[int] = []  # holds the nesting level (in chars) of open lists
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def parse(cls, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None):
-        parser = cls(text, page_name, site_config=site_config)
+    def parse(cls, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None,
+              strict_mode: bool = False):
+        parser = cls(text, page_name, site_config=site_config, strict_mode=strict_mode)
         return parser.run_parse()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------

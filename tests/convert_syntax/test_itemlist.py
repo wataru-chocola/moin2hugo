@@ -224,5 +224,3 @@ def test_definition_lists_4():
     expected = textwrap.dedent(expected)
     assert HugoFormatter.format(page, pagename='PageName') == expected, page.tree_repr()
     assert page.source_text == data
-
-
