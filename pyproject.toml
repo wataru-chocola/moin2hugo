@@ -19,6 +19,7 @@ toml = "^0.10.2"
 pytest = "^5.2"
 mypy = "^0.812"
 pytest-randomly = "^3.5.0"
+pre-commit = "^2.12.1"
 
 [tool.poetry.scripts]
 moin2hugo = "moin2hugo.moin2hugo:convert_site"
