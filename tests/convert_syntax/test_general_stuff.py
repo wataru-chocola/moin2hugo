@@ -129,3 +129,41 @@ def test_entities(data, expected):
     page = MoinParser.parse(data, 'PageName')
     assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ("__a ~+larger+~ a__", "<u>a <big>larger</big> a</u>"),
+        (r"__aaa{{< test bbb__", r"<u>aaa{{&lt; test bbb</u>"),
+        (r"__aaa{{% test bbb__", r"<u>aaa{{&#37; test bbb</u>"),
+    ]
+)
+def test_shortcode_within_tag(data, expected):
+    page = MoinParser.parse(data, 'PageName')
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"), [
+        ('`{{<abc>}}`', '`{{</*abc*/>}}`'),
+        ("""\
+         {{{
+         {{< abc `bar
+         baz` xyz >}}
+         }}}
+         """,
+         """\
+         ```
+         {{</* abc `bar
+         baz` xyz */>}}
+         ```
+         """),
+    ]
+)
+def test_shortcode_within_pre(data, expected):
+    data = textwrap.dedent(data)
+    expected = textwrap.dedent(expected).rstrip()
+    page = MoinParser.parse(data, 'PageName')
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data

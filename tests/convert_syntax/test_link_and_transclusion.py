@@ -71,7 +71,7 @@ def test_links(data, expected):
 )
 def test_transclude(data, expected):
     page = MoinParser.parse(data, 'PageName')
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename='PageName') == expected, page.tree_repr()
     assert page.source_text == data
 
 

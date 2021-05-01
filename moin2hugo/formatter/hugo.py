@@ -2,14 +2,18 @@ import re
 import os.path
 import textwrap
 import collections
+from functools import partial
 import html
 import copy
 import logging
-from datetime import datetime
 
 import attr
 
 from .base import FormatterBase
+from .hugo_utils import MarkdownEscapedText, escape_markdown_all, escape_markdown_symbols
+from .hugo_utils import make_shortcode, comment_out_shortcode, escape_shortcode
+from .hugo_utils import search_shortcode_delimiter
+
 from moin2hugo.page_tree import (
     PageRoot, Raw, PageElement,
     Macro, Comment, Smiley, Remark,
@@ -31,7 +35,7 @@ from moin2hugo.moin_parser_extensions import get_parser_info_from_ext
 from moin2hugo.path_builder.hugo import HugoPathBuilder
 from moin2hugo.config import HugoConfig
 
-from typing import Optional, List, Dict, Tuple, Union
+from typing import Optional, List, Dict, Tuple, Union, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -77,41 +81,22 @@ smiley2emoji = {
 }
 
 
-class MarkdownEscapedText(str):
-    pass
-
-
-def escape_markdown_symbols(text: str, symbols: List[str] = [],
-                            all_symbols: bool = False) -> MarkdownEscapedText:
-    '''escape all occurences of these symbols no matter which context they are on.
-    '''
-    escapable_chars = set([
-        '\\',
-        '[', ']', '{', '}', '(', ')', '<', '>',
-        '*', '+', '-',
-        '_', ':', '`', '#', '|',
-        '"', '~',    # can be escaped at least with commonmark
-    ])
-    if all_symbols:
-        symbols = list(escapable_chars)
-    assert escapable_chars.issuperset(set(symbols)), "not escapable symbol found: " + str(symbols)
-
-    symbol_re = re.compile('([%s])' % re.escape("".join(symbols)))
-    text = re.sub(symbol_re, r'\\\1', text)
-    return MarkdownEscapedText(text)
-
-
-def escape_markdown_all(text: str) -> MarkdownEscapedText:
-    '''escape all occurences of these symbols no matter which context they are on.
-    '''
-    return escape_markdown_symbols(text, all_symbols=True)
-
-
 @attr.s
 class TableProperty:
     num_of_columns: int = attr.ib(default=0)
     has_extended_attributes: bool = attr.ib(default=False)
     col_alignments: List[str] = attr.ib(default=attr.Factory(list))
+
+
+def escape(text: str,
+           markdown_escaper: Optional[Callable[[str], str]] = None,
+           in_html: bool = False) -> MarkdownEscapedText:
+    if not in_html:
+        if markdown_escaper:
+            text = markdown_escaper(text)
+    else:
+        text = html.escape(text)
+    return MarkdownEscapedText(escape_shortcode(text, in_html=in_html))
 
 
 class HugoFormatter(FormatterBase):
@@ -192,22 +177,10 @@ class HugoFormatter(FormatterBase):
             else:
                 start_tag = "<%s>" % tag
             end_tag = "</%s>" % tag
-            return start_tag + html.escape(content) + end_tag
+            return start_tag + content + end_tag
         else:
             logger.warning("unsupported: %s (set `goldmark_unsafe` option)" % e.__class__.__name__)
             return "%s" % escape_markdown_all(e.source_text)
-
-    def _shortcode(self, shortcode: str, attrs: Dict[str, Optional[str]] = {}) -> str:
-        if attrs:
-            attrs_str = []
-            for k, v in attrs.items():
-                if v is None:
-                    attrs_str.append('%s' % k)
-                else:
-                    attrs_str.append('%s="%s"' % (k, v))
-            return "{{< %s %s >}}" % (shortcode, " ".join(attrs_str))
-        else:
-            return "{{< %s >}}" % shortcode
 
     # Basic Elements
     def page_root(self, e: PageRoot) -> str:
@@ -217,12 +190,12 @@ class HugoFormatter(FormatterBase):
         return self._generic_container(new_e)
 
     def raw(self, e: Raw) -> str:
-        return e.content
+        return escape(e.content, in_html=self._is_in_raw_html(e))
 
     def paragraph(self, e: Paragraph) -> str:
         return self._separator_line(e) + self._generic_container(e)
 
-    def _is_in_raw_html(self, e: Text) -> bool:
+    def _is_in_raw_html(self, e: PageElement) -> bool:
         raw_html_types = (Underline, Sup, Sub, Big, Small, AttachmentTransclude, Transclude)
         return any((isinstance(p, raw_html_types) for p in e.parents))
 
@@ -250,15 +223,11 @@ class HugoFormatter(FormatterBase):
 
         return True
 
-    def _escape_markdown_text(self, e: PageElement, use_source_text: bool = False) \
+    def _escape_markdown_text(self, text: str, e: PageElement) \
             -> MarkdownEscapedText:
         '''escape markdown symbols depending on context.
         '''
         # escape backslashes at first
-        if use_source_text:
-            text = e.source_text
-        else:
-            text = e.content
         text = re.sub(r'\\', r'\\\\', text)
 
         # target symbols of which all occurences are escaped
@@ -300,13 +269,16 @@ class HugoFormatter(FormatterBase):
         return MarkdownEscapedText("".join(new_lines))
 
     def text(self, e: Text) -> str:
-        if self._is_in_raw_html(e):
-            return e.content
-        else:
-            return self._separator_line(e) + self._escape_markdown_text(e)
+        in_html = self._is_in_raw_html(e)
+        ret = ""
+        if not in_html:
+            ret += self._separator_line(e)
+        ret += escape(e.content, markdown_escaper=partial(self._escape_markdown_text, e=e),
+                      in_html=in_html)
+        return ret
 
     def sgml_entity(self, e: SGMLEntity) -> str:
-        return e.content
+        return escape(e.content, in_html=self._is_in_raw_html(e))
 
     # Moinwiki Special Objects
     def macro(self, e: Macro) -> str:
@@ -318,7 +290,8 @@ class HugoFormatter(FormatterBase):
                     return '<br />'
                 else:
                     logger.warning("unsupported: macro <<BR>> inside table")
-                    return escape_markdown_all(e.source_text)
+                    return escape(e.source_text, markdown_escaper=escape_markdown_all,
+                                  in_html=self._is_in_raw_html(e))
         elif e.macro_name == 'TableOfContents':
             return ''
         else:
@@ -350,12 +323,18 @@ class HugoFormatter(FormatterBase):
             if m and len(m.group(0)) >= len(codeblock_delimiter):
                 codeblock_delimiter = "`" * (len(m.group(0)) + 1)
 
+        content = "\n".join(lines)
+        content = comment_out_shortcode(content)
+        if search_shortcode_delimiter(content):
+            logger.warning("+ WARN: cannot handle non-paired shortcode delimiter in codeblock")
+            logger.warning("+ WARN: MUST modify it manually or hugo will fail to build")
+
         ret = self._separator_line(e)
         if e.syntax_id:
             ret += "%s%s\n" % (codeblock_delimiter, e.syntax_id)
         else:
             ret += "%s\n" % (codeblock_delimiter)
-        ret += "\n".join(lines)
+        ret += content
         ret += "\n%s" % codeblock_delimiter
         return ret
 
@@ -560,7 +539,9 @@ class HugoFormatter(FormatterBase):
         if self.config.increment_heading_level:
             heading_level += 1
         heading_level = min(heading_level, max_level)
-        ret += '#' * heading_level + ' ' + self._escape_markdown_text(e) + "\n\n"
+        content = escape(e.content, markdown_escaper=partial(self._escape_markdown_text, e=e),
+                         in_html=self._is_in_raw_html(e))
+        ret += '#' * heading_level + ' ' + content + "\n\n"
         return ret
 
     def rule(self, e: HorizontalRule) -> str:
@@ -612,18 +593,25 @@ class HugoFormatter(FormatterBase):
 
     # Decoration (cannot be multilined)
     def sup(self, e: Sup) -> str:
-        return self._raw_html(e, 'sup', content=e.content)
+        content = escape(e.content, in_html=True)
+        return self._raw_html(e, 'sup', content=content)
 
     def sub(self, e: Sub) -> str:
-        return self._raw_html(e, 'sub', content=e.content)
+        content = escape(e.content, in_html=True)
+        return self._raw_html(e, 'sub', content=content)
 
     def code(self, e: Code) -> str:
-        # noqa: refer: https://meta.stackexchange.com/questions/82718/how-do-i-escape-a-backtick-within-in-line-code-in-markdown
         text = e.content
         if text.startswith("`"):
             text = " " + text
         if text.endswith("`"):
             text = text + " "
+
+        # noqa: refer: https://meta.stackexchange.com/questions/82718/how-do-i-escape-a-backtick-within-in-line-code-in-markdown
+        text = comment_out_shortcode(text)
+        if search_shortcode_delimiter(text):
+            logger.warning("+ WARN: cannot handle non-paired shortcode delimiter in code")
+            logger.warning("+ WARN: MUST modify it manually or hugo will fail to build")
 
         len_of_longest_backticks = 0
         if "`" in text:
@@ -634,7 +622,10 @@ class HugoFormatter(FormatterBase):
     # Links
     def url(self, e: Url) -> str:
         # e.content must be valid as URL
-        return "<%s>" % (escape_markdown_symbols(e.content, symbols=['<', '>']))
+        encoded_url = escape(e.content,
+                             markdown_escaper=partial(escape_markdown_symbols, symbols=['<', '>']),
+                             in_html=self._is_in_raw_html(e))
+        return "<%s>" % encoded_url
 
     def _link(self, target: MarkdownEscapedText, description: MarkdownEscapedText,
               title: Optional[MarkdownEscapedText] = None) -> str:
@@ -644,9 +635,15 @@ class HugoFormatter(FormatterBase):
             return "[%s](%s)" % (description, target)
 
     def link(self, e: Link) -> str:
-        url = escape_markdown_symbols(e.url, symbols=['(', ')', '[', ']', '"'])
+        url = escape(e.url,
+                     markdown_escaper=partial(escape_markdown_symbols,
+                                              symbols=['(', ')', '[', ']', '"']),
+                     in_html=self._is_in_raw_html(e))
         description = MarkdownEscapedText(self._generic_container(e))
-        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
+        title = None
+        if e.attrs.title is not None:
+            title = escape(e.attrs.title, markdown_escaper=escape_markdown_all,
+                           in_html=self._is_in_raw_html(e))
         return self._link(url, description, title=title)
 
     def pagelink(self, e: Pagelink) -> str:
@@ -656,13 +653,18 @@ class HugoFormatter(FormatterBase):
             pass
         if e.anchor:
             link_path += "#%s" % e.anchor
-        escaped_link_path = escape_markdown_symbols(link_path, symbols=['(', ')', '[', ']', '"'])
+        escaped_link_path = escape(link_path,
+                                   markdown_escaper=partial(escape_markdown_symbols,
+                                                            symbols=['(', ')', '[', ']', '"']),
+                                   in_html=self._is_in_raw_html(e))
         description = MarkdownEscapedText(self._generic_container(e))
         return self._link(escaped_link_path, description)
 
     def interwikilink(self, e: Interwikilink) -> str:
         logger.warning("unsupported: interwiki=%s" % e.source_text)
-        return self._escape_markdown_text(e, use_source_text=True)
+        ret = escape(e.source_text, markdown_escaper=partial(self._escape_markdown_text, e=e),
+                     in_html=self._is_in_raw_html(e))
+        return ret
 
     def attachment_link(self, e: AttachmentLink) -> str:
         link_path = self.path_builder.attachment_url(e.pagename, e.filename,
@@ -672,7 +674,10 @@ class HugoFormatter(FormatterBase):
             pass
         escaped_link_path = escape_markdown_symbols(link_path, symbols=['(', ')', '[', ']', '"'])
         description = MarkdownEscapedText(self._generic_container(e))
-        title = None if e.attrs.title is None else escape_markdown_all(e.attrs.title)
+        title = None
+        if e.attrs.title is not None:
+            title = escape(e.attrs.title, markdown_escaper=escape_markdown_all,
+                           in_html=self._is_in_raw_html(e))
         return self._link(escaped_link_path, description, title)
 
     # Itemlist
@@ -752,27 +757,32 @@ class HugoFormatter(FormatterBase):
         tag_attrs = collections.OrderedDict([('data', url)])
         if objattr:
             if objattr.mimetype:
-                tag_attrs['type'] = html.escape(objattr.mimetype)
+                tag_attrs['type'] = escape(objattr.mimetype, in_html=True)
             if objattr.title:
-                tag_attrs['name'] = html.escape(objattr.title)
+                tag_attrs['name'] = escape(objattr.title, in_html=True)
             if objattr.width:
-                tag_attrs['width'] = html.escape(objattr.width)
+                tag_attrs['width'] = escape(objattr.width, in_html=True)
             if objattr.height:
-                tag_attrs['height'] = html.escape(objattr.height)
+                tag_attrs['height'] = escape(objattr.height, in_html=True)
         return self._raw_html(e, "object", content=self._generic_container(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
         url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
+        url = escape(url, in_html=True)
         return self._transclude(url, e, e.attrs)
 
     def transclude(self, e: Transclude) -> str:
         url = self.path_builder.page_url(e.pagename, relative_base=self.pagename)
+        url = escape(url, in_html=True)
         return self._transclude(url, e, e.attrs)
 
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
+        in_html = self._is_in_raw_html(e)
         url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
-        escaped_url = escape_markdown_symbols(url, symbols=['(', ')', '[', ']', '"'])
+        escaped_url = escape(url, partial(escape_markdown_symbols,
+                                          symbols=['(', ')', '[', ']', '"']),
+                             in_html=in_html)
 
         filepath = self.path_builder.attachment_filepath(e.pagename, e.filename)
         with open(filepath, 'r') as f:
@@ -787,7 +797,8 @@ class HugoFormatter(FormatterBase):
         if not ret.endswith("\n"):
             ret += "\n"
         ret += "\n"
-        ret += self._link(escaped_url, escape_markdown_all(e.link_text))
+        link_text = escape(e.link_text, markdown_escaper=escape_markdown_all, in_html=in_html)
+        ret += self._link(escaped_url, link_text)
         return ret
 
     def _figure_shortcode(self, src: MarkdownEscapedText, e: PageElement,
@@ -795,38 +806,45 @@ class HugoFormatter(FormatterBase):
         tag_attrs: Dict[str, Optional[str]] = collections.OrderedDict([('src', str(src))])
         if imgattr is not None:
             if imgattr.title is not None:
-                tag_attrs['title'] = html.escape(imgattr.title)
+                tag_attrs['title'] = escape(imgattr.title, in_html=True)
             if imgattr.alt is not None:
-                tag_attrs['alt'] = html.escape(imgattr.alt)
+                tag_attrs['alt'] = escape(imgattr.alt, in_html=True)
             if imgattr.width:
-                tag_attrs['width'] = html.escape(imgattr.width)
+                tag_attrs['width'] = escape(imgattr.width, in_html=True)
             if imgattr.height:
-                tag_attrs['height'] = html.escape(imgattr.height)
-        return self._shortcode('figure', attrs=tag_attrs)
+                tag_attrs['height'] = escape(imgattr.height, in_html=True)
+        return make_shortcode('figure', attrs=tag_attrs)
 
-    def _image(self, src: MarkdownEscapedText, imgattr: Optional[ImageAttr] = None) -> str:
+    def _image(self, src: MarkdownEscapedText, imgattr: Optional[ImageAttr] = None,
+               in_html: bool = False) -> str:
         if imgattr is not None and imgattr.alt is not None:
-            alt = escape_markdown_all(imgattr.alt)
+            alt = escape(imgattr.alt, markdown_escaper=escape_markdown_all, in_html=in_html)
         else:
             alt = MarkdownEscapedText('')
 
         if imgattr is not None and imgattr.title is not None:
-            title = escape_markdown_all(imgattr.title)
+            title = escape(imgattr.title, markdown_escaper=escape_markdown_all, in_html=in_html)
             return '![{alt}]({src} "{title}")'.format(alt=alt, src=src, title=title)
         else:
             return '![{alt}]({src})'.format(alt=alt, src=src)
 
     def image(self, e: Image) -> str:
-        src = escape_markdown_symbols(e.src, symbols=['"', '[', ']', '(', ')'])
+        in_html = self._is_in_raw_html(e)
+        src = escape(e.src, markdown_escaper=partial(escape_markdown_symbols,
+                                                     symbols=['"', '[', ']', '(', ')']),
+                     in_html=in_html)
         if self.config.use_figure_shortcode and (e.attrs.width or e.attrs.height):
             return self._figure_shortcode(src, e, e.attrs)
         else:
-            return self._image(src, e.attrs)
+            return self._image(src, e.attrs, in_html=in_html)
 
     def attachment_image(self, e: AttachmentImage) -> str:
         url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
-        url = escape_markdown_symbols(url, symbols=['"', '[', ']', '(', ')'])
+        in_html = self._is_in_raw_html(e)
+        url = escape(url, markdown_escaper=partial(escape_markdown_symbols,
+                                                   symbols=['"', '[', ']', '(', ')']),
+                     in_html=in_html)
         if self.config.use_figure_shortcode and (e.attrs.width or e.attrs.height):
             return self._figure_shortcode(url, e, e.attrs)
         else:
-            return self._image(url, e.attrs)
+            return self._image(url, e.attrs, in_html=in_html)
