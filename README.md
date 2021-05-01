@@ -111,6 +111,27 @@ class HugoPageInfo:
 
 ## Notes
 
+### Mistaking Shortcode
+
+`moin2hugo` tries to escape or comment out shortcode-like strings to prevent them from being processed as shortcode.
+There are three ways to do this.
+
+* Shortcode comment out: `{{</* hello */>}}`
+* Markdown escaping: `{{\< hello \>}}`
+* HTML encoding: `{{&lt; hello &gt;}}`
+
+Unfortunately, **neither of them works in the case that only starting delimiter exists inside code or codeblock**.
+So, the following markdown is never rendered properly by Hugo.
+
+````
+```python
+print("{{%s}}" % "hello, world")
+```
+````
+
+If `moin2hugo` find these strings, the alert message will be displayed.
+You can delete or modify them somehow before building by Hugo.
+
 ### Unsupported Syntax
 
 Following syntaxes are not supported or limitedly supported.
