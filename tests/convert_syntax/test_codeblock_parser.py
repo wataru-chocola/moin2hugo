@@ -120,3 +120,23 @@ def test_csv_param2():
     expected = textwrap.dedent(expected)
     assert HugoFormatter.format(page, pagename='PageName') == expected
     assert page.source_text == data
+
+
+def test_codeblock_shortcode(caplog):
+    code_block_text = """\
+    {{{#!highlight python
+    print("hello, {{< world >}}")
+    }}}
+    """
+    expected = """\
+    ```python
+    print("hello, {{</* world */>}}")
+    ```
+    """.rstrip()
+    data = textwrap.dedent(code_block_text)
+    page = MoinParser.parse(data, 'PageName')
+    expected = textwrap.dedent(expected)
+    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert page.source_text == data
+
+    assert "cannot handle non-paired shortcode delimiter" not in caplog.text, page.tree_repr()
