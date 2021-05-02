@@ -49,3 +49,20 @@ def test_unclosed_element_in_strict_mode(data, expected):
     expected = textwrap.dedent(expected)
     with pytest.raises(AssertionError):
         _ = MoinParser.parse(data, 'PageName', strict_mode=True)
+
+
+@pytest.mark.parametrize(
+    ("data"), [
+        ("""\
+         {{{
+         hello, {{%world!
+         }}}
+         """),
+        ("`hello, {{%world!`"),
+    ]
+)
+def test_incomplete_shortcode_inside_code(data, caplog):
+    data = textwrap.dedent(data)
+    page = MoinParser.parse(data, 'PageName')
+    _ = HugoFormatter.format(page, pagename='PageName')
+    assert "cannot handle non-paired shortcode delimiter" in caplog.text, page.tree_repr()

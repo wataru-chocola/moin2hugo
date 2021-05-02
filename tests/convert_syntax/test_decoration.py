@@ -38,6 +38,10 @@ def test_decorations_ml(data, expected):
 
         ("^su<x />per^script", "<sup>su&lt;x /&gt;per</sup>script"),
         (",,su<x />b,,script", "<sub>su&lt;x /&gt;b</sub>script"),
+
+        # shortcode
+        ("^su{{%hoge%}}per^script", "<sup>su{{&#37;hoge%}}per</sup>script"),
+        ("`inline {{%test%}} code`", "`inline {{%/*test*/%}} code`"),
     ]
 )
 def test_decorations_sl(data, expected):
