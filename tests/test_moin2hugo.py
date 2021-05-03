@@ -65,4 +65,4 @@ def test_convert_assertion_error(moin_sitedir, hugo_sitedir, caplog):
         moin2hugo = Moin2Hugo(moin_sitedir, dstdir)
         with patch.object(moin2hugo, 'convert_page', side_effect=AssertionError):
             moin2hugo.convert()
-    assert 'fail to convert' in caplog.text
+    assert 'fail to convert' in caplog.text, caplog.text
