@@ -147,10 +147,18 @@ class Moin2Hugo(object):
             logger.info("++ done.")
 
 
-def config_logger(verbose: bool):
+def config_logger(verbose: bool, debug: bool):
     app_logger = logging.getLogger('moin2hugo')
     app_logger.propagate = False
-    set_console_handlers(app_logger, verbose)
+    for handler in app_logger.handlers:
+        app_logger.removeHandler(handler)
+    set_console_handlers(app_logger, verbose, debug)
+
+    cssutils_logger = logging.getLogger('CSSUTILS')
+    cssutils_logger.propagate = False
+    for handler in cssutils_logger.handlers:
+        cssutils_logger.removeHandler(handler)
+    set_console_handlers(cssutils_logger, verbose, debug)
 
 
 def print_version():
@@ -169,16 +177,19 @@ def cmd_print_version(ctx, param, value):
 @click.argument('dst', type=click.Path())
 @click.option('--config', '-c', 'configfile', type=click.Path(exists=True), default=None)
 @click.option('--verbose', '-v', 'verbose', type=bool, default=False, is_flag=True)
+@click.option('--debug', '-d', 'debug', type=bool, default=False, is_flag=True)
 @click.option('--version', '-V', 'version', is_flag=True, callback=cmd_print_version,
               is_eager=True, expose_value=False)
-def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool):
+def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool, debug: bool):
     '''Convert MoinMoin pages directory to Hugo content directory.
 
     \b
     SRC is the MoinMoin pages directory to convert (e.g. yourwiki/data/pages)
     DST is the output directory
     '''
-    config_logger(verbose)
+    if debug:
+        verbose = True
+    config_logger(verbose, debug)
     if configfile:
         with open(configfile, 'r') as f:
             config_data = f.read()
