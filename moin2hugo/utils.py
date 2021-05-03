@@ -43,11 +43,15 @@ class ContextFilter(logging.Filter):
         return True
 
 
-def set_console_handlers(logger: logging.Logger, verbose: bool = False):
+def set_console_handlers(logger: logging.Logger, verbose: bool = False, debug: bool = False):
     if verbose:
         stdout_handler = logging.StreamHandler(sys.stdout)
-        logger.setLevel(logging.DEBUG)
-        stdout_handler.setLevel(logging.DEBUG)
+        if debug:
+            logger.setLevel(logging.DEBUG)
+            stdout_handler.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.INFO)
+            stdout_handler.setLevel(logging.INFO)
         stdout_handler.addFilter(LogLevelFilter(max_level=logging.INFO))
         logger.addHandler(stdout_handler)
 
