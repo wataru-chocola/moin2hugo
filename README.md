@@ -35,6 +35,8 @@ Usage: moin2hugo [OPTIONS] SRC DST
 Options:
   -c, --config PATH
   -v, --verbose
+  -d, --debug
+  -V, --version
   --help             Show this message and exit.
 ```
 

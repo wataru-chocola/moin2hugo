@@ -243,6 +243,6 @@ def parseAttributes(attrstring: str, endtoken=None, extension=None) -> Dict[str,
             val = shlex.split(val)[0]  # unquote shell quotation
             attrs[key.lower()] = val
     except ValueError as e:
-        logger.info("failed to parse attributes: %s by %s" % (attrstring, repr(e)))
+        logger.warning("failed to parse attributes: %s by %s" % (attrstring, repr(e)))
 
     return attrs
