@@ -27,9 +27,11 @@ class LogLevelFilter(logging.Filter):
 def get_target_pagename() -> Optional[str]:
     stack = inspect.stack()
     for frame_info in stack:
-        if frame_info.function == 'convert_page':
+        if frame_info.function in ['convert_page', 'convert']:
             frame = frame_info.frame
-            page = frame.f_locals['page']
+            page = frame.f_locals.get('page')
+            if page is None:
+                return None
             return page.name
     return None
 
