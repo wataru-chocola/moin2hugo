@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import sys
 import textwrap
+from typing import Any, Dict, List, Optional, Type, TypeVar
+
 import attr
 import cssutils  # type: ignore
 
-from typing import Optional, List, Dict, Any, Type, TypeVar
 if sys.version_info >= (3, 8):
     from typing import Literal
 else:
@@ -14,20 +15,21 @@ else:
 
 @attr.s(slots=True)
 class PageElement(object):
-    content: str = attr.ib(default='')
+    content: str = attr.ib(default="")
 
-    parent: Optional[PageElement] = attr.ib(default=None, init=False, repr=False, eq=False,
-                                            metadata={'exclude_content': True})
+    parent: Optional[PageElement] = attr.ib(
+        default=None, init=False, repr=False, eq=False, metadata={"exclude_content": True}
+    )
     children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
-    source_text: str = attr.ib(default='', repr=False, metadata={'exclude_content': True})
-    source_frozen: bool = attr.ib(default=False, repr=False, metadata={'exclude_content': True})
+    source_text: str = attr.ib(default="", repr=False, metadata={"exclude_content": True})
+    source_frozen: bool = attr.ib(default=False, repr=False, metadata={"exclude_content": True})
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> PageElement:
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in data.items() if k in initable_fields])
         obj = cls(**init_args)
-        for _class, c_init_data in data.get('children', []):
+        for _class, c_init_data in data.get("children", []):
             obj.add_child(_class.from_dict(c_init_data), propagate_source_text=False)
         return obj
 
@@ -42,7 +44,7 @@ class PageElement(object):
         hash_value = 0
         for field in attr.fields(self.__class__):
             assert isinstance(field, attr.Attribute)
-            if field.metadata.get('exclude_content',  False):
+            if field.metadata.get("exclude_content", False):
                 continue
             value = self.__getattribute__(field.name)
             hash_value += hash(field.name)
@@ -81,7 +83,7 @@ class PageElement(object):
         idx = [i for i, x in enumerate(self.parent.children) if x is self][0]
         if idx == 0:
             return None
-        return self.parent.children[idx-1]
+        return self.parent.children[idx - 1]
 
     @property
     def next_sibling(self) -> Optional[PageElement]:
@@ -90,7 +92,7 @@ class PageElement(object):
         idx = [i for i, x in enumerate(self.parent.children) if x is self][0]
         if idx == len(self.parent.children) - 1:
             return None
-        return self.parent.children[idx+1]
+        return self.parent.children[idx + 1]
 
     def in_x(self, x: List[Type[PageElement]], upper_bound: List[Type[PageElement]] = []) -> bool:
         above_me = [self] + self.parents
@@ -104,8 +106,9 @@ class PageElement(object):
     def add_content(self, content: str):
         self.content += content
 
-    def add_child(self, child: PageElement, propagate_source_text: bool = True,
-                  at: Optional[int] = None):
+    def add_child(
+        self, child: PageElement, propagate_source_text: bool = True, at: Optional[int] = None
+    ):
         if at is None:
             self.children.append(child)
         else:
@@ -116,7 +119,7 @@ class PageElement(object):
 
     def del_child(self, at: int):
         child = self.children[at]
-        self.children = self.children[0:at] + self.children[at+1:]
+        self.children = self.children[0:at] + self.children[at + 1 :]
         del child
 
     def add_source_text(self, source_text: str, freeze: bool = False):
@@ -133,20 +136,20 @@ class PageElement(object):
 
     def tree_repr(self, include_src: bool = False) -> str:
         def _shorten(text: str, width: int = 40) -> str:
-            placeholder = '[...]'
+            placeholder = "[...]"
             assert width > len(placeholder)
             if len(text) > width:
-                return text[:width-len(placeholder)] + placeholder
+                return text[: width - len(placeholder)] + placeholder
             return text
 
         classname = self.__class__.__name__
-        description = '{classname}:'.format(classname=classname)
+        description = "{classname}:".format(classname=classname)
         if self.content:
             summary = repr(_shorten(self.content, 40))
-            description += ' content={summary}'.format(summary=summary)
+            description += " content={summary}".format(summary=summary)
         if include_src and self.source_text:
             summary = repr(_shorten(self.source_text, 40))
-            description += ' source={summary}'.format(summary=summary)
+            description += " source={summary}".format(summary=summary)
 
         for e in self.children:
             description += "\n"
@@ -209,7 +212,7 @@ class Remark(PageElement):
 #
 @attr.s(slots=True)
 class ParsedText(PageElement):
-    parser_name: str = attr.ib(default='')
+    parser_name: str = attr.ib(default="")
     parser_args: Optional[str] = attr.ib(default=None)
 
 
@@ -220,7 +223,7 @@ class Codeblock(PageElement):
 
 # Table
 #
-T_TABLE_ATTR = TypeVar('T_TABLE_ATTR', bound='TableAttrBase')
+T_TABLE_ATTR = TypeVar("T_TABLE_ATTR", bound="TableAttrBase")
 TableAttrDict = Dict[str, Any]
 
 
@@ -244,31 +247,31 @@ class TableAttrBase:
         result = {}
         for k, v in data.items():
             if k.startswith(cls._attribute_prefix):
-                result[k[len(cls._attribute_prefix):]] = v
+                result[k[len(cls._attribute_prefix) :]] = v
         return result
 
     @classmethod
     def from_dict(cls: Type[T_TABLE_ATTR], data: TableAttrDict) -> T_TABLE_ATTR:
         tmp_data: Dict[str, Any] = cls.filter_target_attrs(data)
-        if 'class' in tmp_data:
-            tmp_data['class_'] = tmp_data['class']
-            del tmp_data['class']
-        if 'id' in tmp_data:
-            tmp_data['id_'] = tmp_data['id']
-            del tmp_data['id']
+        if "class" in tmp_data:
+            tmp_data["class_"] = tmp_data["class"]
+            del tmp_data["class"]
+        if "id" in tmp_data:
+            tmp_data["id_"] = tmp_data["id"]
+            del tmp_data["id"]
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
 
-        if 'style' in init_args:
-            style = cssutils.parseStyle(init_args['style'])
+        if "style" in init_args:
+            style = cssutils.parseStyle(init_args["style"])
             if style.width:
-                init_args['width'] = style.width
+                init_args["width"] = style.width
             if style.height:
-                init_args['height'] = style.height
+                init_args["height"] = style.height
             if style.textAlign:
-                init_args['align'] = style.textAlign
+                init_args["align"] = style.textAlign
             if style.backgroundColor:
-                init_args['bgcolor'] = style.backgroundColor
+                init_args["bgcolor"] = style.backgroundColor
 
         obj = cls(**init_args)
         return obj
@@ -288,10 +291,12 @@ class TableRowAttr(TableAttrBase):
 class TableCellAttr(TableAttrBase):
     _attribute_prefix: str = ""
 
-    colspan: Optional[int] = attr.ib(kw_only=True, default=None,
-                                     converter=attr.converters.optional(int))
-    rowspan: Optional[int] = attr.ib(kw_only=True, default=None,
-                                     converter=attr.converters.optional(int))
+    colspan: Optional[int] = attr.ib(
+        kw_only=True, default=None, converter=attr.converters.optional(int)
+    )
+    rowspan: Optional[int] = attr.ib(
+        kw_only=True, default=None, converter=attr.converters.optional(int)
+    )
     abbr: Optional[str] = attr.ib(kw_only=True, default=None)
 
 
@@ -371,7 +376,7 @@ class Code(PageElement):
 
 
 # Links
-LinkAttrKey = Literal['class', 'title', 'target', 'accesskey', 'rel']
+LinkAttrKey = Literal["class", "title", "target", "accesskey", "rel"]
 LinkAttrDict = Dict[LinkAttrKey, Any]
 
 
@@ -385,9 +390,11 @@ class LinkAttr:
 
     @classmethod
     def from_dict(cls, data: LinkAttrDict) -> LinkAttr:
-        tmp_data: Dict[str, Any] = dict([(k, v) for k, v in data.items()])  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
-        if 'class' in tmp_data:
-            tmp_data['class_'] = tmp_data['class']
+        tmp_data: Dict[str, Any] = dict(
+            [(k, v) for k, v in data.items()]
+        )  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
+        if "class" in tmp_data:
+            tmp_data["class_"] = tmp_data["class"]
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
         obj = cls(**init_args)
@@ -464,7 +471,7 @@ class Listitem(PageElement):
 
 
 # Transclusion (Image Embedding)
-ImageAttrKey = Literal['class', 'alt', 'title', 'longdesc', 'width', 'height', 'align']
+ImageAttrKey = Literal["class", "alt", "title", "longdesc", "width", "height", "align"]
 ImageAttrDict = Dict[ImageAttrKey, Any]
 
 
@@ -473,16 +480,18 @@ class ImageAttr:
     class_: Optional[str] = attr.ib(kw_only=True, default=None)
     alt: Optional[str] = attr.ib(kw_only=True, default=None)
     title: Optional[str] = attr.ib(kw_only=True, default=None)
-    longdesc: Optional[str] = attr.ib(kw_only=True, default=None)   # deprecated in HTML5
+    longdesc: Optional[str] = attr.ib(kw_only=True, default=None)  # deprecated in HTML5
     width: Optional[str] = attr.ib(kw_only=True, default=None)
     height: Optional[str] = attr.ib(kw_only=True, default=None)
     align: Optional[str] = attr.ib(kw_only=True, default=None)
 
     @classmethod
     def from_dict(cls, data: ImageAttrDict) -> ImageAttr:
-        tmp_data: Dict[str, Any] = dict([(k, v) for k, v in data.items()])  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
-        if 'class' in tmp_data:
-            tmp_data['class_'] = tmp_data['class']
+        tmp_data: Dict[str, Any] = dict(
+            [(k, v) for k, v in data.items()]
+        )  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
+        if "class" in tmp_data:
+            tmp_data["class_"] = tmp_data["class"]
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
         obj = cls(**init_args)
@@ -503,7 +512,7 @@ class Image(PageElement):
 
 
 # Transclusion (Object Embedding)
-ObjectAttrKey = Literal['class', 'title', 'width', 'height', 'mimetype', 'standby']
+ObjectAttrKey = Literal["class", "title", "width", "height", "mimetype", "standby"]
 ObjectAttrDict = Dict[ObjectAttrKey, Any]
 
 
@@ -518,9 +527,11 @@ class ObjectAttr:
 
     @classmethod
     def from_dict(cls, data: ObjectAttrDict) -> ObjectAttr:
-        tmp_data: Dict[str, Any] = dict([(k, v) for k, v in data.items()])  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
-        if 'class' in tmp_data:
-            tmp_data['class_'] = tmp_data['class']
+        tmp_data: Dict[str, Any] = dict(
+            [(k, v) for k, v in data.items()]
+        )  # noqa: workaround: mypy claims Literal is invalid as deepcopy()'s arg
+        if "class" in tmp_data:
+            tmp_data["class_"] = tmp_data["class"]
         initable_fields = dict([(k, v) for k, v in attr.fields_dict(cls).items() if v.init])
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
         obj = cls(**init_args)

@@ -1,31 +1,70 @@
 from abc import ABCMeta, abstractmethod
+from typing import Any, Callable, Dict, Optional, Type
 
 from moin2hugo.page_tree import (
-    PageRoot, Raw, PageElement,
-    Macro, Comment, Smiley, Remark,
-    ParsedText, Codeblock,
-    Table, TableRow, TableCell,
-    Emphasis, Strong, Big, Small, Underline, Strike, Sup, Sub, Code,
-    BulletList, NumberList, Listitem,
-    DefinitionList, DefinitionTerm, DefinitionDesc,
-    Heading, HorizontalRule,
-    Link, Pagelink, Interwikilink, Url, AttachmentLink,
-    Paragraph, Text, SGMLEntity,
-    AttachmentTransclude, Transclude,
-    AttachmentInlined, AttachmentImage, Image
+    AttachmentImage,
+    AttachmentInlined,
+    AttachmentLink,
+    AttachmentTransclude,
+    Big,
+    BulletList,
+    Code,
+    Codeblock,
+    Comment,
+    DefinitionDesc,
+    DefinitionList,
+    DefinitionTerm,
+    Emphasis,
+    Heading,
+    HorizontalRule,
+    Image,
+    Interwikilink,
+    Link,
+    Listitem,
+    Macro,
+    NumberList,
+    PageElement,
+    Pagelink,
+    PageRoot,
+    Paragraph,
+    ParsedText,
+    Raw,
+    Remark,
+    SGMLEntity,
+    Small,
+    Smiley,
+    Strike,
+    Strong,
+    Sub,
+    Sup,
+    Table,
+    TableCell,
+    TableRow,
+    Text,
+    Transclude,
+    Underline,
+    Url,
 )
-from typing import Dict, Callable, Type, Any, Optional
 
 
 class FormatterBase(metaclass=ABCMeta):
     @abstractmethod
-    def __init__(self, config: Optional[Any] = None, pagename: Optional[str] = None,
-                 path_builder: Optional[Any] = None):
+    def __init__(
+        self,
+        config: Optional[Any] = None,
+        pagename: Optional[str] = None,
+        path_builder: Optional[Any] = None,
+    ):
         pass
 
     @classmethod
-    def format(cls, e: PageElement, config: Optional[Any] = None, pagename: Optional[str] = None,
-               path_builder: Optional[Any] = None) -> str:
+    def format(
+        cls,
+        e: PageElement,
+        config: Optional[Any] = None,
+        pagename: Optional[str] = None,
+        path_builder: Optional[Any] = None,
+    ) -> str:
         formatter = cls(config=config, pagename=pagename, path_builder=path_builder)
         return formatter.do_format(e)
 
@@ -36,31 +75,25 @@ class FormatterBase(metaclass=ABCMeta):
         dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self.page_root,
             Raw: self.raw,
-
             # General Objects
             Paragraph: self.paragraph,
             Text: self.text,
             SGMLEntity: self.sgml_entity,
-
             # Moinwiki Special Objects
             Macro: self.macro,
             Comment: self.comment,
             Smiley: self.smiley,
             Remark: self.remark,
-
             # Codeblock / ParsedText
             ParsedText: self.parsed_text,
             Codeblock: self.codeblock,
-
             # Table
             Table: self.table,
             TableRow: self.table_row,
             TableCell: self.table_cell,
-
             # Heading / Horizontal Rule
             Heading: self.heading,
             HorizontalRule: self.rule,
-
             # Decorations
             Underline: self.underline,
             Strike: self.strike,
@@ -71,14 +104,12 @@ class FormatterBase(metaclass=ABCMeta):
             Sup: self.sup,
             Sub: self.sub,
             Code: self.code,
-
             # Links
             Link: self.link,
             Pagelink: self.pagelink,
             Interwikilink: self.interwikilink,
             AttachmentLink: self.attachment_link,
             Url: self.url,
-
             # Itemlist
             BulletList: self.bullet_list,
             NumberList: self.number_list,
@@ -86,7 +117,6 @@ class FormatterBase(metaclass=ABCMeta):
             DefinitionList: self.definition_list,
             DefinitionTerm: self.definition_term,
             DefinitionDesc: self.definition_desc,
-
             # Transclude (Image Embedding)
             AttachmentTransclude: self.attachment_transclude,
             Transclude: self.transclude,

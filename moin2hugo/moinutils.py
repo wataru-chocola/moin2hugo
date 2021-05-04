@@ -1,12 +1,12 @@
-import re
-import urllib.parse
-import shlex
 import logging
 import mimetypes
-import attr
-
+import re
+import shlex
+import urllib.parse
 from io import StringIO
-from typing import Tuple, List, Dict, Union, Any
+from typing import Any, Dict, List, Tuple, Union
+
+import attr
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class InvalidFileNameError(Exception):
 
 
 def split_anchor(pagename: str) -> Tuple[str, str]:
-    parts = pagename.rsplit('#', 1)
+    parts = pagename.rsplit("#", 1)
     if len(parts) == 2:
         pagename, anchor = parts
         return (pagename, anchor)
@@ -28,8 +28,8 @@ def split_anchor(pagename: str) -> Tuple[str, str]:
 
 @attr.s
 class MoinKV(object):
-    k: str = ''
-    v: str = ''
+    k: str = ""
+    v: str = ""
     is_value_started = False
 
     @property
@@ -50,16 +50,20 @@ class MoinKV(object):
         self.is_value_started = True
 
 
-def parse_quoted_separated_ext(argstring: str, separator: str = ",", quotes: str = '"')\
-        -> List[Union[Tuple[str, str], str]]:
+def parse_quoted_separated_ext(
+    argstring: str, separator: str = ",", quotes: str = '"'
+) -> List[Union[Tuple[str, str], str]]:
     name_value_separator = "="
-    SPACE = [' ', '\t', ]
+    SPACE = [
+        " ",
+        "\t",
+    ]
 
     len_argstring = len(argstring)
-    result = []         # result list
+    result = []  # result list
     cur = MoinKV()
-    quoted = None       # we're inside quotes, indicates quote character used
-    noquote = False     # no quotes expected because word didn't start with one
+    quoted = None  # we're inside quotes, indicates quote character used
+    noquote = False  # no quotes expected because word didn't start with one
     nextitemsep = [separator, name_value_separator]
     separators = [separator]
 
@@ -77,7 +81,7 @@ def parse_quoted_separated_ext(argstring: str, separator: str = ",", quotes: str
         cur_char = argstring[idx]
 
         if not quoted and cur_char in SPACE:
-            spaces = ''
+            spaces = ""
             while idx < len_argstring - 1:
                 spaces += cur_char
                 idx += 1
@@ -106,9 +110,9 @@ def parse_quoted_separated_ext(argstring: str, separator: str = ",", quotes: str
             quoted = cur_char
 
         elif cur_char == quoted:
-            if idx + 1 < len_argstring and argstring[idx+1] == quoted:
+            if idx + 1 < len_argstring and argstring[idx + 1] == quoted:
                 # quoted quote (e.g. "")
-                cur.cur += argstring[idx+1]
+                cur.cur += argstring[idx + 1]
                 idx += 1
                 noquote = True
             else:
@@ -144,23 +148,23 @@ def parse_quoted_separated(argstring: str) -> Tuple[List[str], Dict[Any, str], L
 
 def filename2mimetype(filename: str) -> Tuple[str, str, str]:
     moin_mimetype_mapping = {
-        'application/docbook+xml': 'text/docbook',
-        'application/x-latex': 'text/latex',
-        'application/x-tex': 'text/tex',
-        'application/javascript': 'text/javascript',
+        "application/docbook+xml": "text/docbook",
+        "application/x-latex": "text/latex",
+        "application/x-tex": "text/tex",
+        "application/javascript": "text/javascript",
     }
     mtype, _encode = mimetypes.guess_type(filename)
     if mtype is None:
-        mtype = 'application/octet-stream'
+        mtype = "application/octet-stream"
     tmp_mtype = moin_mimetype_mapping.get(mtype, mtype)
     assert tmp_mtype is not None
-    majortype, subtype = tmp_mtype.split('/')
+    majortype, subtype = tmp_mtype.split("/")
     return (mtype.lower(), majortype.lower(), subtype.lower())
 
 
 def attachment_abs_name(url, pagename):
     url = abs_page(pagename, url)
-    pieces = url.split('/')
+    pieces = url.split("/")
     if len(pieces) == 1:
         return pagename, pieces[0]
     else:
@@ -170,51 +174,51 @@ def attachment_abs_name(url, pagename):
 def abs_page(base_page: str, target_page: str) -> str:
     pagename = target_page
     if target_page.startswith(PARENT_PREFIX):
-        base_path_elems = base_page.split('/')
+        base_path_elems = base_page.split("/")
         while base_path_elems and target_page.startswith(PARENT_PREFIX):
             base_path_elems = base_path_elems[:-1]
-            target_page = target_page[len(PARENT_PREFIX):]
+            target_page = target_page[len(PARENT_PREFIX) :]
         path_elems = base_path_elems + [target_page]
-        pagename = '/'.join([elem for elem in path_elems if elem])
+        pagename = "/".join([elem for elem in path_elems if elem])
     elif target_page.startswith(CHILD_PREFIX):
         if base_page:
-            pagename = base_page + '/' + target_page[len(CHILD_PREFIX):]
+            pagename = base_page + "/" + target_page[len(CHILD_PREFIX) :]
         else:
-            pagename = target_page[len(CHILD_PREFIX):]
+            pagename = target_page[len(CHILD_PREFIX) :]
     return pagename
 
 
 def url_unquote(s: str) -> str:
     try:
-        return urllib.parse.unquote(s, encoding='utf-8', errors='strict')
+        return urllib.parse.unquote(s, encoding="utf-8", errors="strict")
     except UnicodeDecodeError:
-        return urllib.parse.unquote(s, encoding='iso-8859-1', errors='replace')
+        return urllib.parse.unquote(s, encoding="iso-8859-1", errors="replace")
 
 
 def unquoteWikiname(filename: str) -> str:
-    QUOTED = re.compile(r'\(([a-fA-F0-9]+)\)')
+    QUOTED = re.compile(r"\(([a-fA-F0-9]+)\)")
 
     parts = []
     start = 0
     for needle in QUOTED.finditer(filename):
-        parts.append(filename[start:needle.start()])
+        parts.append(filename[start : needle.start()])
         start = needle.end()
         group = needle.group(1)
         try:
-            parts.append(bytes.fromhex(group).decode('utf-8'))
+            parts.append(bytes.fromhex(group).decode("utf-8"))
         except ValueError:
             raise InvalidFileNameError(filename)
 
     # append rest of string
-    parts.append(filename[start:len(filename)])
-    wikiname = ''.join(parts)
+    parts.append(filename[start : len(filename)])
+    wikiname = "".join(parts)
 
     return wikiname
 
 
 def parseAttributes(attrstring: str, endtoken=None, extension=None) -> Dict[str, str]:
     parser = shlex.shlex(StringIO(attrstring))
-    parser.commenters = ''
+    parser.commenters = ""
     attrs = {}
 
     try:
@@ -234,11 +238,11 @@ def parseAttributes(attrstring: str, endtoken=None, extension=None) -> Dict[str,
 
             eq = parser.get_token()
             if eq != "=":
-                raise ValueError('Expected "=" to follow "%(token)s"' % {'token': key})
+                raise ValueError('Expected "=" to follow "%(token)s"' % {"token": key})
 
             val = parser.get_token()
             if not val:
-                raise ValueError('Expected a value for key "%(token)s"' % {'token': key})
+                raise ValueError('Expected a value for key "%(token)s"' % {"token": key})
 
             val = shlex.split(val)[0]  # unquote shell quotation
             attrs[key.lower()] = val

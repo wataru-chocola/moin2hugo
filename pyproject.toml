@@ -20,6 +20,15 @@ pytest = "^5.2"
 mypy = "^0.812"
 pytest-randomly = "^3.5.0"
 pre-commit = "^2.12.1"
+black = "^21.4b2"
+isort = {extras = ["pyproject"], version = "^5.8.0"}
+
+[tool.black]
+line-length = 99
+
+[tool.isort]
+profile = "black"
+line_length = 99
 
 [tool.poetry.scripts]
 moin2hugo = "moin2hugo.moin2hugo:convert_site"
