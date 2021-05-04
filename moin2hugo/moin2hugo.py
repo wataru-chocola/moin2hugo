@@ -123,7 +123,7 @@ class Moin2Hugo(object):
                 dst_path = safe_path_join(self.dst_dir, attach_filepath)
                 shutil.copy(attachment.filepath, dst_path)
 
-    def convert(self):
+    def convert(self, pagename: Optional[str] = None):
         logger.info("+ Source Moin Dir: %s" % self.src_dir)
         logger.info("+ Dest Dir: %s" % self.dst_dir)
 
@@ -137,6 +137,8 @@ class Moin2Hugo(object):
         logger.info("")
 
         for page in self.moin_site_scanner.scan_pages():
+            if pagename and page.name != pagename:
+                continue
             logger.info("+ Convert Page: %s" % page.name)
             try:
                 self.convert_page(page)
@@ -175,12 +177,15 @@ def cmd_print_version(ctx, param, value):
 @click.command()
 @click.argument('src', type=click.Path(exists=True))
 @click.argument('dst', type=click.Path())
+@click.option('--pagename', '-p', 'pagename', metavar="PAGENAME", help="Pagename to be converted",
+              default=None)
 @click.option('--config', '-c', 'configfile', type=click.Path(exists=True), default=None)
 @click.option('--verbose', '-v', 'verbose', type=bool, default=False, is_flag=True)
 @click.option('--debug', '-d', 'debug', type=bool, default=False, is_flag=True)
-@click.option('--version', '-V', 'version', is_flag=True, callback=cmd_print_version,
-              is_eager=True, expose_value=False)
-def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool, debug: bool):
+@click.option('--version', '-V', 'version', help="Show version and exit.", is_flag=True,
+              callback=cmd_print_version, is_eager=True, expose_value=False)
+def convert_site(src: str, dst: str, configfile: Optional[str], pagename: Optional[str],
+                 verbose: bool, debug: bool):
     '''Convert MoinMoin pages directory to Hugo content directory.
 
     \b
@@ -198,4 +203,4 @@ def convert_site(src: str, dst: str, configfile: Optional[str], verbose: bool, d
     else:
         config = Config()
     moin2hugo = Moin2Hugo(src, dst, config=config)
-    moin2hugo.convert()
+    moin2hugo.convert(pagename=pagename)
