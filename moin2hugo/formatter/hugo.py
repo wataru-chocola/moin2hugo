@@ -326,8 +326,8 @@ class HugoFormatter(FormatterBase):
         content = "\n".join(lines)
         content = comment_out_shortcode(content)
         if search_shortcode_delimiter(content):
-            logger.warning("cannot handle non-paired shortcode delimiter in codeblock")
-            logger.warning("MUST modify it manually or hugo will fail to build")
+            logger.error("cannot handle non-paired shortcode delimiter in codeblock")
+            logger.error("MUST modify it manually or hugo will fail to build")
 
         ret = self._separator_line(e)
         if e.syntax_id:
@@ -610,8 +610,8 @@ class HugoFormatter(FormatterBase):
         # noqa: refer: https://meta.stackexchange.com/questions/82718/how-do-i-escape-a-backtick-within-in-line-code-in-markdown
         text = comment_out_shortcode(text)
         if search_shortcode_delimiter(text):
-            logger.warning("cannot handle non-paired shortcode delimiter in code")
-            logger.warning("MUST modify it manually or hugo will fail to build")
+            logger.error("cannot handle non-paired shortcode delimiter in code")
+            logger.error("MUST modify it manually or hugo will fail to build")
 
         len_of_longest_backticks = 0
         if "`" in text:
