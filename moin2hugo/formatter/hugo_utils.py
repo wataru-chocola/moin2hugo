@@ -1,39 +1,55 @@
 import re
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 
 class MarkdownEscapedText(str):
     pass
 
 
-def escape_markdown_symbols(text: str, symbols: List[str] = [],
-                            all_symbols: bool = False) -> MarkdownEscapedText:
-    '''escape all occurences of these symbols no matter which context they are on.
-    '''
-    escapable_chars = set([
-        '\\',
-        '[', ']', '{', '}', '(', ')', '<', '>',
-        '*', '+', '-',
-        '_', ':', '`', '#', '|',
-        '"', '~',    # can be escaped at least with commonmark
-    ])
+def escape_markdown_symbols(
+    text: str, symbols: List[str] = [], all_symbols: bool = False
+) -> MarkdownEscapedText:
+    """escape all occurences of these symbols no matter which context they are on."""
+    escapable_chars = set(
+        [
+            "\\",
+            "[",
+            "]",
+            "{",
+            "}",
+            "(",
+            ")",
+            "<",
+            ">",
+            "*",
+            "+",
+            "-",
+            "_",
+            ":",
+            "`",
+            "#",
+            "|",
+            '"',
+            "~",  # can be escaped at least with commonmark
+        ]
+    )
     if all_symbols:
         symbols = list(escapable_chars)
     assert escapable_chars.issuperset(set(symbols)), "not escapable symbol found: " + str(symbols)
 
-    symbol_re = re.compile('([%s])' % re.escape("".join(symbols)))
-    text = re.sub(symbol_re, r'\\\1', text)
+    symbol_re = re.compile("([%s])" % re.escape("".join(symbols)))
+    text = re.sub(symbol_re, r"\\\1", text)
     return MarkdownEscapedText(text)
 
 
 def escape_markdown_all(text: str) -> MarkdownEscapedText:
-    '''escape all occurences of these symbols no matter which context they are on.
-    '''
+    """escape all occurences of these symbols no matter which context they are on."""
     return escape_markdown_symbols(text, all_symbols=True)
 
 
-def make_shortcode(shortcode: str, attrs: Dict[str, Optional[str]] = {},
-                   inner_markdonify: bool = False) -> str:
+def make_shortcode(
+    shortcode: str, attrs: Dict[str, Optional[str]] = {}, inner_markdonify: bool = False
+) -> str:
     if inner_markdonify:
         start_delimiter, end_delimiter = ("{{%", "%}}")
     else:
@@ -42,7 +58,7 @@ def make_shortcode(shortcode: str, attrs: Dict[str, Optional[str]] = {},
         attrs_str = []
         for k, v in attrs.items():
             if v is None:
-                attrs_str.append('%s' % k)
+                attrs_str.append("%s" % k)
             else:
                 attrs_str.append('%s="%s"' % (k, v))
         content = "%s %s" % (shortcode, " ".join(attrs_str))
@@ -81,11 +97,11 @@ def escape_shortcode(text: str, in_html: bool = False) -> str:
     if in_html:
         lastpos = 0
         for m in re.finditer(shortcode_re, text):
-            ret += text[lastpos:m.start()]
-            if m.group('delimiter') == '<':
-                ret += '{{&lt;'
+            ret += text[lastpos : m.start()]
+            if m.group("delimiter") == "<":
+                ret += "{{&lt;"
             else:
-                ret += '{{&#37;'
+                ret += "{{&#37;"
             lastpos = m.end()
         ret += text[lastpos:]
     else:

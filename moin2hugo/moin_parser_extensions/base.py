@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
+from typing import List, Optional
 
 from moin2hugo.page_tree import PageElement
-from typing import List, Optional
 
 
 class ParserExtensionAbstract(metaclass=ABCMeta):

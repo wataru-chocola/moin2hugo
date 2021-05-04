@@ -1,8 +1,7 @@
-import sys
-import os.path
-import logging
 import inspect
-
+import logging
+import os.path
+import sys
 from typing import Optional
 
 
@@ -20,16 +19,17 @@ class LogLevelFilter(logging.Filter):
         self.max_level = max_level
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return ((self.min_level is None or (record.levelno >= self.min_level)) and
-                (self.max_level is None or (record.levelno <= self.max_level)))
+        return (self.min_level is None or (record.levelno >= self.min_level)) and (
+            self.max_level is None or (record.levelno <= self.max_level)
+        )
 
 
 def get_target_pagename() -> Optional[str]:
     stack = inspect.stack()
     for frame_info in stack:
-        if frame_info.function in ['convert_page', 'convert']:
+        if frame_info.function in ["convert_page", "convert"]:
             frame = frame_info.frame
-            page = frame.f_locals.get('page')
+            page = frame.f_locals.get("page")
             if page is None:
                 return None
             return page.name

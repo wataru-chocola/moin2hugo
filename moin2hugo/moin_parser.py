@@ -1,16 +1,21 @@
-import re
 import logging
-from typing import List, Dict, Tuple, Optional, TypeVar
+import re
+from typing import Dict, List, Optional, Tuple, TypeVar
 
-import moin2hugo.page_builder
-import moin2hugo.moinutils as wikiutil
 import moin2hugo.moin_settings as settings
-from moin2hugo.page_tree import LinkAttrDict, LinkAttrKey
-from moin2hugo.page_tree import ImageAttrDict, ImageAttrKey
-from moin2hugo.page_tree import ObjectAttrDict, ObjectAttrKey
+import moin2hugo.moinutils as wikiutil
+import moin2hugo.page_builder
 from moin2hugo.config import MoinSiteConfig
+from moin2hugo.page_tree import (
+    ImageAttrDict,
+    ImageAttrKey,
+    LinkAttrDict,
+    LinkAttrKey,
+    ObjectAttrDict,
+    ObjectAttrKey,
+)
 
-T = TypeVar('T')
+T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
@@ -18,11 +23,11 @@ class MoinParser(object):
     CHILD_PREFIX = wikiutil.CHILD_PREFIX
     PARENT_PREFIX = wikiutil.PARENT_PREFIX
 
-    punct_pattern = re.escape('''"\'}]|:,.)?!''')
-    url_scheme = '|'.join(settings.url_schemas)
+    punct_pattern = re.escape(""""\'}]|:,.)?!""")
+    url_scheme = "|".join(settings.url_schemas)
 
     # some common rules
-    url_rule = r'''
+    url_rule = r"""
         (?:^|(?<=\W))  # require either beginning of line or some non-alphanum char (whitespace, punctuation) to the left
         (?P<url_target>  # capture whole url there
          (?P<url_scheme>%(url_scheme)s)  # some scheme
@@ -30,9 +35,9 @@ class MoinParser(object):
          \S+?  # anything non-whitespace
         )
         (?:$|(?=\s|[%(punct)s]+(\s|$)))  # require either end of line or some whitespace or some punctuation+blank/eol afterwards
-    ''' % {  # NOQA
-        'url_scheme': url_scheme,
-        'punct': punct_pattern,
+    """ % {  # NOQA
+        "url_scheme": url_scheme,
+        "punct": punct_pattern,
     }
 
     # this is for a free (non-bracketed) interwiki link - to avoid false positives,
@@ -40,7 +45,7 @@ class MoinParser(object):
     # interwiki_wiki name starts with an uppercase letter A-Z. Later, the code
     # also checks whether the wiki name is in the interwiki map (if not, it renders
     # normal text, no link):
-    interwiki_rule = r'''
+    interwiki_rule = r"""
         (?:^|(?<=\W))  # require either beginning of line or some non-alphanum char (whitespace, punctuation) to the left
         (?P<interwiki_wiki>[A-Z][a-zA-Z]+)  # interwiki wiki name
         \:
@@ -48,13 +53,13 @@ class MoinParser(object):
          (?=[^ ]*[%(u)s%(l)s0..9][^ ]*([\s%(punct)s]|\Z))  # make sure there is something non-blank with at least one alphanum letter following
          [^\s%(punct)s]+  # we take all until we hit some blank or punctuation char ...
         )
-    ''' % {  # NOQA
-        'u': settings.chars_upper,
-        'l': settings.chars_lower,
-        'punct': punct_pattern,
+    """ % {  # NOQA
+        "u": settings.chars_upper,
+        "l": settings.chars_lower,
+        "punct": punct_pattern,
     }
 
-    word_rule = r'''
+    word_rule = r"""
         (?:
          (?<![%(u)s%(l)s/])  # require anything not upper/lower/slash before
          |
@@ -81,23 +86,25 @@ class MoinParser(object):
          |
          $  # ... or end of line
         )
-    ''' % {  # NOQA
-        'u': settings.chars_upper,
-        'l': settings.chars_lower,
-        'child': re.escape(CHILD_PREFIX),
-        'parent': re.escape(PARENT_PREFIX),
+    """ % {  # NOQA
+        "u": settings.chars_upper,
+        "l": settings.chars_lower,
+        "child": re.escape(CHILD_PREFIX),
+        "parent": re.escape(PARENT_PREFIX),
     }
 
     # link targets:
-    extern_rule = r'(?P<extern_addr>(?P<extern_scheme>%s)\:.*)' % url_scheme
-    attach_rule = r'(?P<attach_scheme>attachment|drawing)\:(?P<attach_addr>.*)'
-    page_rule = r'(?P<page_name>.*)'
+    extern_rule = r"(?P<extern_addr>(?P<extern_scheme>%s)\:.*)" % url_scheme
+    attach_rule = r"(?P<attach_scheme>attachment|drawing)\:(?P<attach_addr>.*)"
+    page_rule = r"(?P<page_name>.*)"
 
-    link_target_rules = r'|'.join([
-        extern_rule,
-        attach_rule,
-        page_rule,
-    ])
+    link_target_rules = r"|".join(
+        [
+            extern_rule,
+            attach_rule,
+            page_rule,
+        ]
+    )
     link_target_re = re.compile(link_target_rules, re.VERBOSE | re.UNICODE)
 
     link_rule = r"""
@@ -153,16 +160,20 @@ class MoinParser(object):
         )
     """
     # link descriptions:
-    link_desc_rules = r'|'.join([
+    link_desc_rules = r"|".join(
+        [
             transclude_rule,
             text_rule,
-    ])
+        ]
+    )
     link_desc_re = re.compile(link_desc_rules, re.VERBOSE | re.UNICODE)
 
     # transclude descriptions:
-    transclude_desc_rules = r'|'.join([
+    transclude_desc_rules = r"|".join(
+        [
             text_rule,
-    ])
+        ]
+    )
     transclude_desc_re = re.compile(transclude_desc_rules, re.VERBOSE | re.UNICODE)
 
     # lists:
@@ -185,7 +196,7 @@ class MoinParser(object):
     indent_re: re.Pattern = re.compile(r"^\s*", re.UNICODE)
 
     # this is used inside parser/pre sections (we just want to know when it's over):
-    parser_unique = ''
+    parser_unique = ""
     parser_scan_rule = r"""
 (?P<parser_end>
     %s\}\}\}\n?  # in parser/pre, we only look for the end of the parser/pre
@@ -320,22 +331,28 @@ class MoinParser(object):
 )|(?P<sgml_special_symbol>  # must come AFTER entity rule!
     [<>&]  # needs special treatment for html/xml
 )""" % {  # NOQA
-        'url_scheme': url_scheme,
-        'url_rule': url_rule,
-        'punct': punct_pattern,
-        'ol_rule': ol_rule,
-        'dl_rule': dl_rule,
-        'interwiki_rule': interwiki_rule,
-        'word_rule': word_rule,
-        'link_rule': link_rule,
-        'transclude_rule': transclude_rule,
-        'u': settings.chars_upper,
-        'l': settings.chars_lower,
-        'smiley': '|'.join([re.escape(s) for s in settings.smileys])}
+        "url_scheme": url_scheme,
+        "url_rule": url_rule,
+        "punct": punct_pattern,
+        "ol_rule": ol_rule,
+        "dl_rule": dl_rule,
+        "interwiki_rule": interwiki_rule,
+        "word_rule": word_rule,
+        "link_rule": link_rule,
+        "transclude_rule": transclude_rule,
+        "u": settings.chars_upper,
+        "l": settings.chars_lower,
+        "smiley": "|".join([re.escape(s) for s in settings.smileys]),
+    }
     scan_re = re.compile(scan_rules, re.UNICODE | re.VERBOSE)
 
-    def __init__(self, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None,
-                 strict_mode: bool = False):
+    def __init__(
+        self,
+        text: str,
+        page_name: str,
+        site_config: Optional[MoinSiteConfig] = None,
+        strict_mode: bool = False,
+    ):
         if site_config:
             self.site_config = site_config
         else:
@@ -347,22 +364,36 @@ class MoinParser(object):
 
     # Public Method ----------------------------------------------------------
     @classmethod
-    def parse(cls, text: str, page_name: str, site_config: Optional[MoinSiteConfig] = None,
-              strict_mode: bool = False):
+    def parse(
+        cls,
+        text: str,
+        page_name: str,
+        site_config: Optional[MoinSiteConfig] = None,
+        strict_mode: bool = False,
+    ):
         parser = cls(text, page_name, site_config=site_config, strict_mode=strict_mode)
         return parser.run_parse()
 
     # Private Parsing/Formatting Entrypoint ----------------------------------
     def run_parse(self):
-        """ For each line, scan through looking for magic
-            strings, outputting verbatim any intervening text.
+        """For each line, scan through looking for magic
+        strings, outputting verbatim any intervening text.
         """
         in_processing_instructions = 1
 
         for line in self.lines:
             # ignore processing instructions
-            processing_instructions = ["##", "#format", "#refresh", "#redirect", "#deprecated",
-                                       "#pragma", "#form", "#acl", "#language"]
+            processing_instructions = [
+                "##",
+                "#format",
+                "#refresh",
+                "#redirect",
+                "#deprecated",
+                "#pragma",
+                "#form",
+                "#acl",
+                "#language",
+            ]
             if in_processing_instructions:
                 if any((line.lower().startswith(pi) for pi in processing_instructions)):
                     self.builder.comment(line, source_text=line)
@@ -385,8 +416,9 @@ class MoinParser(object):
 
                 # Table start / break
                 tmp_line = line.strip()
-                is_table_line = tmp_line.startswith("||") and tmp_line.endswith("||") \
-                    and len(tmp_line) >= 5
+                is_table_line = (
+                    tmp_line.startswith("||") and tmp_line.endswith("||") and len(tmp_line) >= 5
+                )
                 if not self.builder.in_table and is_table_line:
                     # start table
                     if self.builder.in_p:
@@ -414,22 +446,26 @@ class MoinParser(object):
         line_length = len(line)
 
         while lastpos <= line_length:
-            parser_scan_re = re.compile(self.parser_scan_rule % re.escape(self.parser_unique),
-                                        re.VERBOSE | re.UNICODE)
+            parser_scan_re = re.compile(
+                self.parser_scan_rule % re.escape(self.parser_unique), re.VERBOSE | re.UNICODE
+            )
             scan_re = parser_scan_re if self.builder.in_pre else self.scan_re
             match = scan_re.search(line, lastpos)
             if not match:
                 remainder = line[lastpos:]
                 if self.builder.in_pre:
                     # lastpos is more then 0 and result of line slice is empty make useless line
-                    if not (lastpos > 0 and remainder == ''):
+                    if not (lastpos > 0 and remainder == ""):
                         self._parser_content(remainder)
                 elif remainder:
-                    if not (self.builder.in_pre or self.builder.in_p or
-                            self.builder.in_li_of_current_list or
-                            self.builder.in_dd_of_current_list or
-                            self.builder.in_table or
-                            self.builder.in_remark):
+                    if not (
+                        self.builder.in_pre
+                        or self.builder.in_p
+                        or self.builder.in_li_of_current_list
+                        or self.builder.in_dd_of_current_list
+                        or self.builder.in_table
+                        or self.builder.in_remark
+                    ):
                         self.builder.paragraph_start()
                     self.builder.text(remainder, source_text=remainder)
                 break
@@ -444,8 +480,13 @@ class MoinParser(object):
                         self.builder.paragraph_start()
                     self.builder.text(line[lastpos:start], source_text=line[lastpos:start])
 
-            if not (self.builder.in_pre or self.builder.in_p or self.builder.in_table
-                    or self.builder.in_list or self.builder.in_remark):
+            if not (
+                self.builder.in_pre
+                or self.builder.in_p
+                or self.builder.in_table
+                or self.builder.in_list
+                or self.builder.in_remark
+            ):
                 self.builder.paragraph_start()
             self._process_markup(match)
             end = match.end()
@@ -455,95 +496,103 @@ class MoinParser(object):
                 lastpos += 1  # proceed, we don't want to match this again
 
     def _process_markup(self, match: re.Match):
-        """ Replace match using type name """
-        no_new_p_before = ("heading", "rule", "table", "tableZ", "tr", "td", "ul", "ol", "dl",
-                           "dt", "dd", "li", "li_none", "indent", "macro", "parser")
+        """Replace match using type name"""
+        no_new_p_before = (
+            "heading",
+            "rule",
+            "table",
+            "tableZ",
+            "tr",
+            "td",
+            "ul",
+            "ol",
+            "dl",
+            "dt",
+            "dd",
+            "li",
+            "li_none",
+            "indent",
+            "macro",
+            "parser",
+        )
         dispatcher = {
             # Moinwiki Special Syntax
-            'macro': self._macro_handler,
-            'macro_name': self._macro_handler,
-            'macro_args': self._macro_handler,
-            'comment': self._comment_handler,
-            'remark': self._remark_handler,
-            'remark_on': self._remark_handler,
-            'remark_off': self._remark_handler,
-            'smiley': self._smiley_handler,
-
+            "macro": self._macro_handler,
+            "macro_name": self._macro_handler,
+            "macro_args": self._macro_handler,
+            "comment": self._comment_handler,
+            "remark": self._remark_handler,
+            "remark_on": self._remark_handler,
+            "remark_off": self._remark_handler,
+            "smiley": self._smiley_handler,
             # Codeblock
-            'parser': self._parser_handler,
-            'parser_unique': self._parser_handler,
-            'parser_line': self._parser_handler,
-            'parser_name': self._parser_handler,
-            'parser_args': self._parser_handler,
-            'parser_nothing': self._parser_handler,
-            'parser_end': self._parser_end_handler,
-
+            "parser": self._parser_handler,
+            "parser_unique": self._parser_handler,
+            "parser_line": self._parser_handler,
+            "parser_name": self._parser_handler,
+            "parser_args": self._parser_handler,
+            "parser_nothing": self._parser_handler,
+            "parser_end": self._parser_end_handler,
             # Table
-            'tableZ': self._tableZ_handler,
-            'table': self._table_handler,
-
+            "tableZ": self._tableZ_handler,
+            "table": self._table_handler,
             # Heading / Horizontal Rule
-            'heading': self._heading_handler,
-            'heading_text': self._heading_handler,
-            'rule': self._rule_handler,
-
+            "heading": self._heading_handler,
+            "heading_text": self._heading_handler,
+            "rule": self._rule_handler,
             # Decorations
-            'u': self._u_handler,
-            'strike': self._strike_handler,
-            'strike_on': self._strike_handler,
-            'strike_off': self._strike_handler,
-            'small': self._small_handler,
-            'small_on': self._small_handler,
-            'small_off': self._small_handler,
-            'big': self._big_handler,
-            'big_on': self._big_handler,
-            'big_off': self._big_handler,
-            'emph': self._emph_handler,
-            'emph_ibb': self._emph_ibb_handler,
-            'emph_ibi': self._emph_ibi_handler,
-            'emph_ib_or_bi': self._emph_ib_or_bi_handler,
-            'sup': self._sup_handler,
-            'sup_text': self._sup_handler,
-            'sub': self._sub_handler,
-            'sub_text': self._sub_handler,
-            'tt': self._tt_handler,
-            'tt_text': self._tt_handler,
-            'tt_bt': self._tt_bt_handler,
-            'tt_bt_text': self._tt_bt_handler,
-
+            "u": self._u_handler,
+            "strike": self._strike_handler,
+            "strike_on": self._strike_handler,
+            "strike_off": self._strike_handler,
+            "small": self._small_handler,
+            "small_on": self._small_handler,
+            "small_off": self._small_handler,
+            "big": self._big_handler,
+            "big_on": self._big_handler,
+            "big_off": self._big_handler,
+            "emph": self._emph_handler,
+            "emph_ibb": self._emph_ibb_handler,
+            "emph_ibi": self._emph_ibi_handler,
+            "emph_ib_or_bi": self._emph_ib_or_bi_handler,
+            "sup": self._sup_handler,
+            "sup_text": self._sup_handler,
+            "sub": self._sub_handler,
+            "sub_text": self._sub_handler,
+            "tt": self._tt_handler,
+            "tt_text": self._tt_handler,
+            "tt_bt": self._tt_bt_handler,
+            "tt_bt_text": self._tt_bt_handler,
             # Links
-            'interwiki': self._interwiki_handler,
-            'interwiki_wiki': self._interwiki_handler,
-            'interwiki_page': self._interwiki_handler,
-            'word': self._word_handler,
-            'word_bang': self._word_handler,
-            'word_name': self._word_handler,
-            'word_anchor': self._word_handler,
-            'link': self._link_handler,
-            'link_target': self._link_handler,
-            'link_desc': self._link_handler,
-            'link_params': self._link_handler,
-            'url': self._url_handler,
-            'url_target': self._url_handler,
-            'url_schema': self._url_handler,
-            'email': self._email_handler,
-
+            "interwiki": self._interwiki_handler,
+            "interwiki_wiki": self._interwiki_handler,
+            "interwiki_page": self._interwiki_handler,
+            "word": self._word_handler,
+            "word_bang": self._word_handler,
+            "word_name": self._word_handler,
+            "word_anchor": self._word_handler,
+            "link": self._link_handler,
+            "link_target": self._link_handler,
+            "link_desc": self._link_handler,
+            "link_params": self._link_handler,
+            "url": self._url_handler,
+            "url_target": self._url_handler,
+            "url_schema": self._url_handler,
+            "email": self._email_handler,
             # SGML entities
-            'sgml_entity': self._sgml_entity_handler,
-            'sgml_special_symbol': self._sgml_special_symbol_handler,
-
+            "sgml_entity": self._sgml_entity_handler,
+            "sgml_special_symbol": self._sgml_special_symbol_handler,
             # Itemlist
-            'indent': self._indent_handler,
-            'li_none': self._li_handler,
-            'li': self._li_handler,
-            'ol': self._ol_handler,
-            'dl': self._dl_handler,
-
+            "indent": self._indent_handler,
+            "li_none": self._li_handler,
+            "li": self._li_handler,
+            "ol": self._ol_handler,
+            "dl": self._dl_handler,
             # Transclude (Image Embedding)
-            'transclude': self._transclude_handler,
-            'transclude_target': self._transclude_handler,
-            'transclude_desc': self._transclude_handler,
-            'transclude_params': self._transclude_handler,
+            "transclude": self._transclude_handler,
+            "transclude_target": self._transclude_handler,
+            "transclude_desc": self._transclude_handler,
+            "transclude_params": self._transclude_handler,
         }
 
         for _type, hit in match.groupdict().items():
@@ -554,27 +603,37 @@ class MoinParser(object):
                 # it breaks tree structure, so we avoid it..
                 self.builder.text(hit, source_text=hit)
                 return
-            if _type not in ["hmarker", ]:
+            if _type not in [
+                "hmarker",
+            ]:
                 # Open p for certain types
-                if not (self.builder.in_p or self.builder.in_pre or self.builder.in_table or
-                        (_type in no_new_p_before)):
+                if not (
+                    self.builder.in_p
+                    or self.builder.in_pre
+                    or self.builder.in_table
+                    or (_type in no_new_p_before)
+                ):
                     self.builder.paragraph_start()
                 dispatcher[_type](hit, match.groupdict())
                 return
         else:
             # We should never get here
             import pprint
-            raise Exception("Can't handle match %r\n%s\n%s" % (
-                match,
-                pprint.pformat(match.groupdict()),
-                pprint.pformat(match.groups()),
-            ))
+
+            raise Exception(
+                "Can't handle match %r\n%s\n%s"
+                % (
+                    match,
+                    pprint.pformat(match.groupdict()),
+                    pprint.pformat(match.groups()),
+                )
+            )
 
     # Private Replace Method ----------------------------------------------------------
     def _remark_handler(self, word: str, groups: Dict[str, str]):
         """Handle remarks: /* ... */"""
-        on = groups.get('remark_on')
-        off = groups.get('remark_off')
+        on = groups.get("remark_on")
+        off = groups.get("remark_off")
         if (on and self.builder.in_remark) or (off and not self.builder.in_remark):
             self.builder.text(word, source_text=word)
             return
@@ -586,8 +645,8 @@ class MoinParser(object):
 
     def _strike_handler(self, word: str, groups: Dict[str, str]):
         """Handle strikethrough."""
-        on = groups.get('strike_on')
-        off = groups.get('strike_off')
+        on = groups.get("strike_on")
+        off = groups.get("strike_off")
         if (on and self.builder.in_strike) or (off and not self.builder.in_strike):
             self.builder.text(word, source_text=word)
             return
@@ -595,8 +654,8 @@ class MoinParser(object):
 
     def _small_handler(self, word: str, groups: Dict[str, str]):
         """Handle small."""
-        on = groups.get('small_on')
-        off = groups.get('small_off')
+        on = groups.get("small_on")
+        off = groups.get("small_off")
         if (on and self.builder.in_small) or (off and not self.builder.in_small):
             self.builder.text(word, source_text=word)
             return
@@ -604,8 +663,8 @@ class MoinParser(object):
 
     def _big_handler(self, word: str, groups: Dict[str, str]):
         """Handle big."""
-        on = groups.get('big_on')
-        off = groups.get('big_off')
+        on = groups.get("big_on")
+        off = groups.get("big_off")
         if (on and self.builder.in_big) or (off and not self.builder.in_big):
             self.builder.text(word, source_text=word)
             return
@@ -630,8 +689,11 @@ class MoinParser(object):
 
     def _emph_ib_or_bi_handler(self, word: str, groups: Dict[str, str]):
         """Handle mixed emphasis, exactly five '''''."""
-        if self.builder.in_emphasis and self.builder.in_strong \
-                and self.builder.is_emphasis_before_strong:
+        if (
+            self.builder.in_emphasis
+            and self.builder.in_strong
+            and self.builder.is_emphasis_before_strong
+        ):
             self.builder.strong_toggle(source_text="'''")
             self.builder.emphasis_toggle(source_text="''")
         else:
@@ -640,42 +702,43 @@ class MoinParser(object):
 
     def _sup_handler(self, word: str, groups: Dict[str, str]):
         """Handle superscript."""
-        text = groups.get('sup_text', '')
+        text = groups.get("sup_text", "")
         self.builder.sup(text, source_text=word)
 
     def _sub_handler(self, word: str, groups: Dict[str, str]):
         """Handle subscript."""
-        text = groups.get('sub_text', '')
+        text = groups.get("sub_text", "")
         self.builder.sub(text, source_text=word)
 
     def _tt_handler(self, word: str, groups: Dict[str, str]):
         """Handle inline code."""
-        tt_text = groups.get('tt_text', '')
+        tt_text = groups.get("tt_text", "")
         self.builder.code(tt_text, source_text=word)
 
     def _tt_bt_handler(self, word: str, groups: Dict[str, str]):
         """Handle backticked inline code."""
-        tt_bt_text = groups.get('tt_bt_text', '')
+        tt_bt_text = groups.get("tt_bt_text", "")
         self.builder.code(tt_bt_text, source_text=word)
 
     def _interwiki_handler(self, word: str, groups: Dict[str, str]):
         """Handle InterWiki links."""
-        wikiname = groups.get('interwiki_wiki', '')
-        pagename = groups.get('interwiki_page', '')
+        wikiname = groups.get("interwiki_wiki", "")
+        pagename = groups.get("interwiki_page", "")
         pagename, anchor = wikiutil.split_anchor(pagename)
-        self.builder.interwikilink_start(wikiname, pagename, anchor=anchor,
-                                         source_text=word, freeze_source=True)
+        self.builder.interwikilink_start(
+            wikiname, pagename, anchor=anchor, source_text=word, freeze_source=True
+        )
         self.builder.text(word, source_text=word)
         self.builder.interwikilink_end()
 
     def _word_handler(self, word: str, groups: Dict[str, str]):
         """Handle WikiNames."""
-        if groups.get('word_bang'):
+        if groups.get("word_bang"):
             if self.site_config.bang_meta:
                 self.builder.text(word, source_text=word)
                 return
         current_page = self.page_name
-        abs_name = wikiutil.abs_page(current_page, groups.get('word_name', ''))
+        abs_name = wikiutil.abs_page(current_page, groups.get("word_name", ""))
         # if a simple, self-referencing link, emit it as plain text
         if abs_name == current_page:
             self.builder.text(word, source_text=word)
@@ -687,10 +750,10 @@ class MoinParser(object):
 
     def _url_handler(self, word: str, groups: Dict[str, str]):
         """Handle literal URLs."""
-        target = groups.get('url_target', '')
+        target = groups.get("url_target", "")
         self.builder.url(target, source_text=word)
 
-    def _link_description(self, desc: str, target: str = '', default_text: str = ''):
+    def _link_description(self, desc: str, target: str = "", default_text: str = ""):
         m = self.link_desc_re.match(desc)
         if not m:
             desc = default_text
@@ -698,35 +761,41 @@ class MoinParser(object):
                 self.builder.text(desc, source_text=desc)
             return
 
-        if m.group('simple_text'):
-            desc = m.group('simple_text')
+        if m.group("simple_text"):
+            desc = m.group("simple_text")
             self.builder.text(desc, source_text=desc)
-        elif m.group('transclude'):
+        elif m.group("transclude"):
             groupdict = m.groupdict()
-            if groupdict.get('transclude_desc') is None:
+            if groupdict.get("transclude_desc") is None:
                 # if transcluded obj (image) has no description, use target for it
-                groupdict['transclude_desc'] = target
-            desc = m.group('transclude')
+                groupdict["transclude_desc"] = target
+            desc = m.group("transclude")
             desc = self._transclude_handler(desc, groupdict)
 
     def _link_handler(self, word: str, groups: Dict[str, str]):
         """Handle [[target|text]] links."""
-        target = groups.get('link_target', '')
-        desc = groups.get('link_desc', '') or ''
-        params = groups.get('link_params', '') or ''
+        target = groups.get("link_target", "")
+        desc = groups.get("link_desc", "") or ""
+        params = groups.get("link_params", "") or ""
         mt = self.link_target_re.match(target)
         if not mt:
             return
         tag_attrs, query_args = _get_link_params(params)
 
-        if mt.group('page_name'):
-            page_name_and_anchor = mt.group('page_name')
+        if mt.group("page_name"):
+            page_name_and_anchor = mt.group("page_name")
             page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
-            if ':' in page_name:
-                wikiname, pagename = page_name.split(':', 1)
-                self.builder.interwikilink_start(wikiname, page_name, queryargs=query_args,
-                                                 anchor=anchor, attrs=tag_attrs,
-                                                 source_text=word, freeze_source=True)
+            if ":" in page_name:
+                wikiname, pagename = page_name.split(":", 1)
+                self.builder.interwikilink_start(
+                    wikiname,
+                    page_name,
+                    queryargs=query_args,
+                    anchor=anchor,
+                    attrs=tag_attrs,
+                    source_text=word,
+                    freeze_source=True,
+                )
                 self.builder.text(page_name_and_anchor, source_text=word)
                 self.builder.interwikilink_end()
                 return
@@ -735,29 +804,39 @@ class MoinParser(object):
             if not page_name:
                 page_name = current_page
             abs_page_name = wikiutil.abs_page(current_page, page_name)
-            self.builder.pagelink_start(abs_page_name, anchor=anchor,
-                                        queryargs=query_args, attrs=tag_attrs,
-                                        source_text=word, freeze_source=True)
+            self.builder.pagelink_start(
+                abs_page_name,
+                anchor=anchor,
+                queryargs=query_args,
+                attrs=tag_attrs,
+                source_text=word,
+                freeze_source=True,
+            )
             self._link_description(desc, target, page_name_and_anchor)
             self.builder.pagelink_end()
 
-        elif mt.group('extern_addr'):
-            target = mt.group('extern_addr')
+        elif mt.group("extern_addr"):
+            target = mt.group("extern_addr")
             self.builder.link_start(target, attrs=tag_attrs, source_text=word, freeze_source=True)
             self._link_description(desc, target, target)
             self.builder.link_end()
 
-        elif mt.group('attach_scheme'):
-            scheme = mt.group('attach_scheme')
-            attach_addr = wikiutil.url_unquote(mt.group('attach_addr'))
+        elif mt.group("attach_scheme"):
+            scheme = mt.group("attach_scheme")
+            attach_addr = wikiutil.url_unquote(mt.group("attach_addr"))
             pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
-            if scheme == 'attachment':
-                self.builder.attachment_link_start(pagename=pagename, filename=filename,
-                                                   queryargs=query_args, attrs=tag_attrs,
-                                                   source_text=word, freeze_source=True)
+            if scheme == "attachment":
+                self.builder.attachment_link_start(
+                    pagename=pagename,
+                    filename=filename,
+                    queryargs=query_args,
+                    attrs=tag_attrs,
+                    source_text=word,
+                    freeze_source=True,
+                )
                 self._link_description(desc, target, attach_addr)
                 self.builder.attachment_link_end()
-            elif scheme == 'drawing':
+            elif scheme == "drawing":
                 logger.warning("unsupported: drawing=%s" % word)
                 self.builder.text(word, source_text=word)
             else:
@@ -765,8 +844,8 @@ class MoinParser(object):
                 self.builder.text(word, source_text=word)
         else:
             if desc:
-                desc = '|' + desc
-            self.builder.text('[[%s%s]]' % (target, desc), source_text=word)
+                desc = "|" + desc
+            self.builder.text("[[%s%s]]" % (target, desc), source_text=word)
 
     def _email_handler(self, word: str, groups: Dict[str, str]):
         """Handle email addresses (without a leading mailto:)."""
@@ -801,7 +880,7 @@ class MoinParser(object):
         """Handle definition lists."""
         self._close_item()
         self.builder.definition_term_start(source_text=word, freeze_source=True)
-        term = word[1:-3].lstrip(' ')
+        term = word[1:-3].lstrip(" ")
         self.builder.text(term, source_text=term)
         self.builder.definition_term_end()
         self.builder.definition_desc_start()
@@ -810,59 +889,64 @@ class MoinParser(object):
         m = self.transclude_desc_re.match(desc)
         if not m:
             return None
-        return m.group('simple_text')
+        return m.group("simple_text")
 
     def _transclude_handler(self, word: str, groups: Dict[str, str]):
         """Handles transcluding content, usually embedding images.: {{}}"""
-        target = groups.get('transclude_target', '')
+        target = groups.get("transclude_target", "")
         target = wikiutil.url_unquote(target)
 
         m = self.link_target_re.match(target)
         if not m:
-            self.builder.text(word + '???', source_text=word)
+            self.builder.text(word + "???", source_text=word)
             return
 
-        desc = groups.get('transclude_desc', '') or ''
-        params = groups.get('transclude_params', '')
+        desc = groups.get("transclude_desc", "") or ""
+        params = groups.get("transclude_params", "")
 
         image_tag_attrs: ImageAttrDict = {}
         obj_tag_attrs: ObjectAttrDict = {}
 
-        if m.group('extern_addr'):
-            target = m.group('extern_addr')
+        if m.group("extern_addr"):
+            target = m.group("extern_addr")
             trans_desc = self._transclude_description(desc)
             if trans_desc:
-                image_tag_attrs['alt'] = trans_desc
-                image_tag_attrs['title'] = trans_desc
+                image_tag_attrs["alt"] = trans_desc
+                image_tag_attrs["title"] = trans_desc
             tmp_image_tag_attrs, query_args = _get_image_params(params)
             image_tag_attrs.update(tmp_image_tag_attrs)
             self.builder.image(src=target, source_text=word, attrs=image_tag_attrs)
 
-        elif m.group('attach_scheme'):
-            scheme = m.group('attach_scheme')
-            attach_addr = wikiutil.url_unquote(m.group('attach_addr'))
+        elif m.group("attach_scheme"):
+            scheme = m.group("attach_scheme")
+            attach_addr = wikiutil.url_unquote(m.group("attach_addr"))
             pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
-            if scheme == 'attachment':
+            if scheme == "attachment":
                 mtype, majortype, subtype = wikiutil.filename2mimetype(filename=filename)
-                if majortype == 'text':
+                if majortype == "text":
                     trans_desc = self._transclude_description(desc)
                     if trans_desc is None:
                         trans_desc = attach_addr
-                    self.builder.attachment_inlined(pagename, filename, trans_desc,
-                                                    source_text=word)
-                elif majortype == 'image' and subtype in settings.browser_supported_images:
+                    self.builder.attachment_inlined(
+                        pagename, filename, trans_desc, source_text=word
+                    )
+                elif majortype == "image" and subtype in settings.browser_supported_images:
                     trans_desc = self._transclude_description(desc)
                     if trans_desc:
-                        image_tag_attrs['alt'] = trans_desc
-                        image_tag_attrs['title'] = trans_desc
+                        image_tag_attrs["alt"] = trans_desc
+                        image_tag_attrs["title"] = trans_desc
                     tmp_image_tag_attrs, query_args = _get_image_params(params)
                     image_tag_attrs.update(tmp_image_tag_attrs)
-                    self.builder.attachment_image(pagename=pagename, filename=filename,
-                                                  source_text=word, attrs=image_tag_attrs)
+                    self.builder.attachment_image(
+                        pagename=pagename,
+                        filename=filename,
+                        source_text=word,
+                        attrs=image_tag_attrs,
+                    )
                 else:
                     # non-text, unsupported images, or other filetypes
-                    obj_tag_attrs['title'] = desc
-                    obj_tag_attrs['mimetype'] = mtype
+                    obj_tag_attrs["title"] = desc
+                    obj_tag_attrs["mimetype"] = mtype
                     tmp_obj_tag_attrs, query_args = _get_object_params(params)
                     obj_tag_attrs.update(tmp_obj_tag_attrs)
 
@@ -871,24 +955,28 @@ class MoinParser(object):
                         trans_desc = attach_addr
 
                     self.builder.attachment_transclusion_start(
-                        pagename=pagename, filename=filename, attrs=obj_tag_attrs,
-                        source_text=word, freeze_source=True)
+                        pagename=pagename,
+                        filename=filename,
+                        attrs=obj_tag_attrs,
+                        source_text=word,
+                        freeze_source=True,
+                    )
                     self.builder.text(trans_desc, source_text=desc)
                     self.builder.attachment_transclusion_end()
 
-            elif scheme == 'drawing':
+            elif scheme == "drawing":
                 logger.warning("unsupported: drawing=%s" % word)
                 self.builder.text(word, source_text=word)
 
-        elif m.group('page_name'):
-            page_name_all = m.group('page_name')
-            if ':' in page_name_all:
+        elif m.group("page_name"):
+            page_name_all = m.group("page_name")
+            if ":" in page_name_all:
                 logger.warning("unsupported: interwiki_name=%s" % page_name_all)
                 self.builder.text(word, source_text=word)
                 return
 
-            obj_tag_attrs['mimetype'] = 'text/html'
-            obj_tag_attrs['width'] = '100%'
+            obj_tag_attrs["mimetype"] = "text/html"
+            obj_tag_attrs["width"] = "100%"
             tmp_obj_tag_attrs, _query_args = _get_object_params(params)
             obj_tag_attrs.update(tmp_obj_tag_attrs)
 
@@ -896,8 +984,9 @@ class MoinParser(object):
             if trans_desc is None:
                 trans_desc = page_name_all
 
-            self.builder.transclusion_start(pagename=page_name_all, attrs=obj_tag_attrs,
-                                            source_text=word, freeze_source=True)
+            self.builder.transclusion_start(
+                pagename=page_name_all, attrs=obj_tag_attrs, source_text=word, freeze_source=True
+            )
             self.builder.text(trans_desc, source_text=desc)
             self.builder.transclusion_end()
 
@@ -905,7 +994,7 @@ class MoinParser(object):
             trans_desc = self._transclude_description(desc)
             if trans_desc is None:
                 trans_desc = target
-            self.builder.text('{{%s|%s|%s}}' % (target, trans_desc, params), source_text=word)
+            self.builder.text("{{%s|%s|%s}}" % (target, trans_desc, params), source_text=word)
 
     def _tableZ_handler(self, word: str, groups: Dict[str, str]):
         """Handle table row end."""
@@ -934,12 +1023,13 @@ class MoinParser(object):
 
             # check for adjacent cell markers
             if word.count("|") > 2:
-                if 'align' not in attrs and \
-                   not ('style' in attrs and 'text-align' in attrs['style'].lower()):
+                if "align" not in attrs and not (
+                    "style" in attrs and "text-align" in attrs["style"].lower()
+                ):
                     # add center alignment if we don't have some alignment already
-                    attrs['align'] = 'center'
-                if 'colspan' not in attrs:
-                    attrs['colspan'] = '%d' % (word.count("|")/2)
+                    attrs["align"] = "center"
+                if "colspan" not in attrs:
+                    attrs["colspan"] = "%d" % (word.count("|") / 2)
 
             self.builder.table_cell_start(attrs, source_text=word)
         else:
@@ -948,8 +1038,8 @@ class MoinParser(object):
     # Heading / Horizontal Rule
     def _heading_handler(self, word: str, groups: Dict[str, str]):
         """Handle section headings.: == =="""
-        heading_text = groups.get('heading_text', '')
-        depth = min(len(groups.get('hmarker', '')), 5)
+        heading_text = groups.get("heading_text", "")
+        depth = min(len(groups.get("hmarker", "")), 5)
         self._close_paragraph()
         self.builder.heading(depth, heading_text, source_text=word)
 
@@ -961,19 +1051,19 @@ class MoinParser(object):
 
     def _parser_handler(self, word: str, groups: Dict[str, str]):
         """Handle parsed code displays."""
-        parser_name = groups.get('parser_name', None)
-        parser_args = groups.get('parser_args', None)
-        parser_nothing = groups.get('parser_nothing', None)
+        parser_name = groups.get("parser_name", None)
+        parser_args = groups.get("parser_args", None)
+        parser_nothing = groups.get("parser_nothing", None)
 
-        parser_unique = groups.get('parser_unique', '') or ''
-        if set(parser_unique) == set('{'):  # just some more {{{{{{
-            parser_unique = '}' * len(parser_unique)  # for symmetry cosmetic reasons
+        parser_unique = groups.get("parser_unique", "") or ""
+        if set(parser_unique) == set("{"):  # just some more {{{{{{
+            parser_unique = "}" * len(parser_unique)  # for symmetry cosmetic reasons
         self.parser_unique = parser_unique
 
-        if parser_name is not None and parser_name == '':
-            parser_name = 'text'
+        if parser_name is not None and parser_name == "":
+            parser_name = "text"
         if parser_name is None and parser_nothing is None:
-            parser_name = 'text'
+            parser_name = "text"
 
         self._close_paragraph()
         self.builder.parsed_text_start(source_text=word)
@@ -982,14 +1072,14 @@ class MoinParser(object):
             self.builder.parsed_text_parser(parser_name, parser_args)
 
     def _parser_content(self, line: str):
-        """ handle state and collecting lines for parser in pre/parser sections """
+        """handle state and collecting lines for parser in pre/parser sections"""
         self.builder.feed_src(line)
         if self.builder.is_found_parser:
             self.builder.add_parsed_text(line)
         elif line.strip():
             bang_line = False
             stripped_line = line.strip()
-            parser_name = ''
+            parser_name = ""
             parser_args = None
 
             if stripped_line.startswith("#!"):
@@ -1001,18 +1091,18 @@ class MoinParser(object):
                     parser_name = tmp[0]
 
             if not parser_name:
-                parser_name = 'text'
+                parser_name = "text"
 
             self.builder.parsed_text_parser(parser_name, parser_args)
             if not bang_line:
                 self.builder.add_parsed_text(line)
 
     def _parser_end_handler(self, word: str, groups: Dict[str, str]):
-        """ when we reach the end of a parser/pre section,
-            we call the parser with the lines we collected
+        """when we reach the end of a parser/pre section,
+        we call the parser with the lines we collected
         """
         if not self.builder.is_found_parser:
-            self.builder.parsed_text_parser('text')
+            self.builder.parsed_text_parser("text")
         self.builder.parsed_text_end(source_text=word)
 
     def _smiley_handler(self, word: str, groups: Dict[str, str]):
@@ -1025,10 +1115,11 @@ class MoinParser(object):
 
     def _macro_handler(self, word: str, groups: Dict[str, str]):
         """Handle macros."""
-        macro_name = groups.get('macro_name', '')
-        macro_args = groups.get('macro_args')
-        self.builder.macro(macro_name, macro_args, markup=groups.get('macro', ''),
-                           source_text=word)
+        macro_name = groups.get("macro_name", "")
+        macro_args = groups.get("macro_args")
+        self.builder.macro(
+            macro_name, macro_args, markup=groups.get("macro", ""), source_text=word
+        )
 
     # Private helpers ------------------------------------------------------------
     def _parse_indentinfo(self, line: str) -> Tuple[int, str, Optional[str], Optional[int]]:
@@ -1046,7 +1137,7 @@ class MoinParser(object):
         match = self.ol_re.match(line)
         if match:
             indtype = "ol"
-            numtype, tmp_numstart = match.group(0).strip().split('.')
+            numtype, tmp_numstart = match.group(0).strip().split(".")
             numtype = numtype[0]
             if tmp_numstart and tmp_numstart[0] == "#":
                 numstart = int(tmp_numstart[1:])
@@ -1071,9 +1162,9 @@ class MoinParser(object):
                 self.builder.table_end()
 
             self._close_item()
-            if self.builder.list_types[-1] == 'ol':
+            if self.builder.list_types[-1] == "ol":
                 self.builder.number_list_end()
-            elif self.builder.list_types[-1] == 'dl':
+            elif self.builder.list_types[-1] == "dl":
                 self.builder.definition_list_end()
             else:
                 self.builder.bullet_list_end()
@@ -1090,9 +1181,9 @@ class MoinParser(object):
             if self.builder.in_p:
                 self.builder.paragraph_end()
 
-            if list_type == 'ol':
+            if list_type == "ol":
                 self.builder.number_list_start(numtype, numstart)
-            elif list_type == 'dl':
+            elif list_type == "dl":
                 self.builder.definition_list_start()
             else:
                 self.builder.bullet_list_start()
@@ -1101,9 +1192,9 @@ class MoinParser(object):
         """Close all open lists."""
         self._close_item()
         for _type in self.builder.list_types[::-1]:
-            if _type == 'ol':
+            if _type == "ol":
                 self.builder.number_list_end()
-            elif _type == 'dl':
+            elif _type == "dl":
                 self.builder.definition_list_end()
             else:
                 self.builder.bullet_list_end()
@@ -1126,28 +1217,38 @@ class MoinParser(object):
 
 
 def _get_image_params(paramstring: str) -> Tuple[ImageAttrDict, Dict[str, str]]:
-    acceptable: List[ImageAttrKey] = ['class', 'title', 'longdesc', 'width', 'height', 'align']
+    acceptable: List[ImageAttrKey] = ["class", "title", "longdesc", "width", "height", "align"]
     return _get_params(paramstring, acceptable_attrs=acceptable)
 
 
 def _get_object_params(paramstring: str) -> Tuple[ObjectAttrDict, Dict[str, str]]:
-    acceptable: List[ObjectAttrKey] = ['class', 'title', 'width', 'height', 'mimetype', 'standby']
-    tag_attrs, query_args = _get_params(paramstring, acceptable_attrs=acceptable,
-                                        mapping={'type': 'mimetype'})
+    acceptable: List[ObjectAttrKey] = ["class", "title", "width", "height", "mimetype", "standby"]
+    tag_attrs, query_args = _get_params(
+        paramstring, acceptable_attrs=acceptable, mapping={"type": "mimetype"}
+    )
     return tag_attrs, query_args
 
 
 def _get_link_params(paramstring: str) -> Tuple[LinkAttrDict, Dict[str, str]]:
-    acceptable_attrs_link: List[LinkAttrKey] = ['class', 'title', 'target', 'accesskey', 'rel', ]
+    acceptable_attrs_link: List[LinkAttrKey] = [
+        "class",
+        "title",
+        "target",
+        "accesskey",
+        "rel",
+    ]
     return _get_params(paramstring, acceptable_attrs=acceptable_attrs_link)
 
 
-def _get_params(paramstring: str, acceptable_attrs: List[T] = [], mapping: Dict[str, str] = {},
-                ) -> Tuple[Dict[T, str], Dict[str, str]]:
-    """ parse the parameters of link/transclusion markup,
-        defaults can be a dict with some default key/values
-        that will be in the result as given, unless overriden
-        by the params.
+def _get_params(
+    paramstring: str,
+    acceptable_attrs: List[T] = [],
+    mapping: Dict[str, str] = {},
+) -> Tuple[Dict[T, str], Dict[str, str]]:
+    """parse the parameters of link/transclusion markup,
+    defaults can be a dict with some default key/values
+    that will be in the result as given, unless overriden
+    by the params.
     """
     tag_attrs: Dict[T, str] = {}
     query_args = {}
@@ -1158,50 +1259,51 @@ def _get_params(paramstring: str, acceptable_attrs: List[T] = [], mapping: Dict[
                 key = mapping[key]
             if key in acceptable_attrs:
                 tag_attrs[key] = val
-            elif key.startswith('&'):
+            elif key.startswith("&"):
                 key = key[1:]
                 query_args[key] = val
     return tag_attrs, query_args
 
 
 def _getTableAttrs(attrdef: str) -> Dict[str, str]:
-    attr_rule = r'^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>'
+    attr_rule = r"^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>"
     m = re.match(attr_rule, attrdef, re.U)
     if not m:
         return {}
-    attrdef = m.group('attrs')
+    attrdef = m.group("attrs")
 
     # extension for special table markup
     def table_extension(key, parser):
-        align_keys = {'(': 'left', ':': 'center', ')': 'right'}
-        valign_keys = {'^': 'top', 'v': 'bottom'}
+        align_keys = {"(": "left", ":": "center", ")": "right"}
+        valign_keys = {"^": "top", "v": "bottom"}
 
         attrs = {}
         if key[0] in "0123456789":
             token = parser.get_token()
-            if token != '%':
-                raise ValueError('Expected "%%" after "%(key)s", got "%(token)s"' % {
-                    'key': key, 'token': token})
+            if token != "%":
+                raise ValueError(
+                    'Expected "%%" after "%(key)s", got "%(token)s"' % {"key": key, "token": token}
+                )
             _ = int(key)
-            attrs['width'] = "%s%%" % key
-        elif key == '-':
+            attrs["width"] = "%s%%" % key
+        elif key == "-":
             arg = parser.get_token()
-            attrs['colspan'] = int(arg)
-        elif key == '|':
+            attrs["colspan"] = int(arg)
+        elif key == "|":
             arg = parser.get_token()
-            attrs['rowspan'] = int(arg)
+            attrs["rowspan"] = int(arg)
         elif key in align_keys:
-            attrs['align'] = align_keys[key]
+            attrs["align"] = align_keys[key]
         elif key in valign_keys:
-            attrs['valign'] = valign_keys[key]
-        elif key == '#':
+            attrs["valign"] = valign_keys[key]
+        elif key == "#":
             arg = parser.get_token()
             if len(arg) != 6:
                 raise ValueError()
             _ = int(arg, 16)
-            attrs['bgcolor'] = '#%s' % arg
+            attrs["bgcolor"] = "#%s" % arg
         return attrs
 
     # scan attributes
-    attr = wikiutil.parseAttributes(attrdef, '>', table_extension)
+    attr = wikiutil.parseAttributes(attrdef, ">", table_extension)
     return attr

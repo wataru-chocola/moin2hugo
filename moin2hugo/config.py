@@ -1,14 +1,15 @@
-from pydantic import BaseSettings, Field, FilePath
 from typing import Optional
+
+from pydantic import BaseSettings, Field, FilePath
 
 
 class MoinSiteConfig(BaseSettings):
     bang_meta: bool = True
-    page_front_page: str = 'FrontPage'
+    page_front_page: str = "FrontPage"
 
 
 class HugoConfig(BaseSettings):
-    root_path: str = '/'
+    root_path: str = "/"
     detect_table_header_heuristically: bool = True
     increment_heading_level: bool = True
     use_figure_shortcode: bool = True
