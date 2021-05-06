@@ -26,7 +26,7 @@ import textwrap
         ('[[attachment:SomePage/image.png|image.png|title="png"]]', '[image.png](/SomePage/image.png "png")'),  # noqa
         ('[[drawing:SomePage/image.png]]', r'\[\[drawing:SomePage/image.png\]\]'),
         ('[[http://example.net/|example site]]', '[example site](http://example.net/)'),
-        ('[[otherwiki:somepage]]', r'\[\[otherwiki:somepage\]\]'),
+        ('[[interwiki-like:somepage]]', r'[interwiki-like:somepage](interwiki-likesomepage)'),
 
         # rel links
         ('[[../RelPage|Relative Link]]', '[Relative Link](/RelPage)'),
