@@ -54,7 +54,7 @@ class HugoPathBuilder(object):
                     sanitized_path += "-"
                     prepend_hyphen = False
                 sanitized_path += c
-            elif len(sanitized_path) > 0 and (c == "-" or code_category == "Zs"):
+            elif len(sanitized_path) > 0 and (c in ["-", ":"] or code_category == "Zs"):
                 prepend_hyphen = True
         return sanitized_path
 

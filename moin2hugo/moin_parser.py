@@ -782,11 +782,15 @@ class MoinParser(object):
             return
         tag_attrs, query_args = _get_link_params(params)
 
+        is_interwiki = False
         if mt.group("page_name"):
             page_name_and_anchor = mt.group("page_name")
             page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
             if ":" in page_name:
                 wikiname, pagename = page_name.split(":", 1)
+                is_interwiki = wikiutil.resolve_interwiki(wikiname, pagename)
+
+            if is_interwiki:
                 self.builder.interwikilink_start(
                     wikiname,
                     page_name,

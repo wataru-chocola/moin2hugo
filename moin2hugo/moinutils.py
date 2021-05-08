@@ -26,6 +26,84 @@ def split_anchor(pagename: str) -> Tuple[str, str]:
     return (pagename, "")
 
 
+def filename2mimetype(filename: str) -> Tuple[str, str, str]:
+    moin_mimetype_mapping = {
+        "application/docbook+xml": "text/docbook",
+        "application/x-latex": "text/latex",
+        "application/x-tex": "text/tex",
+        "application/javascript": "text/javascript",
+    }
+    mtype, _encode = mimetypes.guess_type(filename)
+    if mtype is None:
+        mtype = "application/octet-stream"
+    tmp_mtype = moin_mimetype_mapping.get(mtype, mtype)
+    assert tmp_mtype is not None
+    majortype, subtype = tmp_mtype.split("/")
+    return (mtype.lower(), majortype.lower(), subtype.lower())
+
+
+def attachment_abs_name(url, pagename):
+    url = abs_page(pagename, url)
+    pieces = url.split("/")
+    if len(pieces) == 1:
+        return pagename, pieces[0]
+    else:
+        return "/".join(pieces[:-1]), pieces[-1]
+
+
+def abs_page(base_page: str, target_page: str) -> str:
+    pagename = target_page
+    if target_page.startswith(PARENT_PREFIX):
+        base_path_elems = base_page.split("/")
+        while base_path_elems and target_page.startswith(PARENT_PREFIX):
+            base_path_elems = base_path_elems[:-1]
+            target_page = target_page[len(PARENT_PREFIX) :]
+        path_elems = base_path_elems + [target_page]
+        pagename = "/".join([elem for elem in path_elems if elem])
+    elif target_page.startswith(CHILD_PREFIX):
+        if base_page:
+            pagename = base_page + "/" + target_page[len(CHILD_PREFIX) :]
+        else:
+            pagename = target_page[len(CHILD_PREFIX) :]
+    return pagename
+
+
+def url_unquote(s: str) -> str:
+    try:
+        return urllib.parse.unquote(s, encoding="utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return urllib.parse.unquote(s, encoding="iso-8859-1", errors="replace")
+
+
+def unquoteWikiname(filename: str) -> str:
+    QUOTED = re.compile(r"\(([a-fA-F0-9]+)\)")
+
+    parts = []
+    start = 0
+    for needle in QUOTED.finditer(filename):
+        parts.append(filename[start : needle.start()])
+        start = needle.end()
+        group = needle.group(1)
+        try:
+            parts.append(bytes.fromhex(group).decode("utf-8"))
+        except ValueError:
+            raise InvalidFileNameError(filename)
+
+    # append rest of string
+    parts.append(filename[start : len(filename)])
+    wikiname = "".join(parts)
+
+    return wikiname
+
+
+def resolve_interwiki(wikiname: str, pagename: str) -> bool:
+    """Not implemented."""
+    return False
+
+
+#
+# Argument or Attribute parsers
+#
 @attr.s
 class MoinKV(object):
     k: str = ""
@@ -144,76 +222,6 @@ def parse_quoted_separated(argstring: str) -> Tuple[List[str], Dict[Any, str], L
         else:
             positional.append(item)
     return leading, keywords, trailing
-
-
-def filename2mimetype(filename: str) -> Tuple[str, str, str]:
-    moin_mimetype_mapping = {
-        "application/docbook+xml": "text/docbook",
-        "application/x-latex": "text/latex",
-        "application/x-tex": "text/tex",
-        "application/javascript": "text/javascript",
-    }
-    mtype, _encode = mimetypes.guess_type(filename)
-    if mtype is None:
-        mtype = "application/octet-stream"
-    tmp_mtype = moin_mimetype_mapping.get(mtype, mtype)
-    assert tmp_mtype is not None
-    majortype, subtype = tmp_mtype.split("/")
-    return (mtype.lower(), majortype.lower(), subtype.lower())
-
-
-def attachment_abs_name(url, pagename):
-    url = abs_page(pagename, url)
-    pieces = url.split("/")
-    if len(pieces) == 1:
-        return pagename, pieces[0]
-    else:
-        return "/".join(pieces[:-1]), pieces[-1]
-
-
-def abs_page(base_page: str, target_page: str) -> str:
-    pagename = target_page
-    if target_page.startswith(PARENT_PREFIX):
-        base_path_elems = base_page.split("/")
-        while base_path_elems and target_page.startswith(PARENT_PREFIX):
-            base_path_elems = base_path_elems[:-1]
-            target_page = target_page[len(PARENT_PREFIX) :]
-        path_elems = base_path_elems + [target_page]
-        pagename = "/".join([elem for elem in path_elems if elem])
-    elif target_page.startswith(CHILD_PREFIX):
-        if base_page:
-            pagename = base_page + "/" + target_page[len(CHILD_PREFIX) :]
-        else:
-            pagename = target_page[len(CHILD_PREFIX) :]
-    return pagename
-
-
-def url_unquote(s: str) -> str:
-    try:
-        return urllib.parse.unquote(s, encoding="utf-8", errors="strict")
-    except UnicodeDecodeError:
-        return urllib.parse.unquote(s, encoding="iso-8859-1", errors="replace")
-
-
-def unquoteWikiname(filename: str) -> str:
-    QUOTED = re.compile(r"\(([a-fA-F0-9]+)\)")
-
-    parts = []
-    start = 0
-    for needle in QUOTED.finditer(filename):
-        parts.append(filename[start : needle.start()])
-        start = needle.end()
-        group = needle.group(1)
-        try:
-            parts.append(bytes.fromhex(group).decode("utf-8"))
-        except ValueError:
-            raise InvalidFileNameError(filename)
-
-    # append rest of string
-    parts.append(filename[start : len(filename)])
-    wikiname = "".join(parts)
-
-    return wikiname
 
 
 def parseAttributes(attrstring: str, endtoken=None, extension=None) -> Dict[str, str]:
