@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "moin2hugo"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 authors = ["Wataru Watanabe <wataru.chocola@gmail.com>"]
 
