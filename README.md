@@ -4,7 +4,7 @@
 
 Moin2Hugo converts MoinMoin site directory to hugo content directory.
 
-* Convert syntax directory (without going through transforming to HTML).
+* Convert syntax directly (without going through transforming to HTML).
 * Generate clean and tidy markdown source text.
 * Keep semantics as possible.
 

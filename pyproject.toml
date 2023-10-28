@@ -33,6 +33,12 @@ line_length = 99
 [tool.poetry.scripts]
 moin2hugo = "moin2hugo.moin2hugo:convert_site"
 
+[tool.poe]
+poetry_command = "task"
+
+[tool.poe.tasks]
+test = "pytest tests"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
