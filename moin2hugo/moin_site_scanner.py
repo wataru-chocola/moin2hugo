@@ -64,7 +64,7 @@ class MoinSiteScanner(object):
         attachments_dir = os.path.join(pagedir, "attachments")
         if os.path.isdir(attachments_dir):
             for attachment_entry in os.scandir(attachments_dir):
-                if attachment_entry.name.startswith("."):
+                if attachment_entry.name.startswith(".") or attachment_entry.is_dir():
                     return None
                 attachment_file = os.path.join(attachments_dir, attachment_entry.name)
                 attachment = MoinAttachment(filepath=attachment_file, name=attachment_entry.name)
