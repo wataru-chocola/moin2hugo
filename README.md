@@ -10,7 +10,7 @@ Moin2Hugo converts MoinMoin site directory to hugo content directory.
 
 ## Requirements
 
-* python >= 3.7
+* python >= 3.12
 
 ## Installation
 
