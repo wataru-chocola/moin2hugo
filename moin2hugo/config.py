@@ -1,6 +1,7 @@
 from typing import Optional
 
-from pydantic import BaseSettings, Field, FilePath
+from pydantic import Field, FilePath
+from pydantic_settings import BaseSettings
 
 
 class MoinSiteConfig(BaseSettings):

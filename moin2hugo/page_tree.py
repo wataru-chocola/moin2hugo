@@ -1,16 +1,10 @@
 from __future__ import annotations
 
-import sys
 import textwrap
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
 
 import attr
-import cssutils  # type: ignore
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+import cssutils
 
 
 @attr.s(slots=True)
