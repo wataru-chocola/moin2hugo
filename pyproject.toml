@@ -13,7 +13,6 @@ PyYAML = "^6.0.1"
 Pygments = "^2.8.1"
 cssutils = "^2.2.0"
 Jinja2 = "^3.1.2"
-toml = "^0.10.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
@@ -33,11 +32,9 @@ line_length = 99
 [tool.poetry.scripts]
 moin2hugo = "moin2hugo.moin2hugo:convert_site"
 
-[tool.poe]
-poetry_command = "task"
-
 [tool.poe.tasks]
 test = "pytest tests"
+typecheck = "mypy moin2hugo/"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
