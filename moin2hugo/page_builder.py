@@ -169,7 +169,7 @@ class PageBuilder(object):
             emsg += "Current Elemnt: " + repr(self.cur)
             raise AssertionError(emsg)
 
-    def _add_new_elem(self, e: PageElement):
+    def _add_new_elem(self, e: PageElement) -> None:
         self.cur.add_child(e)
 
     def _start_new_elem(self, e: PageElement):

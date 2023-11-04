@@ -154,9 +154,12 @@ class Moin2Hugo(object):
             try:
                 self.convert_page(page)
             except AssertionError as e:
-                logger.error("fail to convert.")
+                logger.error("fail to convert: %s." % page.name)
                 logger.exception(e)
                 continue
+            except:
+                logger.error("fail to convert: %s." % page.name)
+                raise
             logger.info("++ done.")
 
 

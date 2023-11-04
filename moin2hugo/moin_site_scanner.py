@@ -52,7 +52,7 @@ class MoinSiteScanner(object):
             return None
         last_edit_log = edit_log_content.splitlines()[-1]
         updated_us = int(last_edit_log.split()[0])
-        updated = datetime.fromtimestamp(updated_us / 1000 ** 2).astimezone()
+        updated = datetime.fromtimestamp(updated_us / 1000**2).astimezone()
 
         content_file = os.path.join(pagedir, "revisions", current_revision)
         if not os.path.isfile(content_file):
@@ -64,7 +64,7 @@ class MoinSiteScanner(object):
         attachments_dir = os.path.join(pagedir, "attachments")
         if os.path.isdir(attachments_dir):
             for attachment_entry in os.scandir(attachments_dir):
-                if attachment_entry.name.startswith("."):
+                if attachment_entry.name.startswith(".") or attachment_entry.is_dir():
                     return None
                 attachment_file = os.path.join(attachments_dir, attachment_entry.name)
                 attachment = MoinAttachment(filepath=attachment_file, name=attachment_entry.name)
