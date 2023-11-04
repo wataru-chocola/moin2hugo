@@ -36,7 +36,7 @@ moin2hugo = "moin2hugo.moin2hugo:convert_site"
 
 [tool.poe.tasks]
 test = "pytest tests"
-typecheck = "mypy moin2hugo/"
+typecheck = "mypy --strict moin2hugo/"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

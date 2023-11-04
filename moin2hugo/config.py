@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import Field, FilePath
 from pydantic_settings import BaseSettings
@@ -28,5 +28,5 @@ class Config(BaseSettings):
     template_file: Optional[FilePath] = None
 
 
-def load_config(config_dict: dict) -> Config:
+def load_config(config_dict: dict[str, Any]) -> Config:
     return Config(**config_dict)

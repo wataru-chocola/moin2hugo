@@ -4,7 +4,7 @@ import textwrap
 from typing import Any, Dict, List, Literal, Optional, Type, TypeVar
 
 import attr
-import cssutils
+import cssutils  # type: ignore
 
 
 @attr.s(slots=True)
@@ -36,7 +36,7 @@ class PageElement(object):
                 return hash(obj)
 
         hash_value = 0
-        for field in attr.fields(self.__class__):
+        for field in attr.fields(self.__class__):  # type: ignore
             assert isinstance(field, attr.Attribute)
             if field.metadata.get("exclude_content", False):
                 continue
@@ -97,12 +97,12 @@ class PageElement(object):
                 return True
         return False
 
-    def add_content(self, content: str):
+    def add_content(self, content: str) -> None:
         self.content += content
 
     def add_child(
         self, child: PageElement, propagate_source_text: bool = True, at: Optional[int] = None
-    ):
+    ) -> None:
         if at is None:
             self.children.append(child)
         else:
@@ -111,18 +111,18 @@ class PageElement(object):
         if propagate_source_text:
             child.propagate_source_text(child.source_text)
 
-    def del_child(self, at: int):
+    def del_child(self, at: int) -> None:
         child = self.children[at]
         self.children = self.children[0:at] + self.children[at + 1 :]
         del child
 
-    def add_source_text(self, source_text: str, freeze: bool = False):
+    def add_source_text(self, source_text: str, freeze: bool = False) -> None:
         self.source_text += source_text
         self.propagate_source_text(source_text)
         if freeze:
             self.source_frozen = True
 
-    def propagate_source_text(self, source_text: str):
+    def propagate_source_text(self, source_text: str) -> None:
         for p in self.parents:
             if p.source_frozen:
                 break
