@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Dict, List, Optional, Tuple, TypeVar
+from typing import Dict, List, Optional, Tuple, TypeVar, cast
 
 import moin2hugo.moin_settings as settings
 import moin2hugo.moinutils as wikiutil
@@ -770,7 +770,7 @@ class MoinParser(object):
                 # if transcluded obj (image) has no description, use target for it
                 groupdict["transclude_desc"] = target
             desc = m.group("transclude")
-            desc = self._transclude_handler(desc, groupdict)
+            self._transclude_handler(desc, groupdict)
 
     def _link_handler(self, word: str, groups: Dict[str, str]):
         """Handle [[target|text]] links."""
@@ -782,27 +782,25 @@ class MoinParser(object):
             return
         tag_attrs, query_args = _get_link_params(params)
 
-        is_interwiki = False
         if mt.group("page_name"):
             page_name_and_anchor = mt.group("page_name")
             page_name, anchor = wikiutil.split_anchor(page_name_and_anchor)
             if ":" in page_name:
                 wikiname, pagename = page_name.split(":", 1)
                 is_interwiki = wikiutil.resolve_interwiki(wikiname, pagename)
-
-            if is_interwiki:
-                self.builder.interwikilink_start(
-                    wikiname,
-                    page_name,
-                    queryargs=query_args,
-                    anchor=anchor,
-                    attrs=tag_attrs,
-                    source_text=word,
-                    freeze_source=True,
-                )
-                self.builder.text(page_name_and_anchor, source_text=word)
-                self.builder.interwikilink_end()
-                return
+                if is_interwiki:
+                    self.builder.interwikilink_start(
+                        wikiname,
+                        page_name,
+                        queryargs=query_args,
+                        anchor=anchor,
+                        attrs=tag_attrs,
+                        source_text=word,
+                        freeze_source=True,
+                    )
+                    self.builder.text(page_name_and_anchor, source_text=word)
+                    self.builder.interwikilink_end()
+                    return
 
             current_page = self.page_name
             if not page_name:
@@ -1262,7 +1260,7 @@ def _get_params(
             if key in mapping:
                 key = mapping[key]
             if key in acceptable_attrs:
-                tag_attrs[key] = val
+                tag_attrs[cast(T, key)] = val
             elif key.startswith("&"):
                 key = key[1:]
                 query_args[key] = val

@@ -177,6 +177,7 @@ class PageBuilder(object):
         self.cur = e
 
     def _end_current_elem(self):
+        assert self.cur.parent is not None
         self.cur = self.cur.parent
 
     def _toggle_elem(self, cls: Type[PageElement], source_text: str = ""):
