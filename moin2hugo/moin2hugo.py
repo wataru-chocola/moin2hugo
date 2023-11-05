@@ -25,7 +25,7 @@ class HugoPageInfo:
     filepath: str = attr.ib()
     name: str = attr.ib()
     title: str = attr.ib()
-    attachments: List[MoinAttachment] = attr.ib()
+    attachments: set[MoinAttachment] = attr.ib()
     is_branch: bool = attr.ib(default=False)
     updated: Optional[datetime] = attr.ib(default=None)
 
