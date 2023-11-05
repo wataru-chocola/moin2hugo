@@ -843,7 +843,7 @@ class HugoFormatter(FormatterBase):
 
     # Image / Object Embedding
     def _transclude(self, url: str, e: PageElement, objattr: Optional[ObjectAttr] = None) -> str:
-        tag_attrs = collections.OrderedDict([("data", url)])
+        tag_attrs: dict[str, str] = collections.OrderedDict([("data", url)])
         if objattr:
             if objattr.mimetype:
                 tag_attrs["type"] = escape(objattr.mimetype, in_html=True)

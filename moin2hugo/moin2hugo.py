@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from datetime import datetime
-from typing import List, Optional
+from typing import Literal, Optional, assert_never
 
 import attr
 import click
@@ -52,7 +52,7 @@ class Moin2Hugo(object):
         )
 
     @property
-    def hugo_site_structure(self):
+    def hugo_site_structure(self) -> dict[str, Literal[1] | Literal[2]]:
         if self._hugo_site_structure is not None:
             return self._hugo_site_structure
 
@@ -107,11 +107,14 @@ class Moin2Hugo(object):
         os.makedirs(dst_bundle_path, exist_ok=True)
 
         is_branch = False
-        if self.hugo_site_structure[hugo_bundle_path] == self.LEAF_BUNDLE:
-            dst_filepath = safe_path_join(dst_bundle_path, "index.md")
-        elif self.hugo_site_structure[hugo_bundle_path] == self.BRANCH_BUNDLE:
-            dst_filepath = safe_path_join(dst_bundle_path, "_index.md")
-            is_branch = True
+        match self.hugo_site_structure[hugo_bundle_path]:
+            case self.LEAF_BUNDLE:
+                dst_filepath = safe_path_join(dst_bundle_path, "index.md")
+            case self.BRANCH_BUNDLE:
+                dst_filepath = safe_path_join(dst_bundle_path, "_index.md")
+                is_branch = True
+            case _ as unreachable:
+                assert_never(unreachable)
 
         title = page.name.split("/")[-1]
         hugo_page = HugoPageInfo(
@@ -157,7 +160,7 @@ class Moin2Hugo(object):
                 logger.error("fail to convert: %s." % page.name)
                 logger.exception(e)
                 continue
-            except:
+            except Exception:
                 logger.error("fail to convert: %s." % page.name)
                 raise
             logger.info("++ done.")
