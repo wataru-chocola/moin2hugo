@@ -20,7 +20,7 @@ class MoinAttachment:
 class MoinPageInfo:
     filepath: str = attr.ib()
     name: str = attr.ib()
-    attachments: List[MoinAttachment] = attr.ib()
+    attachments: set[MoinAttachment] = attr.ib()
     updated: Optional[datetime] = attr.ib(default=None)
 
 
@@ -60,7 +60,7 @@ class MoinSiteScanner(object):
             logger.debug("++ already deleted")
             return None
 
-        attachments: List[MoinAttachment] = []
+        attachments: set[MoinAttachment] = set()
         attachments_dir = os.path.join(pagedir, "attachments")
         if os.path.isdir(attachments_dir):
             for attachment_entry in os.scandir(attachments_dir):
@@ -68,7 +68,7 @@ class MoinSiteScanner(object):
                     return None
                 attachment_file = os.path.join(attachments_dir, attachment_entry.name)
                 attachment = MoinAttachment(filepath=attachment_file, name=attachment_entry.name)
-                attachments.append(attachment)
+                attachments.add(attachment)
 
         page = MoinPageInfo(
             filepath=content_file, name=pagename, updated=updated, attachments=attachments
