@@ -55,7 +55,7 @@ def make_shortcode(
     else:
         start_delimiter, end_delimiter = ("{{<", ">}}")
     if attrs:
-        attrs_str = []
+        attrs_str: list[str] = []
         for k, v in attrs.items():
             if v is None:
                 attrs_str.append("%s" % k)

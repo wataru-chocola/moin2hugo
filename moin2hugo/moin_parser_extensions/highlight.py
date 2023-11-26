@@ -6,12 +6,12 @@ from moin2hugo.page_tree import Codeblock
 
 from .base import ParserExtensionAbstract
 
-_ext_to_syntax_id = {}
+_ext_to_syntax_id: dict[str, str] = {}
 
 
 def build_ext_to_syntax_id_mapping():
     global _ext_to_syntax_id
-    for name, aliases, patterns, mime in pygments.lexers.get_all_lexers():
+    for _name, aliases, patterns, _mime in pygments.lexers.get_all_lexers():
         for ptn in patterns:
             if ptn.startswith("*."):
                 ext = ptn[1:]

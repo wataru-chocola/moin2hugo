@@ -144,8 +144,8 @@ class PageBuilder(object):
         return self.cur.in_x([BulletList, NumberList, DefinitionList])
 
     @property
-    def list_types(self) -> List[str]:
-        list_types = []
+    def list_types(self) -> list[str]:
+        list_types: list[str] = []
         above_me = [self.cur] + self.cur.parents
         for e in reversed(above_me):
             if isinstance(e, BulletList):
@@ -410,7 +410,7 @@ class PageBuilder(object):
         self._ensure_cur_elem(BulletList)
         self._end_current_elem()
 
-    def number_list_start(self, numtype: str = "1", numstart: str = "1"):
+    def number_list_start(self, numtype: Optional[str] = None, numstart: Optional[int] = None):
         self._start_new_elem(NumberList())
 
     def number_list_end(self):

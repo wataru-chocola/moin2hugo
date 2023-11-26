@@ -4,7 +4,7 @@ import re
 import shlex
 import urllib.parse
 from io import StringIO
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import attr
 
@@ -42,7 +42,7 @@ def filename2mimetype(filename: str) -> Tuple[str, str, str]:
     return (mtype.lower(), majortype.lower(), subtype.lower())
 
 
-def attachment_abs_name(url, pagename):
+def attachment_abs_name(url: str, pagename: str):
     url = abs_page(pagename, url)
     pieces = url.split("/")
     if len(pieces) == 1:
@@ -78,7 +78,7 @@ def url_unquote(s: str) -> str:
 def unquoteWikiname(filename: str) -> str:
     QUOTED = re.compile(r"\(([a-fA-F0-9]+)\)")
 
-    parts = []
+    parts: list[str] = []
     start = 0
     for needle in QUOTED.finditer(filename):
         parts.append(filename[start : needle.start()])
@@ -138,7 +138,7 @@ def parse_quoted_separated_ext(
     ]
 
     len_argstring = len(argstring)
-    result = []  # result list
+    result: list[str | Tuple[str, str]] = []  # result list
     cur = MoinKV()
     quoted = None  # we're inside quotes, indicates quote character used
     noquote = False  # no quotes expected because word didn't start with one
@@ -207,7 +207,7 @@ def parse_quoted_separated_ext(
     return result
 
 
-def parse_quoted_separated(argstring: str) -> Tuple[List[str], Dict[Any, str], List[str]]:
+def parse_quoted_separated(argstring: str) -> Tuple[list[str], dict[str, str], list[str]]:
     leading: List[str] = []
     positional = leading
     trailing: List[str] = []
@@ -224,10 +224,14 @@ def parse_quoted_separated(argstring: str) -> Tuple[List[str], Dict[Any, str], L
     return leading, keywords, trailing
 
 
-def parseAttributes(attrstring: str, endtoken=None, extension=None) -> Dict[str, str]:
+def parseAttributes(
+    attrstring: str,
+    endtoken: Optional[str] = None,
+    extension: Optional[Callable[[str, shlex.shlex], dict[str, Any]]] = None,
+) -> Dict[str, str]:
     parser = shlex.shlex(StringIO(attrstring))
     parser.commenters = ""
-    attrs = {}
+    attrs: dict[str, Any] = {}
 
     try:
         while True:

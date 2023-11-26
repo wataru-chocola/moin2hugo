@@ -151,15 +151,15 @@ class FormatterBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def comment(self, e: Comment) -> str:
+    def comment(self, comment: Comment) -> str:
         pass
 
     @abstractmethod
-    def smiley(self, e: Smiley) -> str:
+    def smiley(self, smiley: Smiley) -> str:
         pass
 
     @abstractmethod
-    def remark(self, e: Remark) -> str:
+    def remark(self, remark: Remark) -> str:
         pass
 
     @abstractmethod
