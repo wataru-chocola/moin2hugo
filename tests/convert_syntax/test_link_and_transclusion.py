@@ -1,4 +1,5 @@
 import textwrap
+from typing import Optional, Tuple
 from unittest import mock
 
 import pytest
@@ -59,7 +60,7 @@ from moin2hugo.page_tree import AttachmentImage
         ("https://www.markdownguide.org#a>aa", "<https://www.markdownguide.org#a\\>aa>"),
     ],
 )
-def test_links(data, expected):
+def test_links(data: str, expected: str):
     page = MoinParser.parse(data, "PageName")
     assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
@@ -105,7 +106,7 @@ def test_links(data, expected):
         ),  # noqa
     ],
 )
-def test_transclude(data, expected):
+def test_transclude(data: str, expected: str):
     page = MoinParser.parse(data, "PageName")
     assert HugoFormatter.format(page, pagename="PageName") == expected, page.tree_repr()
     assert page.source_text == data
@@ -119,7 +120,7 @@ def test_transclude(data, expected):
         ("{{attachment:image.png|title|width=100 height=150}}", ("100 height=150", None)),
     ],
 )
-def test_transclude_attrs(data, expected):
+def test_transclude_attrs(data: str, expected: Tuple[Optional[str], Optional[str]]):
     page = MoinParser.parse(data, "PageName")
     attach_image = page.children[0].children[0]
     assert isinstance(attach_image, AttachmentImage)
@@ -141,7 +142,7 @@ def test_transclude_attrs(data, expected):
         ("{{attachment:<a>.pdf}}", r"\{\{attachment\:\<a\>.pdf\}\}"),
     ],
 )
-def test_transclude_without_unsafe(data, expected, caplog):
+def test_transclude_without_unsafe(data: str, expected: str, caplog: pytest.LogCaptureFixture):
     page = MoinParser.parse(data, "PageName")
     ret = HugoFormatter.format(page, config=HugoConfig(goldmark_unsafe=False), pagename="PageName")
     assert ret == expected, page.tree_repr(include_src=True)
@@ -193,7 +194,7 @@ def test_transclude_without_unsafe(data, expected, caplog):
         ),
     ],
 )
-def test_transclude_inline_attachment(text, content, expected):
+def test_transclude_inline_attachment(text: str, content: str, expected: str):
     content = textwrap.dedent(content)
     expected = textwrap.dedent(expected).rstrip()
     mock_io = mock.mock_open(read_data=content)

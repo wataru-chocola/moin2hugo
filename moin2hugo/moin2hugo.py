@@ -30,6 +30,9 @@ class HugoPageInfo:
     updated: Optional[datetime] = attr.ib(default=None)
 
 
+PAGE_TYPE = Literal[1] | Literal[2]
+
+
 class Moin2Hugo(object):
     BRANCH_BUNDLE = 1
     LEAF_BUNDLE = 2
@@ -41,7 +44,7 @@ class Moin2Hugo(object):
             self.config = Config()
         self.src_dir = src_dir
         self.dst_dir = dst_dir
-        self._hugo_site_structure = None
+        self._hugo_site_structure: Optional[dict[str, PAGE_TYPE]] = None
 
         self.moin_site_scanner = MoinSiteScanner(self.src_dir)
         self.path_builder = HugoPathBuilder(
@@ -52,7 +55,7 @@ class Moin2Hugo(object):
         )
 
     @property
-    def hugo_site_structure(self) -> dict[str, Literal[1] | Literal[2]]:
+    def hugo_site_structure(self) -> dict[str, PAGE_TYPE]:
         if self._hugo_site_structure is not None:
             return self._hugo_site_structure
 
@@ -113,7 +116,7 @@ class Moin2Hugo(object):
             case self.BRANCH_BUNDLE:
                 dst_filepath = safe_path_join(dst_bundle_path, "_index.md")
                 is_branch = True
-            case _ as unreachable:
+            case _ as unreachable:  # type: ignore
                 assert_never(unreachable)
 
         title = page.name.split("/")[-1]
@@ -184,7 +187,7 @@ def print_version():
     click.echo(__version__)
 
 
-def cmd_print_version(ctx, param, value):
+def cmd_print_version(ctx: click.Context, param: click.Parameter, value: str):
     if not value or ctx.resilient_parsing:
         return
     print_version()

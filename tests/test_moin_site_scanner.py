@@ -1,13 +1,20 @@
 from datetime import datetime, timedelta, timezone
+from typing import TypeAlias
 
 import pytest
 
 from moin2hugo.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
 
+from .conftest import MoinAbspathFixture, MoinSitedirFixture
+
+MoinPagesFixture: TypeAlias = list[MoinPageInfo]
+
 
 @pytest.fixture
-def moin_pages(moin_sitedir, moin_abspath):
-    pages = []
+def moin_pages(
+    moin_sitedir: MoinSitedirFixture, moin_abspath: MoinAbspathFixture
+) -> MoinPagesFixture:
+    pages: list[MoinPageInfo] = []
 
     tokyo_tz = timezone(timedelta(hours=+9), "JST")
     pages.append(
@@ -74,7 +81,7 @@ def moin_pages(moin_sitedir, moin_abspath):
     return pages
 
 
-def test_scan_pages(moin_sitedir, moin_pages):
+def test_scan_pages(moin_sitedir: MoinSitedirFixture, moin_pages: MoinPagesFixture):
     scanner = MoinSiteScanner(moin_sitedir)
     expected = moin_pages
     for page in scanner.scan_pages():

@@ -8,25 +8,26 @@ from moin2hugo.page_tree import Link, Table, TableCell, TableRow, Text
 from .base import ParserExtensionAbstract
 
 
-@attr.s
+@attr.define
 class CSVArguments:
-    delimiter: Optional[str] = attr.ib(default=None)
+    delimiter: Optional[str] = attr.field(default=None)
     quotechar: str = "\x00"  # can't be entered
     quoting: int = csv.QUOTE_NONE
 
 
-@attr.s
+@attr.define
 class TableArguments:
-    visible: Set[str] = attr.ib(default=attr.Factory(set))
-    hiddenindexes: Set[int] = attr.ib(default=attr.Factory(set))
-    hiddencols: Set[str] = attr.ib(default=attr.Factory(set))
-    linkindexes: Set[int] = attr.ib(default=attr.Factory(set))
-    linkcols: Set[str] = attr.ib(default=attr.Factory(set))
+    visible: Set[str] = attr.field(factory=set)
+    hiddenindexes: Set[int] = attr.field(factory=set)
+    hiddencols: Set[str] = attr.field(factory=set)
+    linkindexes: Set[int] = attr.field(factory=set)
+    linkcols: Set[str] = attr.field(factory=set)
 
-    staticcols: List[str] = attr.ib(default=attr.Factory(list))
-    staticvals: List[str] = attr.ib(default=attr.Factory(list))
+    staticcols: List[str] = attr.field(factory=list)
+    staticvals: List[str] = attr.field(factory=list)
 
-    autofiltercols: Set[str] = attr.ib(default=attr.Factory(set))
+    autofiltercols: Set[str] = attr.field(factory=set)
+
     name: Optional[str] = None
     num_cols: int = 0
 
@@ -127,7 +128,7 @@ class ParserCSV(ParserExtensionAbstract):
         return csv_args, tbl_args
 
     @classmethod
-    def _csv_reader(cls, lines: List[str], csv_args: CSVArguments) -> Iterator[list]:
+    def _csv_reader(cls, lines: List[str], csv_args: CSVArguments) -> Iterator[list[str]]:
         if csv_args.delimiter is None:
             csv_args.delimiter = ";"
             if lines[0]:

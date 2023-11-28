@@ -1,7 +1,9 @@
-from moin2hugo.moin_parser import MoinParser
-from moin2hugo.formatter.hugo import HugoFormatter
-
 import textwrap
+
+import pytest
+
+from moin2hugo.formatter.hugo import HugoFormatter
+from moin2hugo.moin_parser import MoinParser
 
 
 def test_highlighted_python():
@@ -18,9 +20,9 @@ def test_highlighted_python():
     ```
     """.rstrip()
     data = textwrap.dedent(code_block_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -36,9 +38,9 @@ def test_old_parser_irrsi():
     ```
     """.rstrip()
     data = textwrap.dedent(code_block_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -55,9 +57,9 @@ def test_csv_basic():
     | d | e | f |
     """
     data = textwrap.dedent(text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -74,9 +76,9 @@ def test_csv_old_style_param():
     | d | e | f |
     """
     data = textwrap.dedent(text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -95,9 +97,9 @@ def test_csv_param1():
     | i | D | E |
     """
     data = textwrap.dedent(text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -116,13 +118,13 @@ def test_csv_param2():
     | a2 | b2 | c2 |
     """
     data = textwrap.dedent(text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
-def test_codeblock_shortcode(caplog):
+def test_codeblock_shortcode(caplog: pytest.LogCaptureFixture):
     code_block_text = """\
     {{{#!highlight python
     print("hello, {{< world >}}")
@@ -134,9 +136,9 @@ def test_codeblock_shortcode(caplog):
     ```
     """.rstrip()
     data = textwrap.dedent(code_block_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
     assert "cannot handle non-paired shortcode delimiter" not in caplog.text, page.tree_repr()

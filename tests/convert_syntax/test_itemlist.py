@@ -1,22 +1,24 @@
-from moin2hugo.moin_parser import MoinParser
-from moin2hugo.formatter.hugo import HugoFormatter
+import textwrap
 
 import pytest
-import textwrap
+
+from moin2hugo.formatter.hugo import HugoFormatter
+from moin2hugo.moin_parser import MoinParser
 
 
 @pytest.mark.parametrize(
-    ("data", "expected"), [
+    ("data", "expected"),
+    [
         (" . hoge", "* hoge"),
         (" * hoge", "* hoge"),
         (" 1. hoge", "1. hoge"),
         (" a. hoge", "1. hoge"),
         (" hoge", "* hoge"),  # indent list
-    ]
+    ],
 )
-def test_itemlists_simple(data, expected):
-    page = MoinParser.parse(data, 'PageName')
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+def test_itemlists_simple(data: str, expected: str):
+    page = MoinParser.parse(data, "PageName")
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -47,9 +49,9 @@ def test_itemlists_multi_items():
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -82,9 +84,9 @@ def test_itemlists_containing_paragraph():
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -125,9 +127,9 @@ def test_definition_lists_1():
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -146,15 +148,14 @@ def test_definition_lists_2():
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
 def test_definition_lists_3():
-    """Original moin-1.9 parser wrongly parses table inside definition description.
-    """
+    """Original moin-1.9 parser wrongly parses table inside definition description."""
     moin_text = """\
     Preamble.
 
@@ -191,9 +192,9 @@ def test_definition_lists_3():
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -220,7 +221,7 @@ def test_definition_lists_4():
     """
     data = textwrap.dedent(moin_text)
 
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected, page.tree_repr()
+    assert HugoFormatter.format(page, pagename="PageName") == expected, page.tree_repr()
     assert page.source_text == data

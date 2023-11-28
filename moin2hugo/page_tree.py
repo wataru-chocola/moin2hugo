@@ -7,16 +7,16 @@ import attr
 import cssutils  # type: ignore
 
 
-@attr.s(slots=True)
+@attr.define
 class PageElement(object):
     content: str = attr.ib(default="")
 
-    parent: Optional[PageElement] = attr.ib(
+    parent: Optional[PageElement] = attr.field(
         default=None, init=False, repr=False, eq=False, metadata={"exclude_content": True}
     )
-    children: List[PageElement] = attr.ib(default=attr.Factory(list), init=False)
-    source_text: str = attr.ib(default="", repr=False, metadata={"exclude_content": True})
-    source_frozen: bool = attr.ib(default=False, repr=False, metadata={"exclude_content": True})
+    children: List[PageElement] = attr.field(factory=list, init=False)
+    source_text: str = attr.field(default="", repr=False, metadata={"exclude_content": True})
+    source_frozen: bool = attr.field(default=False, repr=False, metadata={"exclude_content": True})
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> PageElement:
@@ -43,11 +43,11 @@ class PageElement(object):
             value = self.__getattribute__(field.name)
             hash_value += hash(field.name)
             if isinstance(value, list):
-                hash_value += hash((field.name, sum([get_hash(c) for c in value])))
+                hash_value += hash((field.name, sum([get_hash(c) for c in value])))  # type: ignore
             elif isinstance(value, dict):
                 tmp_value = 0
-                for k, v in value.items():
-                    tmp_value += hash((k, get_hash(v)))
+                for k, v in value.items():  # type: ignore
+                    tmp_value += hash((k, get_hash(v)))  # type: ignore
                 hash_value += hash((field.name, tmp_value))
             else:
                 hash_value += hash((field.name, value))
@@ -238,7 +238,7 @@ class TableAttrBase:
 
     @classmethod
     def filter_target_attrs(cls, data: TableAttrDict) -> TableAttrDict:
-        result = {}
+        result: dict[str, Any] = {}
         for k, v in data.items():
             if k.startswith(cls._attribute_prefix):
                 result[k[len(cls._attribute_prefix) :]] = v
@@ -257,7 +257,7 @@ class TableAttrBase:
         init_args = dict([(k, v) for k, v in tmp_data.items() if k in initable_fields])
 
         if "style" in init_args:
-            style = cssutils.parseStyle(init_args["style"])
+            style = cssutils.parseStyle(init_args["style"])  # type: ignore
             if style.width:
                 init_args["width"] = style.width
             if style.height:

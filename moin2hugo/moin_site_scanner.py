@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Iterator, List, Optional
+from typing import Iterator, Optional
 
 import attr
 

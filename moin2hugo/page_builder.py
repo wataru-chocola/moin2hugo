@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Type
+from typing import Optional, Type
 
 from moin2hugo.page_tree import (
     AttachmentImage,
@@ -144,8 +144,8 @@ class PageBuilder(object):
         return self.cur.in_x([BulletList, NumberList, DefinitionList])
 
     @property
-    def list_types(self) -> List[str]:
-        list_types = []
+    def list_types(self) -> list[str]:
+        list_types: list[str] = []
         above_me = [self.cur] + self.cur.parents
         for e in reversed(above_me):
             if isinstance(e, BulletList):
@@ -249,7 +249,7 @@ class PageBuilder(object):
         self._end_current_elem()
 
     # Table
-    def table_start(self, attrs: Dict[str, str] = {}):
+    def table_start(self, attrs: dict[str, str] = {}):
         table_attrs = TableAttr.from_dict(attrs)
         self._start_new_elem(Table(attrs=table_attrs))
 
@@ -257,7 +257,7 @@ class PageBuilder(object):
         self._ensure_cur_elem(Table)
         self._end_current_elem()
 
-    def table_row_start(self, attrs: Dict[str, str] = {}):
+    def table_row_start(self, attrs: dict[str, str] = {}):
         row_attrs = TableRowAttr.from_dict(attrs)
         self._start_new_elem(TableRow(attrs=row_attrs))
 
@@ -265,7 +265,7 @@ class PageBuilder(object):
         self._ensure_cur_elem(TableRow)
         self._end_current_elem()
 
-    def table_cell_start(self, attrs: Dict[str, str] = {}, source_text: str = ""):
+    def table_cell_start(self, attrs: dict[str, str] = {}, source_text: str = ""):
         cell_attrs = TableCellAttr.from_dict(attrs)
         self._start_new_elem(TableCell(attrs=cell_attrs, source_text=source_text))
 
@@ -328,7 +328,7 @@ class PageBuilder(object):
     def pagelink_start(
         self,
         pagename: str,
-        queryargs: Optional[Dict[str, str]] = None,
+        queryargs: Optional[dict[str, str]] = None,
         anchor: Optional[str] = None,
         attrs: LinkAttrDict = {},
         source_text: str = "",
@@ -353,7 +353,7 @@ class PageBuilder(object):
         self,
         wikiname: str,
         pagename: str,
-        queryargs: Optional[Dict[str, str]] = None,
+        queryargs: Optional[dict[str, str]] = None,
         anchor: Optional[str] = None,
         attrs: LinkAttrDict = {},
         source_text: str = "",
@@ -379,7 +379,7 @@ class PageBuilder(object):
         self,
         pagename: str,
         filename: str,
-        queryargs: Optional[Dict[str, str]] = None,
+        queryargs: Optional[dict[str, str]] = None,
         attrs: LinkAttrDict = {},
         source_text: str = "",
         freeze_source: bool = False,
@@ -410,7 +410,7 @@ class PageBuilder(object):
         self._ensure_cur_elem(BulletList)
         self._end_current_elem()
 
-    def number_list_start(self, numtype: str = "1", numstart: str = "1"):
+    def number_list_start(self, numtype: Optional[str] = None, numstart: Optional[int] = None):
         self._start_new_elem(NumberList())
 
     def number_list_end(self):

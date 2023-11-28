@@ -1,5 +1,6 @@
 import logging
 import re
+import shlex
 from typing import Dict, List, Optional, Tuple, TypeVar, cast
 
 import moin2hugo.moin_settings as settings
@@ -193,7 +194,7 @@ class MoinParser(object):
     dl_re = re.compile(dl_rule, re.VERBOSE | re.UNICODE)
 
     # others
-    indent_re: re.Pattern = re.compile(r"^\s*", re.UNICODE)
+    indent_re = re.compile(r"^\s*", re.UNICODE)
 
     # this is used inside parser/pre sections (we just want to know when it's over):
     parser_unique = ""
@@ -495,7 +496,7 @@ class MoinParser(object):
                 # we matched an empty string
                 lastpos += 1  # proceed, we don't want to match this again
 
-    def _process_markup(self, match: re.Match):
+    def _process_markup(self, match: re.Match[str]):
         """Replace match using type name"""
         no_new_p_before = (
             "heading",
@@ -915,7 +916,7 @@ class MoinParser(object):
             if trans_desc:
                 image_tag_attrs["alt"] = trans_desc
                 image_tag_attrs["title"] = trans_desc
-            tmp_image_tag_attrs, query_args = _get_image_params(params)
+            tmp_image_tag_attrs, _query_args = _get_image_params(params)
             image_tag_attrs.update(tmp_image_tag_attrs)
             self.builder.image(src=target, source_text=word, attrs=image_tag_attrs)
 
@@ -937,7 +938,7 @@ class MoinParser(object):
                     if trans_desc:
                         image_tag_attrs["alt"] = trans_desc
                         image_tag_attrs["title"] = trans_desc
-                    tmp_image_tag_attrs, query_args = _get_image_params(params)
+                    tmp_image_tag_attrs, _query_args = _get_image_params(params)
                     image_tag_attrs.update(tmp_image_tag_attrs)
                     self.builder.attachment_image(
                         pagename=pagename,
@@ -949,7 +950,7 @@ class MoinParser(object):
                     # non-text, unsupported images, or other filetypes
                     obj_tag_attrs["title"] = desc
                     obj_tag_attrs["mimetype"] = mtype
-                    tmp_obj_tag_attrs, query_args = _get_object_params(params)
+                    tmp_obj_tag_attrs, _query_args = _get_object_params(params)
                     obj_tag_attrs.update(tmp_obj_tag_attrs)
 
                     trans_desc = self._transclude_description(desc)
@@ -1107,15 +1108,15 @@ class MoinParser(object):
             self.builder.parsed_text_parser("text")
         self.builder.parsed_text_end(source_text=word)
 
-    def _smiley_handler(self, word: str, groups: Dict[str, str]):
+    def _smiley_handler(self, word: str, _groups: dict[str, str]):
         self.builder.smiley(word, source_text=word)
 
-    def _comment_handler(self, word, groups):
+    def _comment_handler(self, word: str, _groups: dict[str, str]):
         if self.builder.in_p:
             self.builder.paragraph_end()
         self.builder.comment(word, source_text=word)
 
-    def _macro_handler(self, word: str, groups: Dict[str, str]):
+    def _macro_handler(self, word: str, groups: dict[str, str]):
         """Handle macros."""
         macro_name = groups.get("macro_name", "")
         macro_args = groups.get("macro_args")
@@ -1154,7 +1155,9 @@ class MoinParser(object):
             return 0
         return self.list_indents[-1]
 
-    def _indent_to(self, new_level, list_type, numtype, numstart):
+    def _indent_to(
+        self, new_level: int, list_type: str, numtype: Optional[str], numstart: Optional[int]
+    ):
         """Close and open lists."""
         if self._indent_level() != new_level and self.builder.in_table:
             self.builder.table_end()
@@ -1252,8 +1255,8 @@ def _get_params(
     that will be in the result as given, unless overriden
     by the params.
     """
-    tag_attrs: Dict[T, str] = {}
-    query_args = {}
+    tag_attrs: dict[T, str] = {}
+    query_args: dict[str, str] = {}
     if paramstring:
         _fixed, kw, _trailing = wikiutil.parse_quoted_separated(paramstring)
         for key, val in kw.items():
@@ -1275,11 +1278,11 @@ def _getTableAttrs(attrdef: str) -> Dict[str, str]:
     attrdef = m.group("attrs")
 
     # extension for special table markup
-    def table_extension(key, parser):
+    def table_extension(key: str, parser: shlex.shlex):
         align_keys = {"(": "left", ":": "center", ")": "right"}
         valign_keys = {"^": "top", "v": "bottom"}
 
-        attrs = {}
+        attrs: dict[str, str | int] = {}
         if key[0] in "0123456789":
             token = parser.get_token()
             if token != "%":
@@ -1290,9 +1293,13 @@ def _getTableAttrs(attrdef: str) -> Dict[str, str]:
             attrs["width"] = "%s%%" % key
         elif key == "-":
             arg = parser.get_token()
+            if arg is None:
+                raise ValueError()
             attrs["colspan"] = int(arg)
         elif key == "|":
             arg = parser.get_token()
+            if arg is None:
+                raise ValueError()
             attrs["rowspan"] = int(arg)
         elif key in align_keys:
             attrs["align"] = align_keys[key]
@@ -1300,7 +1307,7 @@ def _getTableAttrs(attrdef: str) -> Dict[str, str]:
             attrs["valign"] = valign_keys[key]
         elif key == "#":
             arg = parser.get_token()
-            if len(arg) != 6:
+            if arg is None or len(arg) != 6:
                 raise ValueError()
             _ = int(arg, 16)
             attrs["bgcolor"] = "#%s" % arg

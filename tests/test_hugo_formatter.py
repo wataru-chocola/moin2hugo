@@ -1,60 +1,115 @@
-from moin2hugo.formatter import HugoFormatter
-from moin2hugo.page_tree import PageRoot, Text, ParsedText, Paragraph, Remark, Strong, Pagelink
-from moin2hugo.path_builder.hugo import HugoPathBuilder
-from moin2hugo.config import HugoConfig
+import textwrap
+from typing import Any
 
 import pytest
-import textwrap
+
+from moin2hugo.config import HugoConfig
+from moin2hugo.formatter import HugoFormatter
+from moin2hugo.page_tree import Pagelink, PageRoot, Paragraph, ParsedText, Remark, Strong, Text
+from moin2hugo.path_builder.hugo import HugoPathBuilder
 
 
 @pytest.mark.parametrize(
-    ("data", "expected"), [
-        ({'children': [
-            (Paragraph, {'children': [
-                (Text, {'content': 'before'}),
-                (Text, {'content': 'after'}),
-            ]})]},
-         {'children': [
-            (Paragraph, {'children': [
-                (Text, {'content': 'beforeafter'}),
-            ]})]}
-         ),
-        ({'children': [
-            (Paragraph, {'children': [
-                (Text, {'content': 'before'}),
-                (Remark, {'content': 'inline comment'}),
-                (Text, {'content': 'after'}),
-            ]})]},
-         {'children': [
-            (Paragraph, {'children': [
-                (Text, {'content': 'beforeafter'}),
-            ]})]}
-         ),
-        ({'children': [
-            (Paragraph, {'children': [
-                (Text, {'content': 'before'}),
-                (Strong, {'content': 'inline comment'}),
-                (Text, {'content': 'after'}),
-            ]})]},
-         {'children': [
-            (Paragraph, {'children': [
-                (Text, {'content': 'before'}),
-                (Strong, {'content': 'inline comment'}),
-                (Text, {'content': 'after'}),
-            ]})]}
-         ),
-        ]
+    ("data", "expected"),
+    [
+        (
+            {
+                "children": [
+                    (
+                        Paragraph,
+                        {
+                            "children": [
+                                (Text, {"content": "before"}),
+                                (Text, {"content": "after"}),
+                            ]
+                        },
+                    )
+                ]
+            },
+            {
+                "children": [
+                    (
+                        Paragraph,
+                        {
+                            "children": [
+                                (Text, {"content": "beforeafter"}),
+                            ]
+                        },
+                    )
+                ]
+            },
+        ),
+        (
+            {
+                "children": [
+                    (
+                        Paragraph,
+                        {
+                            "children": [
+                                (Text, {"content": "before"}),
+                                (Remark, {"content": "inline comment"}),
+                                (Text, {"content": "after"}),
+                            ]
+                        },
+                    )
+                ]
+            },
+            {
+                "children": [
+                    (
+                        Paragraph,
+                        {
+                            "children": [
+                                (Text, {"content": "beforeafter"}),
+                            ]
+                        },
+                    )
+                ]
+            },
+        ),
+        (
+            {
+                "children": [
+                    (
+                        Paragraph,
+                        {
+                            "children": [
+                                (Text, {"content": "before"}),
+                                (Strong, {"content": "inline comment"}),
+                                (Text, {"content": "after"}),
+                            ]
+                        },
+                    )
+                ]
+            },
+            {
+                "children": [
+                    (
+                        Paragraph,
+                        {
+                            "children": [
+                                (Text, {"content": "before"}),
+                                (Strong, {"content": "inline comment"}),
+                                (Text, {"content": "after"}),
+                            ]
+                        },
+                    )
+                ]
+            },
+        ),
+    ],
 )
-def test_consolidate(data, expected):
+def test_consolidate(data: dict[str, Any], expected: dict[str, Any]):
     formatter = HugoFormatter()
     data_page = PageRoot.from_dict(data)
     expected_page = PageRoot.from_dict(expected)
-    ret = formatter._consolidate(data_page)
+    ret = formatter._consolidate(data_page)  # type: ignore
     assert ret == expected_page
 
 
 @pytest.mark.parametrize(
-    ("data", "expected"), [
+    ("data", "expected"),
+    [
         ("## hello", r"\#\# hello"),
         ("test\n====", "test\n\\=\\=\\=\\="),
         ("test\n----", "test\n\\-\\-\\-\\-"),
@@ -79,7 +134,6 @@ def test_consolidate(data, expected):
         (r"\10,000", r"\\10,000"),
         (r"{{% test %}}", r"\{\{% test %\}\}"),
         ("abc | def", r"abc \| def"),
-
         # extended markdown
         ("```\ncode\n```", "\\`\\`\\`\ncode\n\\`\\`\\`"),
         ("[^1]: test", r"\[^1\]: test"),
@@ -87,50 +141,52 @@ def test_consolidate(data, expected):
         ("Term\n: Desc", "Term\n: Desc"),
         ("~~Test~~", r"\~\~Test\~\~"),
         (":smiley:", r"\:smiley\:"),
-
         # don't do unnecessary escaping which spoils readability.
         ("1 + 2", "1 + 2"),
         ("1 - 2", "1 - 2"),
         ("hello, world!", "hello, world!"),
         ("term: definition", "term: definition"),
         ("word (desc)", "word (desc)"),
-
         ("<br>", r"\<br\>"),
-    ]
+    ],
 )
-def test_text_escape(data, expected):
+def test_text_escape(data: str, expected: str):
     text = Text(data)
     assert HugoFormatter.format(text) == expected
 
 
 @pytest.mark.parametrize(
-    ("data", "expected"), [
-        ("""\
+    ("data", "expected"),
+    [
+        (
+            """\
          line 1
          <>!{}()*_-
          """,
-         """\
+            """\
          ```
          line 1
          <>!{}()*_-
          ```
-         """),
-        ("""\
+         """,
+        ),
+        (
+            """\
          line 1
          ```
          <>!{}()*_-
          """,
-         """\
+            """\
          ````
          line 1
          ```
          <>!{}()*_-
          ````
-         """),
-
-    ]
+         """,
+        ),
+    ],
 )
-def test_codeblock(data, expected):
+def test_codeblock(data: str, expected: str):
     data = textwrap.dedent(data)
     expected = textwrap.dedent(expected).rstrip()
 
@@ -139,9 +195,10 @@ def test_codeblock(data, expected):
 
 
 def test_root_path():
-    pagelink = Pagelink(pagename='SomePage')
-    config = HugoConfig(root_path='/hugo')
+    pagelink = Pagelink(pagename="SomePage")
+    config = HugoConfig(root_path="/hugo")
     hugo_path_builder = HugoPathBuilder(root_path=config.root_path)
-    ret = HugoFormatter.format(pagelink, pagename='PageName', config=config,
-                               path_builder=hugo_path_builder)
-    assert ret == '[](/hugo/SomePage)'
+    ret = HugoFormatter.format(
+        pagelink, pagename="PageName", config=config, path_builder=hugo_path_builder
+    )
+    assert ret == "[](/hugo/SomePage)"

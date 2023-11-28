@@ -6,7 +6,7 @@ import os.path
 import re
 import textwrap
 from functools import partial
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, DefaultDict, Dict, List, Optional, Tuple, Union
 
 import attr
 
@@ -113,11 +113,11 @@ smiley2emoji = {
 }
 
 
-@attr.s
+@attr.define
 class TableProperty:
     num_of_columns: int = attr.ib(default=0)
     has_extended_attributes: bool = attr.ib(default=False)
-    col_alignments: List[str] = attr.ib(default=attr.Factory(list))
+    col_alignments: List[str] = attr.field(factory=list)
 
 
 def escape(
@@ -188,7 +188,7 @@ class HugoFormatter(FormatterBase):
     def _consolidate(self, e: PageElement) -> PageElement:
         """Consolidate page tree structure destructively."""
         prev = None
-        new_children = []
+        new_children: list[PageElement] = []
         for c in e.children:
             if isinstance(c, Remark):
                 continue
@@ -299,7 +299,7 @@ class HugoFormatter(FormatterBase):
         is_at_beginning_of_line = self._is_at_beginning_of_line(e)
 
         lines = text.splitlines(keepends=True)
-        new_lines = []
+        new_lines: list[str] = []
         first_line = True
         for line in lines:
             # remove trailing whitespaces pattern which means line break in markdown
@@ -449,13 +449,13 @@ class HugoFormatter(FormatterBase):
     def _destrongfy_table_header(self, row: TableRow):
         for cell in row.children:
             assert isinstance(cell, TableCell)
-            new_elems = []
+            new_elems: list[PageElement] = []
             for elem in cell.children:
                 if isinstance(elem, (Emphasis, Strong)):
                     new_elems.extend(elem.children)
                 else:
                     new_elems.append(elem)
-            for i in range(len(cell.children)):
+            for _i in range(len(cell.children)):
                 cell.del_child(0)
             for new_elem in new_elems:
                 cell.add_child(new_elem, propagate_source_text=False)
@@ -470,9 +470,9 @@ class HugoFormatter(FormatterBase):
                 self._destrongfy_table_header(row)
         return e
 
-    def _get_table_colinfo(self, tbl: Table) -> Tuple[int, List[str]]:
+    def _get_table_colinfo(self, tbl: Table) -> Tuple[int, list[str]]:
         num_of_columns = 0
-        alignments_of_col = collections.defaultdict(list)
+        alignments_of_col: DefaultDict[int, list[str]] = collections.defaultdict(list)
         for i, row in enumerate(tbl.children):
             assert isinstance(row, TableRow)
             if len(row.children) > num_of_columns:
@@ -488,7 +488,7 @@ class HugoFormatter(FormatterBase):
                             break
                     alignments_of_col[colidx].append(tmp_align)
 
-        col_alignments = []
+        col_alignments: list[str] = []
         for i in range(num_of_columns):
             align = "none"
             counter = collections.Counter(alignments_of_col[i])
@@ -590,7 +590,7 @@ class HugoFormatter(FormatterBase):
         return ret
 
     def table_row(self, e: TableRow) -> str:
-        ret = []
+        ret: list[str] = []
         for c in e.children:
             assert isinstance(c, TableCell)
             ret.append(self.do_format(c))
