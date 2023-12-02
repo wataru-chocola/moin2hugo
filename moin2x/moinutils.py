@@ -4,7 +4,7 @@ import re
 import shlex
 import urllib.parse
 from io import StringIO
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import attr
 
@@ -130,7 +130,7 @@ class MoinKV(object):
 
 def parse_quoted_separated_ext(
     argstring: str, separator: str = ",", quotes: str = '"'
-) -> List[Union[Tuple[str, str], str]]:
+) -> list[Union[Tuple[str, str], str]]:
     name_value_separator = "="
     SPACE = [
         " ",
@@ -208,10 +208,10 @@ def parse_quoted_separated_ext(
 
 
 def parse_quoted_separated(argstring: str) -> Tuple[list[str], dict[str, str], list[str]]:
-    leading: List[str] = []
+    leading: list[str] = []
     positional = leading
-    trailing: List[str] = []
-    keywords: Dict[str, str] = {}
+    trailing: list[str] = []
+    keywords: dict[str, str] = {}
 
     items = parse_quoted_separated_ext(argstring)
     for item in items:
@@ -228,7 +228,7 @@ def parseAttributes(
     attrstring: str,
     endtoken: Optional[str] = None,
     extension: Optional[Callable[[str, shlex.shlex], dict[str, Any]]] = None,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     parser = shlex.shlex(StringIO(attrstring))
     parser.commenters = ""
     attrs: dict[str, Any] = {}

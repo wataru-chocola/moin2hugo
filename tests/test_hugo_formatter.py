@@ -5,8 +5,8 @@ import pytest
 
 from moin2hugo.config import HugoConfig
 from moin2hugo.formatter import HugoFormatter
-from moin2hugo.page_tree import Pagelink, PageRoot, Paragraph, ParsedText, Remark, Strong, Text
-from moin2hugo.path_builder.hugo import HugoPathBuilder
+from moin2hugo.path_builder import HugoPathBuilder
+from moin2x.page_tree import Pagelink, PageRoot, Paragraph, ParsedText, Remark, Strong, Text
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 import pytest
 
-from moin2hugo.path_builder.hugo import HugoPathBuilder
+from moin2hugo.path_builder import HugoPathBuilder
 
 
 @pytest.mark.parametrize(

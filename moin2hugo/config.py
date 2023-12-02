@@ -3,10 +3,7 @@ from typing import Any, Optional
 from pydantic import Field, FilePath
 from pydantic_settings import BaseSettings
 
-
-class MoinSiteConfig(BaseSettings):
-    bang_meta: bool = True
-    page_front_page: str = "FrontPage"
+from moin2x.config import MoinSiteConfig
 
 
 class HugoConfig(BaseSettings):

@@ -1,4 +1,4 @@
-from moin2hugo.page_tree import PageRoot, Paragraph, Text, Link
+from moin2x.page_tree import Link, PageRoot, Paragraph, Text
 
 
 def test_initialize_page_elements():
@@ -16,12 +16,16 @@ def test_from_dict():
     expected.add_child(p)
 
     page_dict = {
-        'children': [
-            (Paragraph, {
-                'children': [
-                    (Text, {'content': 'link: '}),
-                    (Link, {'url': 'http://example.com'}),
-                ]})
+        "children": [
+            (
+                Paragraph,
+                {
+                    "children": [
+                        (Text, {"content": "link: "}),
+                        (Link, {"url": "http://example.com"}),
+                    ]
+                },
+            )
         ]
     }
     ret = PageRoot.from_dict(page_dict)

@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import Optional
 
 import pygments.lexers  # type: ignore
 
-from moin2hugo.page_tree import Codeblock
+from moin2x.page_tree import Codeblock
 
 from .base import ParserExtensionAbstract
 
@@ -18,7 +18,7 @@ def build_ext_to_syntax_id_mapping():
                 _ext_to_syntax_id[ext] = aliases[0]
 
 
-def extensions_from_all_lexers() -> List[str]:
+def extensions_from_all_lexers() -> list[str]:
     global _ext_to_syntax_id
     if not _ext_to_syntax_id:
         build_ext_to_syntax_id_mapping()
@@ -27,8 +27,8 @@ def extensions_from_all_lexers() -> List[str]:
 
 class ParserHighlight(ParserExtensionAbstract):
     name: str = "highlight"
-    aliases: List[str] = ["text", "cplusplus", "diff", "python", "java", "pascal", "irssi"]
-    extensions: List[str] = extensions_from_all_lexers()
+    aliases: list[str] = ["text", "cplusplus", "diff", "python", "java", "pascal", "irssi"]
+    extensions: list[str] = extensions_from_all_lexers()
 
     @classmethod
     def parse(cls, text: str, parser_name: str, parser_arg_string: Optional[str]) -> Codeblock:

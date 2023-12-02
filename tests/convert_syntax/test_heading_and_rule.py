@@ -1,8 +1,8 @@
 import pytest
 
 from moin2hugo.config import HugoConfig
-from moin2hugo.formatter.hugo import HugoFormatter
-from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter import HugoFormatter
+from moin2x.moin_parser import MoinParser
 
 
 @pytest.mark.parametrize(

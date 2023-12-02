@@ -1,6 +1,6 @@
 from typing import Optional, Type
 
-from moin2hugo.page_tree import (
+from .page_tree import (
     AttachmentImage,
     AttachmentInlined,
     AttachmentLink,

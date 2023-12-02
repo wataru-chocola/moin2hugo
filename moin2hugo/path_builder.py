@@ -2,7 +2,7 @@ import unicodedata
 import urllib.parse
 from typing import Optional
 
-from moin2hugo.utils import safe_path_join
+from moin2x.utils import safe_path_join
 
 
 class HugoPathBuilder(object):

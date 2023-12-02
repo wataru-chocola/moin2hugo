@@ -11,12 +11,19 @@ from typing import Callable, DefaultDict, Dict, List, Optional, Tuple, Union
 import attr
 
 from moin2hugo.config import HugoConfig
-from moin2hugo.moin_parser_extensions import (
-    get_fallback_parser,
-    get_parser,
-    get_parser_info_from_ext,
+from moin2hugo.hugo_utils import (
+    MarkdownEscapedText,
+    comment_out_shortcode,
+    escape_markdown_all,
+    escape_markdown_symbols,
+    escape_shortcode,
+    make_shortcode,
+    search_shortcode_delimiter,
 )
-from moin2hugo.page_tree import (
+from moin2hugo.path_builder import HugoPathBuilder
+from moin2x.formatter_base import FormatterBase
+from moin2x.moin_parser_extensions import get_fallback_parser, get_parser, get_parser_info_from_ext
+from moin2x.page_tree import (
     AttachmentImage,
     AttachmentInlined,
     AttachmentLink,
@@ -62,18 +69,6 @@ from moin2hugo.page_tree import (
     Transclude,
     Underline,
     Url,
-)
-from moin2hugo.path_builder.hugo import HugoPathBuilder
-
-from .base import FormatterBase
-from .hugo_utils import (
-    MarkdownEscapedText,
-    comment_out_shortcode,
-    escape_markdown_all,
-    escape_markdown_symbols,
-    escape_shortcode,
-    make_shortcode,
-    search_shortcode_delimiter,
 )
 
 logger = logging.getLogger(__name__)

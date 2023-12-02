@@ -1,9 +1,9 @@
-from moin2hugo.moin_parser import MoinParser
-from moin2hugo.formatter.hugo import HugoFormatter
-from moin2hugo.page_tree import Table, TableRow, TableCell
-from moin2hugo.config import HugoConfig
-
 import textwrap
+
+from moin2hugo.config import HugoConfig
+from moin2hugo.formatter import HugoFormatter
+from moin2x.moin_parser import MoinParser
+from moin2x.page_tree import Table, TableCell, TableRow
 
 
 def test_basic_table():
@@ -17,9 +17,9 @@ def test_basic_table():
     | 1 | 2 | 3 |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -37,9 +37,9 @@ def test_table_escape():
     | 1 | 2 | 3 |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -50,7 +50,7 @@ def test_table_attrs():
     ||<^> 1 ||<colspan=2> 2 ||
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     table = page.children[0]
     assert isinstance(table, Table)
 
@@ -95,10 +95,10 @@ def test_detect_header_heuristically_1():
     | a | b | c |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
     config = HugoConfig(detect_table_header_heuristically=True)
-    assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
+    assert HugoFormatter.format(page, config=config, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -113,10 +113,10 @@ def test_detect_header_heuristically_2():
     | a | b | c |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
     config = HugoConfig(use_extended_markdown_table=True)
-    assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
+    assert HugoFormatter.format(page, config=config, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -135,10 +135,10 @@ def test_column_alignment():
     | a | b | c | d |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
     config = HugoConfig(detect_table_header_heuristically=True)
-    assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
+    assert HugoFormatter.format(page, config=config, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -157,9 +157,9 @@ def test_extended_table_without_extended_markdown_table():
     |  | b |  |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -175,10 +175,10 @@ def test_normal_table_with_extended_markdown_table():
     | a | b | c |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
     config = HugoConfig(use_extended_markdown_table=True)
-    assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
+    assert HugoFormatter.format(page, config=config, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -203,10 +203,10 @@ def test_extended_table_with_extended_markdown_table():
     {{< /extended-markdown-table >}}
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
     config = HugoConfig(use_extended_markdown_table=True)
-    assert HugoFormatter.format(page, config=config, pagename='PageName') == expected
+    assert HugoFormatter.format(page, config=config, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -221,9 +221,9 @@ def test_invalid_span():
     | a |  | b |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -240,9 +240,9 @@ def test_all_rows_having_rowstyle():
     | a2 | b2 |
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -259,7 +259,7 @@ def test_every_row_seems_header():
     |---|---|
     """
     data = textwrap.dedent(table_text)
-    page = MoinParser.parse(data, 'PageName')
+    page = MoinParser.parse(data, "PageName")
     expected = textwrap.dedent(expected)
-    assert HugoFormatter.format(page, pagename='PageName') == expected
+    assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data

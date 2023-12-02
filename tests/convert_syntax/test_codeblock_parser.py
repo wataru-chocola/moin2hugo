@@ -2,8 +2,8 @@ import textwrap
 
 import pytest
 
-from moin2hugo.formatter.hugo import HugoFormatter
-from moin2hugo.moin_parser import MoinParser
+from moin2hugo.formatter import HugoFormatter
+from moin2x.moin_parser import MoinParser
 
 
 def test_highlighted_python():

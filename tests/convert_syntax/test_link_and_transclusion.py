@@ -5,9 +5,9 @@ from unittest import mock
 import pytest
 
 from moin2hugo.config import HugoConfig
-from moin2hugo.formatter.hugo import HugoFormatter
-from moin2hugo.moin_parser import MoinParser
-from moin2hugo.page_tree import AttachmentImage
+from moin2hugo.formatter import HugoFormatter
+from moin2x.moin_parser import MoinParser
+from moin2x.page_tree import AttachmentImage
 
 
 @pytest.mark.parametrize(
@@ -199,6 +199,6 @@ def test_transclude_inline_attachment(text: str, content: str, expected: str):
     expected = textwrap.dedent(expected).rstrip()
     mock_io = mock.mock_open(read_data=content)
     page = MoinParser.parse(text, "PageName")
-    with mock.patch("moin2hugo.formatter.hugo.open", mock_io):
+    with mock.patch("moin2hugo.formatter.open", mock_io):
         assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == text

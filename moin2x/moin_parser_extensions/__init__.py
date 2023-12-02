@@ -1,11 +1,11 @@
-from typing import Dict, Optional, Tuple, Type
+from typing import Optional, Tuple, Type
 
 from .base import ParserExtensionAbstract
 from .csv import ParserCSV
 from .highlight import ParserHighlight
 
-_parser_extensions: Dict[str, Type[ParserExtensionAbstract]] = {}
-_ext_to_parser: Dict[str, Type[ParserExtensionAbstract]] = {}
+_parser_extensions: dict[str, Type[ParserExtensionAbstract]] = {}
+_ext_to_parser: dict[str, Type[ParserExtensionAbstract]] = {}
 _parser_extension_fallback: Type[ParserExtensionAbstract] = ParserHighlight
 
 

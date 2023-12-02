@@ -3,7 +3,7 @@ from typing import Iterator, List, Optional, Set, Tuple
 
 import attr
 
-from moin2hugo.page_tree import Link, Table, TableCell, TableRow, Text
+from moin2x.page_tree import Link, Table, TableCell, TableRow, Text
 
 from .base import ParserExtensionAbstract
 

@@ -3,7 +3,7 @@ from typing import Tuple
 
 import pytest
 
-from moin2hugo.formatter.hugo_utils import comment_out_shortcode, escape_shortcode
+from moin2hugo.hugo_utils import comment_out_shortcode, escape_shortcode
 from moin2hugo.path_builder import HugoPathBuilder
 
 

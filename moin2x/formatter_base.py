@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Optional, Type
 
-from moin2hugo.page_tree import (
+from moin2x.page_tree import (
     AttachmentImage,
     AttachmentInlined,
     AttachmentLink,
@@ -72,7 +72,7 @@ class FormatterBase(metaclass=ABCMeta):
         return self.format_dispatcher(e)
 
     def format_dispatcher(self, e: PageElement) -> str:
-        dispatch_tbl: Dict[Type[PageElement], Callable[[Any], str]] = {
+        dispatch_tbl: dict[Type[PageElement], Callable[[Any], str]] = {
             PageRoot: self.page_root,
             Raw: self.raw,
             # General Objects

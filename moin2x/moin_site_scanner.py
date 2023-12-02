@@ -5,7 +5,7 @@ from typing import Iterator, Optional
 
 import attr
 
-from moin2hugo.moinutils import unquoteWikiname
+from .moinutils import unquoteWikiname
 
 logger = logging.getLogger(__name__)
 

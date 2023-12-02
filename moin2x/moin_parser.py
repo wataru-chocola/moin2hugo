@@ -1,13 +1,13 @@
 import logging
 import re
 import shlex
-from typing import Dict, List, Optional, Tuple, TypeVar, cast
+from typing import Optional, Tuple, TypeVar, cast
 
-import moin2hugo.moin_settings as settings
-import moin2hugo.moinutils as wikiutil
-import moin2hugo.page_builder
-from moin2hugo.config import MoinSiteConfig
-from moin2hugo.page_tree import (
+import moin2x.moin_settings as settings
+import moin2x.moinutils as wikiutil
+import moin2x.page_builder
+from moin2x.config import MoinSiteConfig
+from moin2x.page_tree import (
     ImageAttrDict,
     ImageAttrKey,
     LinkAttrDict,
@@ -358,10 +358,10 @@ class MoinParser(object):
             self.site_config = site_config
         else:
             self.site_config = MoinSiteConfig()
-        self.builder = moin2hugo.page_builder.PageBuilder(verify_doc_structure=strict_mode)  # noqa
+        self.builder = moin2x.page_builder.PageBuilder(verify_doc_structure=strict_mode)  # noqa
         self.lines = text.expandtabs().splitlines(keepends=True)
         self.page_name = page_name
-        self.list_indents: List[int] = []  # holds the nesting level (in chars) of open lists
+        self.list_indents: list[int] = []  # holds the nesting level (in chars) of open lists
 
     # Public Method ----------------------------------------------------------
     @classmethod
@@ -631,7 +631,7 @@ class MoinParser(object):
             )
 
     # Private Replace Method ----------------------------------------------------------
-    def _remark_handler(self, word: str, groups: Dict[str, str]):
+    def _remark_handler(self, word: str, groups: dict[str, str]):
         """Handle remarks: /* ... */"""
         on = groups.get("remark_on")
         off = groups.get("remark_off")
@@ -640,11 +640,11 @@ class MoinParser(object):
             return
         self.builder.remark_toggle(source_text=word)
 
-    def _u_handler(self, word: str, groups: Dict[str, str]):
+    def _u_handler(self, word: str, groups: dict[str, str]):
         """Handle underline."""
         self.builder.underline_toggle(source_text=word)
 
-    def _strike_handler(self, word: str, groups: Dict[str, str]):
+    def _strike_handler(self, word: str, groups: dict[str, str]):
         """Handle strikethrough."""
         on = groups.get("strike_on")
         off = groups.get("strike_off")
@@ -653,7 +653,7 @@ class MoinParser(object):
             return
         self.builder.strike_toggle(source_text=word)
 
-    def _small_handler(self, word: str, groups: Dict[str, str]):
+    def _small_handler(self, word: str, groups: dict[str, str]):
         """Handle small."""
         on = groups.get("small_on")
         off = groups.get("small_off")
@@ -662,7 +662,7 @@ class MoinParser(object):
             return
         self.builder.small_toggle(source_text=word)
 
-    def _big_handler(self, word: str, groups: Dict[str, str]):
+    def _big_handler(self, word: str, groups: dict[str, str]):
         """Handle big."""
         on = groups.get("big_on")
         off = groups.get("big_off")
@@ -671,24 +671,24 @@ class MoinParser(object):
             return
         self.builder.big_toggle(source_text=word)
 
-    def _emph_handler(self, word: str, groups: Dict[str, str]):
+    def _emph_handler(self, word: str, groups: dict[str, str]):
         """Handle emphasis, i.e. ''(em) and '''(b)."""
         if len(word) == 3:
             self.builder.strong_toggle(source_text=word)
         else:
             self.builder.emphasis_toggle(source_text=word)
 
-    def _emph_ibb_handler(self, word: str, groups: Dict[str, str]):
+    def _emph_ibb_handler(self, word: str, groups: dict[str, str]):
         """Handle mixed emphasis, i.e. ''''' followed by '''."""
         self.builder.emphasis_toggle(source_text="''")
         self.builder.strong_toggle(source_text="'''")
 
-    def _emph_ibi_handler(self, word: str, groups: Dict[str, str]):
+    def _emph_ibi_handler(self, word: str, groups: dict[str, str]):
         """Handle mixed emphasis, i.e. ''''' followed by ''."""
         self.builder.strong_toggle(source_text="'''")
         self.builder.emphasis_toggle(source_text="''")
 
-    def _emph_ib_or_bi_handler(self, word: str, groups: Dict[str, str]):
+    def _emph_ib_or_bi_handler(self, word: str, groups: dict[str, str]):
         """Handle mixed emphasis, exactly five '''''."""
         if (
             self.builder.in_emphasis
@@ -701,27 +701,27 @@ class MoinParser(object):
             self.builder.emphasis_toggle(source_text="''")
             self.builder.strong_toggle(source_text="'''")
 
-    def _sup_handler(self, word: str, groups: Dict[str, str]):
+    def _sup_handler(self, word: str, groups: dict[str, str]):
         """Handle superscript."""
         text = groups.get("sup_text", "")
         self.builder.sup(text, source_text=word)
 
-    def _sub_handler(self, word: str, groups: Dict[str, str]):
+    def _sub_handler(self, word: str, groups: dict[str, str]):
         """Handle subscript."""
         text = groups.get("sub_text", "")
         self.builder.sub(text, source_text=word)
 
-    def _tt_handler(self, word: str, groups: Dict[str, str]):
+    def _tt_handler(self, word: str, groups: dict[str, str]):
         """Handle inline code."""
         tt_text = groups.get("tt_text", "")
         self.builder.code(tt_text, source_text=word)
 
-    def _tt_bt_handler(self, word: str, groups: Dict[str, str]):
+    def _tt_bt_handler(self, word: str, groups: dict[str, str]):
         """Handle backticked inline code."""
         tt_bt_text = groups.get("tt_bt_text", "")
         self.builder.code(tt_bt_text, source_text=word)
 
-    def _interwiki_handler(self, word: str, groups: Dict[str, str]):
+    def _interwiki_handler(self, word: str, groups: dict[str, str]):
         """Handle InterWiki links."""
         wikiname = groups.get("interwiki_wiki", "")
         pagename = groups.get("interwiki_page", "")
@@ -732,7 +732,7 @@ class MoinParser(object):
         self.builder.text(word, source_text=word)
         self.builder.interwikilink_end()
 
-    def _word_handler(self, word: str, groups: Dict[str, str]):
+    def _word_handler(self, word: str, groups: dict[str, str]):
         """Handle WikiNames."""
         if groups.get("word_bang"):
             if self.site_config.bang_meta:
@@ -749,7 +749,7 @@ class MoinParser(object):
         self.builder.text(word, source_text=word)
         self.builder.pagelink_end()
 
-    def _url_handler(self, word: str, groups: Dict[str, str]):
+    def _url_handler(self, word: str, groups: dict[str, str]):
         """Handle literal URLs."""
         target = groups.get("url_target", "")
         self.builder.url(target, source_text=word)
@@ -773,7 +773,7 @@ class MoinParser(object):
             desc = m.group("transclude")
             self._transclude_handler(desc, groupdict)
 
-    def _link_handler(self, word: str, groups: Dict[str, str]):
+    def _link_handler(self, word: str, groups: dict[str, str]):
         """Handle [[target|text]] links."""
         target = groups.get("link_target", "")
         desc = groups.get("link_desc", "") or ""
@@ -850,36 +850,36 @@ class MoinParser(object):
                 desc = "|" + desc
             self.builder.text("[[%s%s]]" % (target, desc), source_text=word)
 
-    def _email_handler(self, word: str, groups: Dict[str, str]):
+    def _email_handler(self, word: str, groups: dict[str, str]):
         """Handle email addresses (without a leading mailto:)."""
         self.builder.url(word, source_text=word)
 
-    def _sgml_entity_handler(self, word: str, groups: Dict[str, str]):
+    def _sgml_entity_handler(self, word: str, groups: dict[str, str]):
         """Handle numeric (decimal and hexadecimal) and symbolic SGML entities."""
         self.builder.sgml_entity(word, source_text=word)
 
-    def _sgml_special_symbol_handler(self, word: str, groups: Dict[str, str]):
+    def _sgml_special_symbol_handler(self, word: str, groups: dict[str, str]):
         """Handle SGML entities: [<>&]"""
         self.builder.text(word, source_text=word)
 
-    def _indent_handler(self, word: str, groups: Dict[str, str]):
+    def _indent_handler(self, word: str, groups: dict[str, str]):
         """Handle pure indentation (no - * 1. markup)."""
         if not (self.builder.in_li_of_current_list or self.builder.in_dd_of_current_list):
             self._close_item()
             self.builder.listitem_start()
         self.builder.feed_src(word)
 
-    def _li_handler(self, word: str, groups: Dict[str, str]):
+    def _li_handler(self, word: str, groups: dict[str, str]):
         """Handle bullet (" *") lists."""
         self._close_item()
         self.builder.listitem_start()
         self.builder.feed_src(word)
 
-    def _ol_handler(self, word: str, groups: Dict[str, str]):
+    def _ol_handler(self, word: str, groups: dict[str, str]):
         """Handle numbered lists."""
         self._li_handler(word, groups)
 
-    def _dl_handler(self, word: str, groups: Dict[str, str]):
+    def _dl_handler(self, word: str, groups: dict[str, str]):
         """Handle definition lists."""
         self._close_item()
         self.builder.definition_term_start(source_text=word, freeze_source=True)
@@ -894,7 +894,7 @@ class MoinParser(object):
             return None
         return m.group("simple_text")
 
-    def _transclude_handler(self, word: str, groups: Dict[str, str]):
+    def _transclude_handler(self, word: str, groups: dict[str, str]):
         """Handles transcluding content, usually embedding images.: {{}}"""
         target = groups.get("transclude_target", "")
         target = wikiutil.url_unquote(target)
@@ -999,7 +999,7 @@ class MoinParser(object):
                 trans_desc = target
             self.builder.text("{{%s|%s|%s}}" % (target, trans_desc, params), source_text=word)
 
-    def _tableZ_handler(self, word: str, groups: Dict[str, str]):
+    def _tableZ_handler(self, word: str, groups: dict[str, str]):
         """Handle table row end."""
         if self.builder.in_table:
             self.builder.feed_src(word)
@@ -1010,7 +1010,7 @@ class MoinParser(object):
         else:
             self.builder.text(word, source_text=word)
 
-    def _table_handler(self, word: str, groups: Dict[str, str]):
+    def _table_handler(self, word: str, groups: dict[str, str]):
         """Handle table cell separator."""
         if self.builder.in_table:
             attrs = _getTableAttrs(word)
@@ -1039,20 +1039,20 @@ class MoinParser(object):
             self.builder.text(word, source_text=word)
 
     # Heading / Horizontal Rule
-    def _heading_handler(self, word: str, groups: Dict[str, str]):
+    def _heading_handler(self, word: str, groups: dict[str, str]):
         """Handle section headings.: == =="""
         heading_text = groups.get("heading_text", "")
         depth = min(len(groups.get("hmarker", "")), 5)
         self._close_paragraph()
         self.builder.heading(depth, heading_text, source_text=word)
 
-    def _rule_handler(self, word: str, groups: Dict[str, str]):
+    def _rule_handler(self, word: str, groups: dict[str, str]):
         """Handle sequences of dashes (Horizontal Rule)."""
         self._undent()
         self._close_paragraph()
         self.builder.rule(source_text=word)
 
-    def _parser_handler(self, word: str, groups: Dict[str, str]):
+    def _parser_handler(self, word: str, groups: dict[str, str]):
         """Handle parsed code displays."""
         parser_name = groups.get("parser_name", None)
         parser_args = groups.get("parser_args", None)
@@ -1100,7 +1100,7 @@ class MoinParser(object):
             if not bang_line:
                 self.builder.add_parsed_text(line)
 
-    def _parser_end_handler(self, word: str, groups: Dict[str, str]):
+    def _parser_end_handler(self, word: str, groups: dict[str, str]):
         """when we reach the end of a parser/pre section,
         we call the parser with the lines we collected
         """
@@ -1221,21 +1221,21 @@ class MoinParser(object):
             self.builder.paragraph_end()
 
 
-def _get_image_params(paramstring: str) -> Tuple[ImageAttrDict, Dict[str, str]]:
-    acceptable: List[ImageAttrKey] = ["class", "title", "longdesc", "width", "height", "align"]
+def _get_image_params(paramstring: str) -> Tuple[ImageAttrDict, dict[str, str]]:
+    acceptable: list[ImageAttrKey] = ["class", "title", "longdesc", "width", "height", "align"]
     return _get_params(paramstring, acceptable_attrs=acceptable)
 
 
-def _get_object_params(paramstring: str) -> Tuple[ObjectAttrDict, Dict[str, str]]:
-    acceptable: List[ObjectAttrKey] = ["class", "title", "width", "height", "mimetype", "standby"]
+def _get_object_params(paramstring: str) -> Tuple[ObjectAttrDict, dict[str, str]]:
+    acceptable: list[ObjectAttrKey] = ["class", "title", "width", "height", "mimetype", "standby"]
     tag_attrs, query_args = _get_params(
         paramstring, acceptable_attrs=acceptable, mapping={"type": "mimetype"}
     )
     return tag_attrs, query_args
 
 
-def _get_link_params(paramstring: str) -> Tuple[LinkAttrDict, Dict[str, str]]:
-    acceptable_attrs_link: List[LinkAttrKey] = [
+def _get_link_params(paramstring: str) -> Tuple[LinkAttrDict, dict[str, str]]:
+    acceptable_attrs_link: list[LinkAttrKey] = [
         "class",
         "title",
         "target",
@@ -1247,9 +1247,9 @@ def _get_link_params(paramstring: str) -> Tuple[LinkAttrDict, Dict[str, str]]:
 
 def _get_params(
     paramstring: str,
-    acceptable_attrs: List[T] = [],
-    mapping: Dict[str, str] = {},
-) -> Tuple[Dict[T, str], Dict[str, str]]:
+    acceptable_attrs: list[T] = [],
+    mapping: dict[str, str] = {},
+) -> Tuple[dict[T, str], dict[str, str]]:
     """parse the parameters of link/transclusion markup,
     defaults can be a dict with some default key/values
     that will be in the result as given, unless overriden
@@ -1270,7 +1270,7 @@ def _get_params(
     return tag_attrs, query_args
 
 
-def _getTableAttrs(attrdef: str) -> Dict[str, str]:
+def _getTableAttrs(attrdef: str) -> dict[str, str]:
     attr_rule = r"^(\|\|)*<(?!<)(?P<attrs>[^>]*?)>"
     m = re.match(attr_rule, attrdef, re.U)
     if not m:

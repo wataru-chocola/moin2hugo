@@ -12,10 +12,10 @@ import yaml
 from moin2hugo import __version__
 from moin2hugo.config import Config, load_config
 from moin2hugo.formatter import HugoFormatter
-from moin2hugo.moin_parser import MoinParser
-from moin2hugo.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
 from moin2hugo.path_builder import HugoPathBuilder
-from moin2hugo.utils import safe_path_join, set_console_handlers
+from moin2x.moin_parser import MoinParser
+from moin2x.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
+from moin2x.utils import safe_path_join, set_console_handlers
 
 logger = logging.getLogger(__name__)
 
