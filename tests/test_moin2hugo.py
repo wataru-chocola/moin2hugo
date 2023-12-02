@@ -7,7 +7,9 @@ from unittest.mock import patch
 
 import pytest
 
-from moin2hugo.moin2hugo import Moin2Hugo, print_version
+from moin2hugo.cli import print_version
+from moin2hugo.moin2hugo import Moin2Hugo
+from moin2x.moin2x import convert_site
 
 from .conftest import HugoSitedirFixture, MoinSitedirFixture
 
@@ -68,7 +70,7 @@ def test_convert(moin_sitedir: MoinSitedirFixture, hugo_sitedir: HugoSitedirFixt
     with tempfile.TemporaryDirectory() as d:
         dstdir = os.path.join(d, "output")
         moin2hugo = Moin2Hugo(moin_sitedir, dstdir)
-        moin2hugo.convert()
+        convert_site(moin_sitedir, dstdir, moin2hugo)
         dcmp = filecmp.dircmp(dstdir, hugo_sitedir)
         assert_equal_directory(dcmp)
 
@@ -82,5 +84,5 @@ def test_convert_assertion_error(
         dstdir = os.path.join(d, "output")
         moin2hugo = Moin2Hugo(moin_sitedir, dstdir)
         with patch.object(moin2hugo, "convert_page", side_effect=AssertionError):
-            moin2hugo.convert()
+            convert_site(moin_sitedir, dstdir, moin2hugo)
     assert "fail to convert" in caplog.text, caplog.text
