@@ -1,6 +1,8 @@
+import logging
 from abc import ABCMeta, abstractmethod
 from typing import Any, Callable, Optional, Type
 
+from moin2x.moin_parser_extensions import get_fallback_parser, get_parser
 from moin2x.page_tree import (
     AttachmentImage,
     AttachmentInlined,
@@ -46,11 +48,14 @@ from moin2x.page_tree import (
     Url,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class FormatterBase(metaclass=ABCMeta):
     @abstractmethod
     def __init__(
         self,
+        *,
         config: Optional[Any] = None,
         pagename: Optional[str] = None,
         path_builder: Optional[Any] = None,
@@ -126,6 +131,12 @@ class FormatterBase(metaclass=ABCMeta):
         }
         return dispatch_tbl[type(e)](e)
 
+    def format_children(self, e: PageElement) -> str:
+        ret = ""
+        for c in e.children:
+            ret += self.do_format(c)
+        return ret
+
     @abstractmethod
     def page_root(self, e: PageRoot) -> str:
         pass
@@ -166,9 +177,19 @@ class FormatterBase(metaclass=ABCMeta):
     def codeblock(self, e: Codeblock) -> str:
         pass
 
-    @abstractmethod
     def parsed_text(self, e: ParsedText) -> str:
-        pass
+        """Parse ParsedText and do format."""
+        if e.parser_name == "":
+            parser_name = "text"
+        else:
+            parser_name = e.parser_name
+
+        parser = get_parser(parser_name)
+        if not parser:
+            logger.warning("unsupported: parser=%s" % e.parser_name)
+            parser = get_fallback_parser()
+        elem = parser.parse(e.content, e.parser_name, e.parser_args)
+        return self.format(elem)
 
     @abstractmethod
     def table(self, e: Table) -> str:

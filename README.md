@@ -82,10 +82,11 @@ Paramater | Type | Default | Description
 -- | -- | -- | --
 `detect_table_header_heuristically` |`bool` | `True` | make table header by heuristics
 `use_extended_markdown_table` |`bool` | `False` | use [hugo-shortcode-extended-markdown-table][hugo-shortcode-extended-markdown-table] to support table colspan/rowspan
+`allow_emoji` |`bool` |`True` |convert smiley to emoji
 `increment_heading_level` |`bool` | `True` | increment heading level (e.g. Moin's h1 -> Hugo's h2)
 `root_path` |`URLPath` | `/` | root path of hugo site in url
 `use_figure_shortcode` |`bool` | `True` | use `figure` shortcode
-`goldmark_unsafe` |`bool` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
+`allow_raw_html` |`bool` | `True` | corresponding with hugo config: `markup.goldman.render.goldmark_unsafe`
 `disable_path_to_lower` |`bool` | `True` | corresponding with hugo config: `disablePathLower`
 `remove_path_accents` |`bool` | `False` | corresponding with hugo config: `removePathAccents`
 

@@ -1,50 +1,5 @@
 import re
-from typing import Dict, List, Optional
-
-
-class MarkdownEscapedText(str):
-    pass
-
-
-def escape_markdown_symbols(
-    text: str, symbols: List[str] = [], all_symbols: bool = False
-) -> MarkdownEscapedText:
-    """escape all occurences of these symbols no matter which context they are on."""
-    escapable_chars = set(
-        [
-            "\\",
-            "[",
-            "]",
-            "{",
-            "}",
-            "(",
-            ")",
-            "<",
-            ">",
-            "*",
-            "+",
-            "-",
-            "_",
-            ":",
-            "`",
-            "#",
-            "|",
-            '"',
-            "~",  # can be escaped at least with commonmark
-        ]
-    )
-    if all_symbols:
-        symbols = list(escapable_chars)
-    assert escapable_chars.issuperset(set(symbols)), "not escapable symbol found: " + str(symbols)
-
-    symbol_re = re.compile("([%s])" % re.escape("".join(symbols)))
-    text = re.sub(symbol_re, r"\\\1", text)
-    return MarkdownEscapedText(text)
-
-
-def escape_markdown_all(text: str) -> MarkdownEscapedText:
-    """escape all occurences of these symbols no matter which context they are on."""
-    return escape_markdown_symbols(text, all_symbols=True)
+from typing import Dict, Optional
 
 
 def make_shortcode(

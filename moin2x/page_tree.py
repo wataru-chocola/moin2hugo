@@ -116,6 +116,14 @@ class PageElement(object):
         self.children = self.children[0:at] + self.children[at + 1 :]
         del child
 
+    def replace_self[T: "PageElement"](self, new: T) -> T:
+        if self.parent is None:
+            raise ValueError("cannot replace root element")
+        idx = [i for i, x in enumerate(self.parent.children) if x is self][0]
+        self.parent.del_child(idx)
+        self.parent.add_child(new, at=idx)
+        return new
+
     def add_source_text(self, source_text: str, freeze: bool = False) -> None:
         self.source_text += source_text
         self.propagate_source_text(source_text)
@@ -160,6 +168,8 @@ class PageRoot(PageElement):
 
 @attr.s(slots=True)
 class Raw(PageElement):
+    """raw html"""
+
     pass
 
 
@@ -182,6 +192,8 @@ class SGMLEntity(PageElement):
 #
 @attr.s(slots=True)
 class Macro(PageElement):
+    """special macro: <<TableOfContents(1)>>, etc..."""
+
     macro_name: str = attr.ib(kw_only=True)
     macro_args: Optional[str] = attr.ib(kw_only=True)
     markup: str = attr.ib(kw_only=True)
@@ -189,16 +201,22 @@ class Macro(PageElement):
 
 @attr.s(slots=True)
 class Comment(PageElement):
+    """comment text beginning with ##..."""
+
     pass
 
 
 @attr.s(slots=True)
 class Smiley(PageElement):
+    """text representing emoji like X-(, :D, etc."""
+
     pass
 
 
 @attr.s(slots=True)
 class Remark(PageElement):
+    """comment text inside /* ... */"""
+
     pass
 
 
@@ -206,6 +224,8 @@ class Remark(PageElement):
 #
 @attr.s(slots=True)
 class ParsedText(PageElement):
+    """parsed text inside {{{ ... }}}"""
+
     parser_name: str = attr.ib(default="")
     parser_args: Optional[str] = attr.ib(default=None)
 

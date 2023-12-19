@@ -98,6 +98,6 @@ def test_decorations_not_fully_work(data: str, expected: str, caplog: pytest.Log
 )
 def test_decorations_without_unsafe(data: str, expected: str, caplog: pytest.LogCaptureFixture):
     page = MoinParser.parse(data, "PageName")
-    ret = HugoFormatter.format(page, config=HugoConfig(goldmark_unsafe=False), pagename="PageName")
+    ret = HugoFormatter.format(page, config=HugoConfig(allow_raw_html=False), pagename="PageName")
     assert ret == expected, page.tree_repr(include_src=True)
-    assert "goldmark_unsafe" in caplog.text
+    assert "allow_raw_html" in caplog.text

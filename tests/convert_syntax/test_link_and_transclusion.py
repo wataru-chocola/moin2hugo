@@ -144,9 +144,9 @@ def test_transclude_attrs(data: str, expected: Tuple[Optional[str], Optional[str
 )
 def test_transclude_without_unsafe(data: str, expected: str, caplog: pytest.LogCaptureFixture):
     page = MoinParser.parse(data, "PageName")
-    ret = HugoFormatter.format(page, config=HugoConfig(goldmark_unsafe=False), pagename="PageName")
+    ret = HugoFormatter.format(page, config=HugoConfig(allow_raw_html=False), pagename="PageName")
     assert ret == expected, page.tree_repr(include_src=True)
-    assert "goldmark_unsafe" in caplog.text
+    assert "allow_raw_html" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -199,6 +199,6 @@ def test_transclude_inline_attachment(text: str, content: str, expected: str):
     expected = textwrap.dedent(expected).rstrip()
     mock_io = mock.mock_open(read_data=content)
     page = MoinParser.parse(text, "PageName")
-    with mock.patch("moin2hugo.formatter.open", mock_io):
+    with mock.patch("moin2x.formatter.markdown.open", mock_io):
         assert HugoFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == text
