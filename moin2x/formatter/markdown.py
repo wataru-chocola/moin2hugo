@@ -9,7 +9,6 @@ from typing import Callable, Dict, Optional
 
 import attr
 
-from moin2hugo.path_builder import HugoPathBuilder
 from moin2x.formatter.base import FormatterBase
 from moin2x.formatter.utils.markdown import (
     MarkdownEscapedText,
@@ -67,6 +66,7 @@ from moin2x.page_tree import (
     Underline,
     Url,
 )
+from moin2x.path_builder import MarkdownPathBuilder, PathBuilder
 
 from .utils.smiley2emoji import smiley2emoji
 
@@ -92,8 +92,7 @@ class MarkdownFormatter(FormatterBase):
         *,
         config: Optional[MarkdownFormatterConfig] = None,
         pagename: Optional[str] = None,
-        # TODO
-        path_builder: Optional[HugoPathBuilder] = None,
+        path_builder: Optional[PathBuilder] = None,
     ):
         self._formatted: dict[int, str] = {}
 
@@ -103,7 +102,7 @@ class MarkdownFormatter(FormatterBase):
         if path_builder:
             self.path_builder = path_builder
         else:
-            self.path_builder = HugoPathBuilder()
+            self.path_builder = MarkdownPathBuilder()
 
     def do_format(self, e: PageElement) -> str:
         # cache format result because a lot of elements are formatted repeatedly
