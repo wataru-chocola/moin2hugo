@@ -2,7 +2,7 @@ from typing import Tuple
 
 import pytest
 
-import moin2hugo.moinutils
+import moin2x.moinutils
 
 
 @pytest.mark.parametrize(
@@ -12,7 +12,7 @@ import moin2hugo.moinutils
     ],
 )
 def test_parse_quoted_separated(data: str, expected: dict[str, str]):
-    _, ret, _ = moin2hugo.moinutils.parse_quoted_separated(data)
+    _, ret, _ = moin2x.moinutils.parse_quoted_separated(data)
     assert ret == expected
 
 
@@ -29,7 +29,7 @@ def test_parse_quoted_separated(data: str, expected: dict[str, str]):
     ],
 )
 def test_parse_quoted_separated_ext(data: str, expected: list[Tuple[str, str] | str]):
-    ret = moin2hugo.moinutils.parse_quoted_separated_ext(data)
+    ret = moin2x.moinutils.parse_quoted_separated_ext(data)
     assert ret == expected
 
 
@@ -40,5 +40,5 @@ def test_parse_quoted_separated_ext(data: str, expected: list[Tuple[str, str] | 
     ],
 )
 def test_url_unquote(data: str, expected: str):
-    ret = moin2hugo.moinutils.url_unquote(data)
+    ret = moin2x.moinutils.url_unquote(data)
     assert ret == expected

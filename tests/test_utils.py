@@ -2,7 +2,7 @@ from typing import Tuple
 
 import pytest
 
-from moin2hugo.utils import safe_path_join
+from moin2x.utils import safe_path_join
 
 
 @pytest.mark.parametrize(

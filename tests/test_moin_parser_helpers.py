@@ -3,9 +3,9 @@ from typing import Tuple
 
 import pytest
 
-import moin2hugo.moin_parser
-from moin2hugo.config import MoinSiteConfig
-from moin2hugo.page_tree import Pagelink, PageRoot, Paragraph, Text
+import moin2x.moin_parser
+from moin2x.config import MoinSiteConfig
+from moin2x.page_tree import Pagelink, PageRoot, Paragraph, Text
 
 
 def test_src_build():
@@ -36,13 +36,13 @@ def test_src_build():
 
     """
     )
-    page = moin2hugo.moin_parser.MoinParser.parse(text, "PageName")
+    page = moin2x.moin_parser.MoinParser.parse(text, "PageName")
     assert page.source_text == text, page.tree_repr(include_src=True)
 
 
 def test_bang_meta():
     moin_site_config = MoinSiteConfig(bang_meta=False)
-    page = moin2hugo.moin_parser.MoinParser.parse("!WikiName", "PageName", moin_site_config)
+    page = moin2x.moin_parser.MoinParser.parse("!WikiName", "PageName", moin_site_config)
     expected = PageRoot.from_dict(
         {
             "source_text": "!WikiName",
@@ -80,7 +80,7 @@ def test_bang_meta():
     [('class="link",unk="unk",&action=post', ({"class": "link"}, {"action": "post"}))],
 )
 def test_get_params(data: str, expected: Tuple[dict[str, str], dict[str, str]]):
-    params, qargs = moin2hugo.moin_parser._get_params(data, acceptable_attrs=["class"])  # type: ignore
+    params, qargs = moin2x.moin_parser._get_params(data, acceptable_attrs=["class"])  # type: ignore
     assert params == expected[0]
     assert qargs == expected[1]
 
@@ -93,5 +93,5 @@ def test_get_params(data: str, expected: Tuple[dict[str, str], dict[str, str]]):
     ],
 )
 def test_getTableAttrs(data: str, expected: dict[str, str]):
-    ret = moin2hugo.moin_parser._getTableAttrs(data)  # type: ignore
+    ret = moin2x.moin_parser._getTableAttrs(data)  # type: ignore
     assert ret == expected

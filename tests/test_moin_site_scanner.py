@@ -3,7 +3,7 @@ from typing import TypeAlias
 
 import pytest
 
-from moin2hugo.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
+from moin2x.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
 
 from .conftest import MoinAbspathFixture, MoinSitedirFixture
 

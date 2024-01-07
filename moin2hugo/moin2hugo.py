@@ -5,17 +5,15 @@ from datetime import datetime
 from typing import Literal, Optional, assert_never
 
 import attr
-import click
 import jinja2
-import yaml
 
-from moin2hugo import __version__
-from moin2hugo.config import Config, load_config
+from moin2hugo.config import Config
 from moin2hugo.formatter import HugoFormatter
-from moin2hugo.moin_parser import MoinParser
-from moin2hugo.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
 from moin2hugo.path_builder import HugoPathBuilder
-from moin2hugo.utils import safe_path_join, set_console_handlers
+from moin2x.moin2x import Moin2XConverter
+from moin2x.moin_parser import MoinParser
+from moin2x.moin_site_scanner import MoinAttachment, MoinPageInfo, MoinSiteScanner
+from moin2x.utils import safe_path_join
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +31,7 @@ class HugoPageInfo:
 PAGE_TYPE = Literal[1] | Literal[2]
 
 
-class Moin2Hugo(object):
+class Moin2Hugo(Moin2XConverter, object):
     BRANCH_BUNDLE = 1
     LEAF_BUNDLE = 2
 
@@ -46,7 +44,6 @@ class Moin2Hugo(object):
         self.dst_dir = dst_dir
         self._hugo_site_structure: Optional[dict[str, PAGE_TYPE]] = None
 
-        self.moin_site_scanner = MoinSiteScanner(self.src_dir)
         self.path_builder = HugoPathBuilder(
             page_front_page=self.config.moin_site_config.page_front_page,
             root_path=self.config.hugo_config.root_path,
@@ -54,13 +51,23 @@ class Moin2Hugo(object):
             remove_path_accents=self.config.hugo_config.remove_path_accents,
         )
 
+        if self.config.template_file:
+            tmpl_dir, tmpl_file = os.path.split(self.config.template_file)
+            env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_dir))
+        else:
+            tmpl_file = "page.tmpl"
+            env = jinja2.Environment(loader=jinja2.PackageLoader("moin2hugo", "templates"))
+
+        self.page_tmpl = env.get_template(tmpl_file)
+
     @property
     def hugo_site_structure(self) -> dict[str, PAGE_TYPE]:
         if self._hugo_site_structure is not None:
             return self._hugo_site_structure
 
         self._hugo_site_structure = {}
-        for page in self.moin_site_scanner.scan_pages():
+        moin_site_scanner = MoinSiteScanner(self.src_dir)
+        for page in moin_site_scanner.scan_pages():
             hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
             elems = hugo_bundle_path.split("/")
             for i in range(len(elems) - 1):
@@ -75,15 +82,7 @@ class Moin2Hugo(object):
         return self._hugo_site_structure
 
     def render_page(self, page: HugoPageInfo, content: str) -> str:
-        if self.config.template_file:
-            tmpl_dir, tmpl_file = os.path.split(self.config.template_file)
-            env = jinja2.Environment(loader=jinja2.FileSystemLoader(tmpl_dir))
-        else:
-            tmpl_file = "page.tmpl"
-            env = jinja2.Environment(loader=jinja2.PackageLoader("moin2hugo", "templates"))
-
-        tmpl = env.get_template(tmpl_file)
-        ret = tmpl.render(page=page, content=content)
+        ret = self.page_tmpl.render(page=page, content=content)
         return ret
 
     def convert_page(self, page: MoinPageInfo):
@@ -139,108 +138,3 @@ class Moin2Hugo(object):
                 attach_filepath = self.path_builder.attachment_filepath(page.name, attachment.name)
                 dst_path = safe_path_join(self.dst_dir, attach_filepath)
                 shutil.copy(attachment.filepath, dst_path)
-
-    def convert(self, pagename: Optional[str] = None):
-        logger.info("+ Source Moin Dir: %s" % self.src_dir)
-        logger.info("+ Dest Dir: %s" % self.dst_dir)
-
-        if os.path.exists(self.dst_dir):
-            logger.info("++ destionation path exists")
-            if os.path.isdir(self.dst_dir):
-                logger.info("++ remove first")
-                shutil.rmtree(self.dst_dir)
-            else:
-                raise ValueError("dst_dir must be non-existing path or directory path")
-        logger.info("")
-
-        for page in self.moin_site_scanner.scan_pages():
-            if pagename and page.name != pagename:
-                continue
-            logger.info("+ Convert Page: %s" % page.name)
-            try:
-                self.convert_page(page)
-            except AssertionError as e:
-                logger.error("fail to convert: %s." % page.name)
-                logger.exception(e)
-                continue
-            except Exception:
-                logger.error("fail to convert: %s." % page.name)
-                raise
-            logger.info("++ done.")
-
-
-def config_logger(verbose: bool, debug: bool):
-    app_logger = logging.getLogger("moin2hugo")
-    app_logger.propagate = False
-    for handler in app_logger.handlers:
-        app_logger.removeHandler(handler)
-    set_console_handlers(app_logger, verbose, debug)
-
-    cssutils_logger = logging.getLogger("CSSUTILS")
-    cssutils_logger.propagate = False
-    for handler in cssutils_logger.handlers:
-        cssutils_logger.removeHandler(handler)
-    set_console_handlers(cssutils_logger, verbose, debug)
-
-
-def print_version():
-    click.echo(__version__)
-
-
-def cmd_print_version(ctx: click.Context, param: click.Parameter, value: str):
-    if not value or ctx.resilient_parsing:
-        return
-    print_version()
-    ctx.exit()
-
-
-@click.command()
-@click.argument("src", type=click.Path(exists=True))
-@click.argument("dst", type=click.Path())
-@click.option(
-    "--pagename",
-    "-p",
-    "pagename",
-    metavar="PAGENAME",
-    help="Pagename to be converted",
-    default=None,
-)
-@click.option("--config", "-c", "configfile", type=click.Path(exists=True), default=None)
-@click.option("--verbose", "-v", "verbose", type=bool, default=False, is_flag=True)
-@click.option("--debug", "-d", "debug", type=bool, default=False, is_flag=True)
-@click.option(
-    "--version",
-    "-V",
-    "version",
-    help="Show version and exit.",
-    is_flag=True,
-    callback=cmd_print_version,
-    is_eager=True,
-    expose_value=False,
-)
-def convert_site(
-    src: str,
-    dst: str,
-    configfile: Optional[str],
-    pagename: Optional[str],
-    verbose: bool,
-    debug: bool,
-):
-    """Convert MoinMoin pages directory to Hugo content directory.
-
-    \b
-    SRC is the MoinMoin pages directory to convert (e.g. yourwiki/data/pages)
-    DST is the output directory
-    """
-    if debug:
-        verbose = True
-    config_logger(verbose, debug)
-    if configfile:
-        with open(configfile, "r") as f:
-            config_data = f.read()
-        config_dict = yaml.safe_load(config_data)
-        config = load_config(config_dict)
-    else:
-        config = Config()
-    moin2hugo = Moin2Hugo(src, dst, config=config)
-    moin2hugo.convert(pagename=pagename)
