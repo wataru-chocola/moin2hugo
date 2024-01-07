@@ -68,7 +68,7 @@ class Moin2Hugo(Moin2XConverter, object):
         self._hugo_site_structure = {}
         moin_site_scanner = MoinSiteScanner(self.src_dir)
         for page in moin_site_scanner.scan_pages():
-            hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
+            hugo_bundle_path = self.path_builder.page_filepath(page.name)
             elems = hugo_bundle_path.split("/")
             for i in range(len(elems) - 1):
                 branch_path = "/".join(elems[: i + 1])
@@ -104,7 +104,7 @@ class Moin2Hugo(Moin2XConverter, object):
             config=self.config.hugo_config,
         )
 
-        hugo_bundle_path = self.path_builder.page_to_hugo_bundle_path(page.name)
+        hugo_bundle_path = self.path_builder.page_filepath(page.name)
         dst_bundle_path = safe_path_join(self.dst_dir, hugo_bundle_path)
         os.makedirs(dst_bundle_path, exist_ok=True)
 

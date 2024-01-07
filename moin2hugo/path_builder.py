@@ -2,10 +2,11 @@ import unicodedata
 import urllib.parse
 from typing import Optional
 
+from moin2x.path_builder import PathBuilder
 from moin2x.utils import safe_path_join
 
 
-class HugoPathBuilder(object):
+class HugoPathBuilder(PathBuilder):
     def __init__(
         self,
         page_front_page: str = "FrontPage",
@@ -58,7 +59,7 @@ class HugoPathBuilder(object):
                 prepend_hyphen = True
         return sanitized_path
 
-    def page_to_hugo_bundle_path(self, pagename: str) -> str:
+    def page_filepath(self, pagename: str) -> str:
         if pagename == self.page_front_page:
             pagename = ""
         return self._sanitize_path(pagename)
@@ -67,7 +68,7 @@ class HugoPathBuilder(object):
         if pagename == self.page_front_page:
             pagename = ""
         attachfile_hugo_name = self._sanitize_path(filename)
-        hugo_bundle_path = self.page_to_hugo_bundle_path(pagename)
+        hugo_bundle_path = self.page_filepath(pagename)
         filepath = safe_path_join(hugo_bundle_path, attachfile_hugo_name)
         return filepath
 
