@@ -35,7 +35,7 @@ line_length = 99
 moin2hugo = "moin2hugo.moin2hugo:convert_site"
 
 [tool.poe.tasks]
-test = "pytest tests"
+test = "pytest tests/ moin2x/ moin2hugo/"
 typecheck = "pyright"
 
 [tool.pyright]
