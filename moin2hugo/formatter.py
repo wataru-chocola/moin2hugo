@@ -47,6 +47,8 @@ class HugoFormatter(MarkdownFormatter):
         pagename: Optional[str] = None,
         path_builder: Optional[HugoPathBuilder] = None,
     ):
+        if path_builder is None:
+            path_builder = HugoPathBuilder()
         super().__init__(
             config=config if config is not None else HugoFormatterConfig(),
             pagename=pagename,
