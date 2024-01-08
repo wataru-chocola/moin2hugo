@@ -35,7 +35,7 @@ class KibunPathBuilder(MarkdownPathBuilder):
     ) -> str:
         url = self.page_url(pagename, relative_base=relative_base)
         if url:
-            url = urllib.parse.urljoin(url + "/", f"_files/${filename}")
+            url = urllib.parse.urljoin(url + "/", f"_files/{filename}")
         else:
             url = filename
         if not self.disable_path_to_lower:
