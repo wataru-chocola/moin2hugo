@@ -46,38 +46,9 @@ class MarkdownPathBuilder(PathBuilder):
         )
 
     def _sanitize_path(self, path: str) -> str:
-        # noqa refer: https://github.com/gohugoio/hugo/blob/ba1d0051b44fdd242b20899e195e37ab26501516/helpers/path.go#L134
         if self.remove_path_accents:
             path = self._remove_accents(path)
-
-        sanitized_path = ""
-        prepend_hyphen = False
-        for i, c in enumerate(path):
-
-            def is_allowed(r: str) -> bool:
-                if r in "./\\_#+~":
-                    return True
-                code_category = unicodedata.category(r)
-                if "L" in code_category or "N" in code_category or "M" in code_category:
-                    # https://www.unicode.org/reports/tr44/#General_Category_Values
-                    return True
-                if r == "%" and len(path) > i + 2:
-                    try:
-                        int(path[i + 1 : i + 3], 8)
-                        return True
-                    except ValueError:
-                        return False
-                return False
-
-            code_category = unicodedata.category(c)
-            if is_allowed(c):
-                if prepend_hyphen:
-                    sanitized_path += "-"
-                    prepend_hyphen = False
-                sanitized_path += c
-            elif len(sanitized_path) > 0 and (c in ["-", ":"] or code_category == "Zs"):
-                prepend_hyphen = True
-        return sanitized_path
+        return path
 
     def _page_dirpath(self, pagename: str) -> str:
         if pagename == self.page_front_page:
@@ -90,9 +61,9 @@ class MarkdownPathBuilder(PathBuilder):
     def attachment_filepath(self, pagename: str, filename: str) -> str:
         if pagename == self.page_front_page:
             pagename = ""
-        attachfile_hugo_name = self._sanitize_path(filename)
+        attachfile_name = self._sanitize_path(filename)
         pagedir = self._page_dirpath(pagename)
-        filepath = safe_path_join(pagedir, attachfile_hugo_name)
+        filepath = safe_path_join(pagedir, attachfile_name)
         return filepath
 
     def page_url(self, pagename: str, relative_base: Optional[str] = None) -> str:

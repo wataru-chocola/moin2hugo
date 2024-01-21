@@ -84,7 +84,7 @@ class MarkdownFormatterConfig:
 
 
 class MarkdownFormatter(FormatterBase):
-    # types of elements which generateis raw html
+    # types of elements which generates raw html
     raw_html_types = (Underline, Sup, Sub, Big, Small, AttachmentTransclude, Transclude)
 
     def __init__(
