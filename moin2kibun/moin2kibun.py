@@ -97,4 +97,5 @@ class Moin2Kibun(Moin2XConverter, object):
             for attachment in page.attachments:
                 attach_filepath = self.path_builder.attachment_filepath(page.name, attachment.name)
                 dst_path = safe_path_join(self.dst_dir, attach_filepath)
+                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
                 shutil.copy(attachment.filepath, dst_path)
