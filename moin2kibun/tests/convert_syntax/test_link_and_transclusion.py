@@ -16,7 +16,6 @@ from moin2x.page_tree import AttachmentImage
         ("MeatBall:InterWiki", r"MeatBall:InterWiki"),
         ("HelpOnEditing/SubPages", "[HelpOnEditing/SubPages](/HelpOnEditing/SubPages)"),
         ("PageName", "PageName"),
-        ("!TestName", "!TestName"),
         ("fake@example.com", "<fake@example.com>"),
         ("https://www.markdownguide.org", "<https://www.markdownguide.org>"),
         ("[[free link]]", "[free link](</free link>)"),

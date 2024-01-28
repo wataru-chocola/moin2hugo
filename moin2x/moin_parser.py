@@ -734,9 +734,11 @@ class MoinParser(object):
 
     def _word_handler(self, word: str, groups: dict[str, str]):
         """Handle WikiNames."""
-        if groups.get("word_bang"):
+        word_bang = groups.get("word_bang")
+        if word_bang is not None:
             if self.site_config.bang_meta:
-                self.builder.text(word, source_text=word)
+                stripped_word = word.removeprefix(word_bang)
+                self.builder.text(stripped_word, source_text=word)
                 return
         current_page = self.page_name
         abs_name = wikiutil.abs_page(current_page, groups.get("word_name", ""))
