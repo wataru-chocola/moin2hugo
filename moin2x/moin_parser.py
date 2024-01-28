@@ -741,13 +741,12 @@ class MoinParser(object):
                 self.builder.text(stripped_word, source_text=word)
                 return
         current_page = self.page_name
-        abs_name = wikiutil.abs_page(current_page, groups.get("word_name", ""))
-        # if a simple, self-referencing link, emit it as plain text
-        if abs_name == current_page:
+        target_pagename = groups.get("word_name", "")
+        if target_pagename == "":
             self.builder.text(word, source_text=word)
             return
-        abs_name, anchor = wikiutil.split_anchor(abs_name)
-        self.builder.pagelink_start(abs_name, anchor=anchor)
+        target_pagename, anchor = wikiutil.split_anchor(target_pagename)
+        self.builder.pagelink_start(target_pagename, current_pagename=current_page, anchor=anchor)
         self.builder.text(word, source_text=word)
         self.builder.pagelink_end()
 
@@ -808,9 +807,9 @@ class MoinParser(object):
             current_page = self.page_name
             if not page_name:
                 page_name = current_page
-            abs_page_name = wikiutil.abs_page(current_page, page_name)
             self.builder.pagelink_start(
-                abs_page_name,
+                page_name,
+                current_pagename=current_page,
                 anchor=anchor,
                 queryargs=query_args,
                 attrs=tag_attrs,
@@ -829,11 +828,12 @@ class MoinParser(object):
         elif mt.group("attach_scheme"):
             scheme = mt.group("attach_scheme")
             attach_addr = wikiutil.url_unquote(mt.group("attach_addr"))
-            pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
+            target_pagename, filename = wikiutil.parse_attachment_name(attach_addr)
             if scheme == "attachment":
                 self.builder.attachment_link_start(
-                    pagename=pagename,
+                    target_pagename=target_pagename,
                     filename=filename,
+                    current_pagename=self.page_name,
                     queryargs=query_args,
                     attrs=tag_attrs,
                     source_text=word,
@@ -925,7 +925,7 @@ class MoinParser(object):
         elif m.group("attach_scheme"):
             scheme = m.group("attach_scheme")
             attach_addr = wikiutil.url_unquote(m.group("attach_addr"))
-            pagename, filename = wikiutil.attachment_abs_name(attach_addr, self.page_name)
+            target_pagename, filename = wikiutil.parse_attachment_name(attach_addr)
             if scheme == "attachment":
                 mtype, majortype, subtype = wikiutil.filename2mimetype(filename=filename)
                 if majortype == "text":
@@ -933,7 +933,11 @@ class MoinParser(object):
                     if trans_desc is None:
                         trans_desc = attach_addr
                     self.builder.attachment_inlined(
-                        pagename, filename, trans_desc, source_text=word
+                        target_pagename=target_pagename,
+                        current_pagename=self.page_name,
+                        filename=filename,
+                        link_text=trans_desc,
+                        source_text=word,
                     )
                 elif majortype == "image" and subtype in settings.browser_supported_images:
                     trans_desc = self._transclude_description(desc)
@@ -943,7 +947,8 @@ class MoinParser(object):
                     tmp_image_tag_attrs, _query_args = _get_image_params(params)
                     image_tag_attrs.update(tmp_image_tag_attrs)
                     self.builder.attachment_image(
-                        pagename=pagename,
+                        target_pagename=target_pagename,
+                        current_pagename=self.page_name,
                         filename=filename,
                         source_text=word,
                         attrs=image_tag_attrs,
@@ -960,7 +965,8 @@ class MoinParser(object):
                         trans_desc = attach_addr
 
                     self.builder.attachment_transclusion_start(
-                        pagename=pagename,
+                        target_pagename=target_pagename,
+                        current_pagename=self.page_name,
                         filename=filename,
                         attrs=obj_tag_attrs,
                         source_text=word,

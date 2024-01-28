@@ -42,6 +42,15 @@ def filename2mimetype(filename: str) -> Tuple[str, str, str]:
     return (mtype.lower(), majortype.lower(), subtype.lower())
 
 
+def parse_attachment_name(attachment_name: str) -> Tuple[Optional[str], str]:
+    seps = attachment_name.split("/")
+    filename = seps.pop()
+    target_pagename = None
+    if len(seps) > 0:
+        target_pagename = "/".join(seps)
+    return (target_pagename, filename)
+
+
 def attachment_abs_name(url: str, pagename: str):
     url = abs_page(pagename, url)
     pieces = url.split("/")
@@ -51,16 +60,24 @@ def attachment_abs_name(url: str, pagename: str):
         return "/".join(pieces[:-1]), pieces[-1]
 
 
+def is_relative_pagename_to_parent(pagename: str) -> bool:
+    return pagename.startswith(PARENT_PREFIX)
+
+
+def is_relative_pagename_to_curdir(pagename: str) -> bool:
+    return pagename.startswith(CHILD_PREFIX)
+
+
 def abs_page(base_page: str, target_page: str) -> str:
     pagename = target_page
-    if target_page.startswith(PARENT_PREFIX):
+    if is_relative_pagename_to_parent(target_page):
         base_path_elems = base_page.split("/")
         while base_path_elems and target_page.startswith(PARENT_PREFIX):
             base_path_elems = base_path_elems[:-1]
             target_page = target_page[len(PARENT_PREFIX) :]
         path_elems = base_path_elems + [target_page]
         pagename = "/".join([elem for elem in path_elems if elem])
-    elif target_page.startswith(CHILD_PREFIX):
+    elif is_relative_pagename_to_curdir(target_page):
         if base_page:
             pagename = base_page + "/" + target_page[len(CHILD_PREFIX) :]
         else:
