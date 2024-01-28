@@ -80,7 +80,7 @@ class Moin2Kibun(Moin2XConverter, object):
         os.makedirs(os.path.dirname(dst_filepath), exist_ok=True)
 
         title = page.name.split("/")[-1]
-        hugo_page = KibunPageInfo(
+        kibun_page = KibunPageInfo(
             filepath=dst_filepath,
             name=page.name,
             title=title,
@@ -90,7 +90,7 @@ class Moin2Kibun(Moin2XConverter, object):
 
         logger.info("++ output: %s" % dst_filepath)
         with open(dst_filepath, "w") as f:
-            f.write(self.render_page(hugo_page, converted))
+            f.write(self.render_page(kibun_page, converted))
 
         if page.attachments:
             logger.info("++ copy attachments")
