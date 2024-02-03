@@ -36,7 +36,7 @@ moin2hugo = "moin2hugo.cli:convert_site"
 moin2kibun = "moin2kibun.cli:convert_site"
 
 [tool.poe.tasks]
-test = "pytest tests/ moin2x/ moin2hugo/ moin2kibun/"
+test = "pytest moin2x/ moin2hugo/ moin2kibun/"
 typecheck = "pyright"
 
 [tool.pyright]
