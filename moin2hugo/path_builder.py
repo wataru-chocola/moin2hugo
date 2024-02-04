@@ -2,11 +2,29 @@ import unicodedata
 import urllib.parse
 from typing import Optional
 
-from moin2x.path_builder import PathBuilder
+from moin2x.moinutils import (
+    CHILD_PREFIX,
+    is_relative_pagename_to_curdir,
+    is_relative_pagename_to_parent,
+)
+from moin2x.path_builder import MarkdownPathBuilder
 from moin2x.utils import safe_path_join
 
 
-class HugoPathBuilder(PathBuilder):
+def pagename_abs2rel(pagename: str, base: str) -> Optional[str]:
+    target_path_elems = pagename.split("/")
+    base_elems = base.split("/")
+    if len(target_path_elems) >= len(base_elems):
+        for elem in base_elems:
+            if target_path_elems[0] != elem:
+                break
+            target_path_elems.pop(0)
+        else:
+            rel_pagename = "/".join(target_path_elems)
+            return rel_pagename
+
+
+class HugoPathBuilder(MarkdownPathBuilder):
     def __init__(
         self,
         page_front_page: str = "FrontPage",
@@ -18,12 +36,6 @@ class HugoPathBuilder(PathBuilder):
         self.root_path = root_path
         self.disable_path_to_lower = disable_path_to_lower
         self.remove_path_accents = remove_path_accents
-
-    def _remove_accents(self, s: str):
-        # noqa refer: https://stackoverflow.com/questions/517923/what-is-the-best-way-to-remove-accents-normalize-in-a-python-unicode-string
-        return "".join(
-            c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
-        )
 
     def _sanitize_path(self, path: str) -> str:
         # noqa refer: https://github.com/gohugoio/hugo/blob/ba1d0051b44fdd242b20899e195e37ab26501516/helpers/path.go#L134
@@ -73,17 +85,19 @@ class HugoPathBuilder(PathBuilder):
         return filepath
 
     def page_url(self, pagename: str, relative_base: Optional[str] = None) -> str:
-        url = urllib.parse.urljoin(self.root_path + "/", pagename)
-        if relative_base:
-            target_path_elems = pagename.split("/")
-            relative_base_elems = relative_base.split("/")
-            if len(target_path_elems) >= len(relative_base_elems):
-                for elem in relative_base_elems:
-                    if target_path_elems[0] != elem:
-                        break
-                    target_path_elems.pop(0)
-                else:
-                    url = "/".join(target_path_elems)
+        if is_relative_pagename_to_parent(pagename):
+            url = pagename
+        elif is_relative_pagename_to_curdir(pagename):
+            url = f"{pagename.removeprefix(CHILD_PREFIX)}"
+        else:
+            rel_pagename = None
+            if relative_base is not None:
+                rel_pagename = pagename_abs2rel(pagename, relative_base)
+
+            if rel_pagename is None or rel_pagename == "":
+                url = urllib.parse.urljoin(self.root_path + "/", pagename)
+            else:
+                url = rel_pagename
 
         if not self.disable_path_to_lower:
             url = url.lower()
@@ -91,14 +105,19 @@ class HugoPathBuilder(PathBuilder):
         return url
 
     def attachment_url(
-        self, pagename: str, filename: str, relative_base: Optional[str] = None
+        self, pagename: Optional[str], filename: str, relative_base: Optional[str] = None
     ) -> str:
-        url = self.page_url(pagename, relative_base=relative_base)
-        if url:
-            url = urllib.parse.urljoin(url + "/", filename)
+        if pagename is not None:
+            page_url = self.page_url(pagename, relative_base=relative_base)
+            cur_url = urllib.parse.urljoin(self.root_path + "/", relative_base)
+            if page_url == "" or page_url == cur_url:
+                attachment_url = filename
+            else:
+                attachment_url = urllib.parse.urljoin(page_url + "/", filename)
         else:
-            url = filename
+            attachment_url = filename
+
         if not self.disable_path_to_lower:
-            url = url.lower()
-        url = self._sanitize_path(url)
-        return url
+            attachment_url = attachment_url.lower()
+        attachment_url = self._sanitize_path(attachment_url)
+        return attachment_url

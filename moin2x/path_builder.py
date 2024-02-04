@@ -13,6 +13,10 @@ from moin2x.utils import safe_path_join
 
 class PathBuilder(metaclass=ABCMeta):
     @abstractmethod
+    def _sanitize_path(self, path: str) -> str:
+        pass
+
+    @abstractmethod
     def page_filepath(self, pagename: str) -> str:
         pass
 

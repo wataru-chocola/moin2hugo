@@ -141,7 +141,7 @@ class HugoFormatter(MarkdownFormatter):
     def attachment_image(self, e: AttachmentImage) -> str:
         if self.config.use_figure_shortcode and (e.attrs.width or e.attrs.height):
             url = self.path_builder.attachment_url(
-                e.pagename, e.filename, relative_base=self.pagename
+                e.target_pagename, e.filename, relative_base=self.pagename
             )
             in_html = self._is_in_raw_html(e)
             return self._figure_shortcode(url, e.attrs, in_html=in_html)

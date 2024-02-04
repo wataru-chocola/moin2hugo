@@ -195,7 +195,7 @@ def test_codeblock(data: str, expected: str):
 
 
 def test_root_path():
-    pagelink = Pagelink(pagename="SomePage")
+    pagelink = Pagelink(target_pagename="SomePage", current_pagename="PageName")
     config = HugoConfig(root_path="/hugo")
     hugo_path_builder = HugoPathBuilder(root_path=config.root_path)
     ret = HugoFormatter.format(

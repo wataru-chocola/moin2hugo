@@ -15,7 +15,7 @@ from moin2x.page_tree import AttachmentImage
     [
         ("MeatBall:InterWiki", r"MeatBall:InterWiki"),
         ("HelpOnEditing/SubPages", "[HelpOnEditing/SubPages](/HelpOnEditing/SubPages)"),
-        ("PageName", "PageName"),
+        ("PageName", "[PageName](/PageName)"),
         ("fake@example.com", "<fake@example.com>"),
         ("https://www.markdownguide.org", "<https://www.markdownguide.org>"),
         ("[[free link]]", "[free link](/free-link)"),
@@ -37,8 +37,8 @@ from moin2x.page_tree import AttachmentImage
         ("[[drawing:SomePage/image.png]]", r"\[\[drawing:SomePage/image.png\]\]"),
         ("[[http://example.net/|example site]]", "[example site](http://example.net/)"),
         ("[[interwiki-like:somepage]]", r"[interwiki-like:somepage](interwiki-like-somepage)"),
-        # rel links
-        ("[[../RelPage|Relative Link]]", "[Relative Link](/RelPage)"),
+        # # rel links
+        ("[[../RelPage|Relative Link]]", "[Relative Link](../RelPage)"),
         ("[[/RelPage|Relative Link]]", "[Relative Link](RelPage)"),
         # escape
         ("[[SomePage|Some[x]Page]]", "[Some\\[x\\]Page](/SomePage)"),

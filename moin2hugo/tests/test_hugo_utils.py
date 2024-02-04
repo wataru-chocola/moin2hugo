@@ -14,7 +14,7 @@ from moin2hugo.path_builder import HugoPathBuilder
         (("PageName/foo", "PageName/foo/bar"), "bar"),
         (("PageName/foo1", "PageName/foo2/bar"), "/PageName/foo2/bar"),
         ((None, "PageName"), "/PageName"),
-        (("PageName/foo", "PageName/foo"), ""),
+        (("PageName/foo", "PageName/foo"), "/PageName/foo"),
     ],
 )
 def test_page_url(data: Tuple[str, str], expected: str):
