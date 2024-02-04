@@ -71,8 +71,8 @@ Moin wiki parser configuration.
 
 Paramater | Type | Default | Description
 -- | -- | -- | --
-`bang_meta` |`bool` |`True` | corresponding with moin site config: `bang_meta`
-`page_front_page` |`str` |`FrontPage` | corresponding with moin site config: `page_front_page`
+`bang_meta` |`bool` |`True` | if True, enable `!NoWikiName` markup
+`page_front_page` |`str` |`FrontPage` | Name of the front page
 
 ### HugoConfig
 

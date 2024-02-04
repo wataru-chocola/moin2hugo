@@ -327,7 +327,8 @@ class PageBuilder(object):
 
     def pagelink_start(
         self,
-        pagename: str,
+        target_pagename: str,
+        current_pagename: str,
         queryargs: Optional[dict[str, str]] = None,
         anchor: Optional[str] = None,
         attrs: LinkAttrDict = {},
@@ -336,7 +337,8 @@ class PageBuilder(object):
     ):
         link_attrs = LinkAttr.from_dict(attrs)
         e = Pagelink(
-            pagename=pagename,
+            target_pagename=target_pagename,
+            current_pagename=current_pagename,
             queryargs=queryargs,
             anchor=anchor,
             attrs=link_attrs,
@@ -377,8 +379,10 @@ class PageBuilder(object):
 
     def attachment_link_start(
         self,
-        pagename: str,
         filename: str,
+        *,
+        target_pagename: Optional[str] = None,
+        current_pagename: str,
         queryargs: Optional[dict[str, str]] = None,
         attrs: LinkAttrDict = {},
         source_text: str = "",
@@ -386,7 +390,8 @@ class PageBuilder(object):
     ):
         link_attrs = LinkAttr.from_dict(attrs)
         e = AttachmentLink(
-            pagename=pagename,
+            target_pagename=target_pagename,
+            current_pagename=current_pagename,
             filename=filename,
             queryargs=queryargs,
             attrs=link_attrs,
@@ -447,11 +452,21 @@ class PageBuilder(object):
 
     # Transclude (Image Embedding)
     def attachment_image(
-        self, pagename: str, filename: str, attrs: ImageAttrDict = {}, source_text: str = ""
+        self,
+        filename: str,
+        *,
+        target_pagename: Optional[str] = None,
+        current_pagename: str,
+        attrs: ImageAttrDict = {},
+        source_text: str = "",
     ):
         image_attrs = ImageAttr.from_dict(attrs)
         e = AttachmentImage(
-            pagename=pagename, filename=filename, attrs=image_attrs, source_text=source_text
+            target_pagename=target_pagename,
+            current_pagename=current_pagename,
+            filename=filename,
+            attrs=image_attrs,
+            source_text=source_text,
         )
         self._add_new_elem(e)
 
@@ -482,7 +497,9 @@ class PageBuilder(object):
 
     def attachment_transclusion_start(
         self,
-        pagename: str,
+        *,
+        target_pagename: Optional[str] = None,
+        current_pagename: str,
         filename: str,
         attrs: ObjectAttrDict = {},
         source_text: str = "",
@@ -490,7 +507,8 @@ class PageBuilder(object):
     ):
         obj_attrs = ObjectAttr.from_dict(attrs)
         e = AttachmentTransclude(
-            pagename=pagename,
+            target_pagename=target_pagename,
+            current_pagename=current_pagename,
             filename=filename,
             attrs=obj_attrs,
             source_text=source_text,
@@ -504,10 +522,20 @@ class PageBuilder(object):
 
     # Transclude (Other)
     def attachment_inlined(
-        self, pagename: str, filename: str, link_text: str, source_text: str = ""
+        self,
+        *,
+        target_pagename: Optional[str] = None,
+        current_pagename: str,
+        filename: str,
+        link_text: str,
+        source_text: str = "",
     ):
         self._add_new_elem(
             AttachmentInlined(
-                pagename=pagename, filename=filename, link_text=link_text, source_text=source_text
+                target_pagename=target_pagename,
+                current_pagename=current_pagename,
+                filename=filename,
+                link_text=link_text,
+                source_text=source_text,
             )
         )

@@ -3,10 +3,27 @@ import urllib.parse
 from abc import ABCMeta, abstractmethod
 from typing import Optional
 
+from moin2x.moinutils import (
+    CHILD_PREFIX,
+    is_relative_pagename_to_curdir,
+    is_relative_pagename_to_parent,
+)
 from moin2x.utils import safe_path_join
 
 
 class PathBuilder(metaclass=ABCMeta):
+    @abstractmethod
+    def _sanitize_pagename(self, pagename: str) -> str:
+        pass
+
+    @abstractmethod
+    def _sanitize_attachment_filename(self, filename: str) -> str:
+        pass
+
+    @abstractmethod
+    def _sanitize_path(self, path: str) -> str:
+        pass
+
     @abstractmethod
     def page_filepath(self, pagename: str) -> str:
         pass
@@ -21,7 +38,7 @@ class PathBuilder(metaclass=ABCMeta):
 
     @abstractmethod
     def attachment_url(
-        self, pagename: str, filename: str, relative_base: Optional[str] = None
+        self, pagename: Optional[str], filename: str, relative_base: Optional[str] = None
     ) -> str:
         pass
 
@@ -45,9 +62,21 @@ class MarkdownPathBuilder(PathBuilder):
             c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
         )
 
-    def _sanitize_path(self, path: str) -> str:
+    def _sanitize_pagename(self, pagename: str) -> str:
         if self.remove_path_accents:
-            path = self._remove_accents(path)
+            pagename = self._remove_accents(pagename)
+
+        pagename = pagename.replace(":", "-")
+        return pagename
+
+    def _sanitize_attachment_filename(self, filename: str) -> str:
+        if self.remove_path_accents:
+            filename = self._remove_accents(filename)
+
+        filename = filename.replace(":", "-")
+        return filename
+
+    def _sanitize_path(self, path: str) -> str:
         return path
 
     def _page_dirpath(self, pagename: str) -> str:
@@ -56,28 +85,26 @@ class MarkdownPathBuilder(PathBuilder):
         return self._sanitize_path(pagename)
 
     def page_filepath(self, pagename: str) -> str:
+        pagename = self._sanitize_pagename(pagename)
         return safe_path_join(self._page_dirpath(pagename), "index.md")
 
     def attachment_filepath(self, pagename: str, filename: str) -> str:
         if pagename == self.page_front_page:
             pagename = ""
-        attachfile_name = self._sanitize_path(filename)
+        pagename = self._sanitize_pagename(pagename)
+        attachfile_name = self._sanitize_attachment_filename(filename)
         pagedir = self._page_dirpath(pagename)
         filepath = safe_path_join(pagedir, attachfile_name)
         return filepath
 
     def page_url(self, pagename: str, relative_base: Optional[str] = None) -> str:
-        url = urllib.parse.urljoin(self.root_path + "/", pagename)
-        if relative_base:
-            target_path_elems = pagename.split("/")
-            relative_base_elems = relative_base.split("/")
-            if len(target_path_elems) >= len(relative_base_elems):
-                for elem in relative_base_elems:
-                    if target_path_elems[0] != elem:
-                        break
-                    target_path_elems.pop(0)
-                else:
-                    url = "/".join(target_path_elems)
+        pagename = self._sanitize_pagename(pagename)
+        if is_relative_pagename_to_parent(pagename):
+            url = pagename
+        elif is_relative_pagename_to_curdir(pagename):
+            url = f"./{pagename.removeprefix(CHILD_PREFIX)}"
+        else:
+            url = urllib.parse.urljoin(self.root_path + "/", pagename)
 
         if not self.disable_path_to_lower:
             url = url.lower()
@@ -85,14 +112,17 @@ class MarkdownPathBuilder(PathBuilder):
         return url
 
     def attachment_url(
-        self, pagename: str, filename: str, relative_base: Optional[str] = None
+        self, pagename: Optional[str], filename: str, relative_base: Optional[str] = None
     ) -> str:
-        url = self.page_url(pagename, relative_base=relative_base)
-        if url:
-            url = urllib.parse.urljoin(url + "/", filename)
+        filename = self._sanitize_attachment_filename(filename)
+        if pagename is not None:
+            pagename = self._sanitize_pagename(pagename)
+            url = self.page_url(pagename, relative_base=relative_base)
+            attachment_url = urllib.parse.urljoin(url + "/", filename)
         else:
-            url = filename
+            attachment_url = f"./{filename}"
+
         if not self.disable_path_to_lower:
-            url = url.lower()
-        url = self._sanitize_path(url)
-        return url
+            attachment_url = attachment_url.lower()
+        attachment_url = self._sanitize_path(attachment_url)
+        return attachment_url

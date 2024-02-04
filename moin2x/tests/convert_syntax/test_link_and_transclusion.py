@@ -4,8 +4,7 @@ from unittest import mock
 
 import pytest
 
-from moin2hugo.config import HugoConfig
-from moin2hugo.formatter import HugoFormatter
+from moin2x.formatter.markdown import MarkdownFormatter, MarkdownFormatterConfig
 from moin2x.moin_parser import MoinParser
 from moin2x.page_tree import AttachmentImage
 
@@ -16,9 +15,11 @@ from moin2x.page_tree import AttachmentImage
         ("MeatBall:InterWiki", r"MeatBall:InterWiki"),
         ("HelpOnEditing/SubPages", "[HelpOnEditing/SubPages](/HelpOnEditing/SubPages)"),
         ("PageName", "[PageName](/PageName)"),
+        ("!TestName", "TestName"),
         ("fake@example.com", "<fake@example.com>"),
         ("https://www.markdownguide.org", "<https://www.markdownguide.org>"),
-        ("[[free link]]", "[free link](/free-link)"),
+        ("[[https://example.com|external link]]", "[external link](https://example.com)"),
+        ("[[free link]]", "[free link](</free link>)"),
         ("[[SomePage|Some Page]]", "[Some Page](/SomePage)"),
         (
             "[[SomePage#subsection|subsection of Some Page]]",
@@ -26,7 +27,7 @@ from moin2x.page_tree import AttachmentImage
         ),  # noqa
         (
             "[[SomePage|{{attachment:image.png}}]]",
-            '[![SomePage](image.png "SomePage")](/SomePage)',
+            '[![SomePage](./image.png "SomePage")](/SomePage)',
         ),  # noqa
         ('[[SomePage|some Page|target="_blank"]]', "[some Page](/SomePage)"),
         ("[[attachment:SomePage/image.png]]", "[SomePage/image.png](/SomePage/image.png)"),
@@ -36,10 +37,10 @@ from moin2x.page_tree import AttachmentImage
         ),  # noqa
         ("[[drawing:SomePage/image.png]]", r"\[\[drawing:SomePage/image.png\]\]"),
         ("[[http://example.net/|example site]]", "[example site](http://example.net/)"),
-        ("[[interwiki-like:somepage]]", r"[interwiki-like:somepage](interwiki-like-somepage)"),
-        # # rel links
+        ("[[interwiki-like:somepage]]", r"[interwiki-like:somepage](/interwiki-like-somepage)"),
+        # rel links
         ("[[../RelPage|Relative Link]]", "[Relative Link](../RelPage)"),
-        ("[[/RelPage|Relative Link]]", "[Relative Link](RelPage)"),
+        ("[[/RelPage|Relative Link]]", "[Relative Link](./RelPage)"),
         # escape
         ("[[SomePage|Some[x]Page]]", "[Some\\[x\\]Page](/SomePage)"),
         (
@@ -61,7 +62,7 @@ from moin2x.page_tree import AttachmentImage
 )
 def test_links(data: str, expected: str):
     page = MoinParser.parse(data, "PageName")
-    assert HugoFormatter.format(page, pagename="PageName") == expected
+    assert MarkdownFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == data
 
 
@@ -69,15 +70,15 @@ def test_links(data: str, expected: str):
     ("data", "expected"),
     [
         # attachment
-        ("{{attachment:image.png}}", "![](image.png)"),
-        ("{{attachment:image.png|title}}", '![title](image.png "title")'),
+        ("{{attachment:image.png}}", "![](./image.png)"),
+        ("{{attachment:image.png|title}}", '![title](./image.png "title")'),
         (
             "{{attachment:image.png|title|width=100,height=150,xxx=11}}",
-            '{{< figure src="image.png" title="title" alt="title" width="100" height="150" >}}',
+            '![title](./image.png "title")',
         ),  # noqa
         (
             "{{attachment:image.pdf}}",
-            '<object data="image.pdf" type="application/pdf">image.pdf</object>',
+            '<object data="./image.pdf" type="application/pdf">image.pdf</object>',
         ),  # noqa
         # page
         (
@@ -94,20 +95,20 @@ def test_links(data: str, expected: str):
         ),  # noqa
         # escape
         ("{{http://example.net/im(a)ge.png}}", "![](http://example.net/im\\(a\\)ge.png)"),
-        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](a.png "\\<\\"a\\"\\>")'),  # noqa
+        ('{{attachment:*a*.png|<"a">}}', '![\\<\\"a\\"\\>](./*a*.png "\\<\\"a\\"\\>")'),  # noqa
         (
             "{{attachment:*a*.pdf}}",
-            '<object data="a.pdf" type="application/pdf">*a*.pdf</object>',
+            '<object data="./*a*.pdf" type="application/pdf">*a*.pdf</object>',
         ),  # noqa
         (
             "{{attachment:<a>.pdf}}",
-            '<object data="a.pdf" type="application/pdf">&lt;a&gt;.pdf</object>',
+            '<object data="./&lt;a&gt;.pdf" type="application/pdf">&lt;a&gt;.pdf</object>',
         ),  # noqa
     ],
 )
 def test_transclude(data: str, expected: str):
     page = MoinParser.parse(data, "PageName")
-    assert HugoFormatter.format(page, pagename="PageName") == expected, page.tree_repr()
+    assert MarkdownFormatter.format(page, pagename="PageName") == expected, page.tree_repr()
     assert page.source_text == data
 
 
@@ -143,7 +144,9 @@ def test_transclude_attrs(data: str, expected: Tuple[Optional[str], Optional[str
 )
 def test_transclude_without_unsafe(data: str, expected: str, caplog: pytest.LogCaptureFixture):
     page = MoinParser.parse(data, "PageName")
-    ret = HugoFormatter.format(page, config=HugoConfig(allow_raw_html=False), pagename="PageName")
+    ret = MarkdownFormatter.format(
+        page, config=MarkdownFormatterConfig(allow_raw_html=False), pagename="PageName"
+    )
     assert ret == expected, page.tree_repr(include_src=True)
     assert "allow_raw_html" in caplog.text
 
@@ -159,7 +162,7 @@ def test_transclude_without_unsafe(data: str, expected: str, caplog: pytest.LogC
          hello
          ```
 
-         [text.txt](text.txt)
+         [text.txt](./text.txt)
          """,
         ),
         (
@@ -174,7 +177,7 @@ def test_transclude_without_unsafe(data: str, expected: str, caplog: pytest.LogC
          sys.write("hello")
          ```
 
-         [code.py](code.py)
+         [code.py](./code.py)
          """,
         ),
         (
@@ -188,7 +191,7 @@ def test_transclude_without_unsafe(data: str, expected: str, caplog: pytest.LogC
          |---|---|---|
          | d | e | f |
 
-         [table.CSV](table.CSV)
+         [table.CSV](./table.CSV)
          """,
         ),
     ],
@@ -199,5 +202,5 @@ def test_transclude_inline_attachment(text: str, content: str, expected: str):
     mock_io = mock.mock_open(read_data=content)
     page = MoinParser.parse(text, "PageName")
     with mock.patch("moin2x.formatter.markdown.open", mock_io):
-        assert HugoFormatter.format(page, pagename="PageName") == expected
+        assert MarkdownFormatter.format(page, pagename="PageName") == expected
     assert page.source_text == text

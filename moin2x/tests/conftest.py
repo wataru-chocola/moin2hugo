@@ -8,7 +8,7 @@ MoinSitedirFixture: TypeAlias = str
 
 @pytest.fixture
 def moin_sitedir() -> MoinSitedirFixture:
-    return os.path.join(os.path.dirname(__file__), "../testdata/moin_site")
+    return os.path.join(os.path.dirname(__file__), "../../testdata/moin_site")
 
 
 MoinAbspathFixture: TypeAlias = Callable[[str], str]

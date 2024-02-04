@@ -9,6 +9,7 @@ from typing import Callable, Dict, Optional
 
 import attr
 
+import moin2x.moinutils as wikiutils
 from moin2x.formatter.base import FormatterBase
 from moin2x.formatter.utils.markdown import (
     MarkdownEscapedText,
@@ -463,6 +464,10 @@ class MarkdownFormatter(FormatterBase):
             markdown_escaper=partial(escape_markdown_symbols, symbols=["(", ")", "[", "]", '"']),
             in_html=in_html,
         )
+        # commonmark does not allow ASCII space in link target (but allow Zenkaku space)
+        if " " in escaped_target:
+            escaped_target = f"<{escaped_target}>"
+
         if title is not None:
             escaped_title = self.escape(
                 title,
@@ -477,7 +482,7 @@ class MarkdownFormatter(FormatterBase):
         return self._link(e.url, description, title=e.attrs.title, in_html=self._is_in_raw_html(e))
 
     def pagelink(self, e: Pagelink) -> str:
-        link_path = self.path_builder.page_url(e.pagename, relative_base=self.pagename)
+        link_path = self.path_builder.page_url(e.target_pagename, relative_base=self.pagename)
         if e.queryargs:
             # just ignore them
             pass
@@ -493,7 +498,7 @@ class MarkdownFormatter(FormatterBase):
 
     def attachment_link(self, e: AttachmentLink) -> str:
         link_path = self.path_builder.attachment_url(
-            e.pagename, e.filename, relative_base=self.pagename
+            e.target_pagename, e.filename, relative_base=self.pagename
         )
         if e.queryargs:
             # just ignore them
@@ -591,7 +596,9 @@ class MarkdownFormatter(FormatterBase):
         return self._raw_html(e, "object", content=self.format_children(e), tag_attrs=tag_attrs)
 
     def attachment_transclude(self, e: AttachmentTransclude) -> str:
-        url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
+        url = self.path_builder.attachment_url(
+            e.target_pagename, e.filename, relative_base=self.pagename
+        )
         return self._transclude(url, e, e.attrs)
 
     def transclude(self, e: Transclude) -> str:
@@ -601,9 +608,15 @@ class MarkdownFormatter(FormatterBase):
     def attachment_inlined(self, e: AttachmentInlined) -> str:
         ret = ""
         in_html = self._is_in_raw_html(e)
-        url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
+        url = self.path_builder.attachment_url(
+            e.target_pagename, e.filename, relative_base=self.pagename
+        )
 
-        filepath = self.path_builder.attachment_filepath(e.pagename, e.filename)
+        if e.target_pagename is not None:
+            abs_pagename = wikiutils.abs_page(e.current_pagename, e.target_pagename)
+        else:
+            abs_pagename = e.current_pagename
+        filepath = self.path_builder.attachment_filepath(abs_pagename, e.filename)
         with open(filepath, "r") as f:
             attachment_content = f.read()
 
@@ -646,6 +659,8 @@ class MarkdownFormatter(FormatterBase):
         return self._image(e.src, e.attrs, in_html=in_html)
 
     def attachment_image(self, e: AttachmentImage) -> str:
-        url = self.path_builder.attachment_url(e.pagename, e.filename, relative_base=self.pagename)
+        url = self.path_builder.attachment_url(
+            e.target_pagename, e.filename, relative_base=self.pagename
+        )
         in_html = self._is_in_raw_html(e)
         return self._image(url, e.attrs, in_html=in_html)

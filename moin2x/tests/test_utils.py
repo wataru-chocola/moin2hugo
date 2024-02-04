@@ -12,6 +12,7 @@ from moin2x.utils import safe_path_join
         (("tmp/", "foo/bar"), "tmp/foo/bar"),
         (("tmp/xyz", "foo/bar"), "tmp/xyz/foo/bar"),
         (("/tmp", "foo/bar"), "/tmp/foo/bar"),
+        ((".", "foo/bar"), "foo/bar"),
     ],
 )
 def test_safe_path_join(data: Tuple[str, str], expected: str):

@@ -1,6 +1,6 @@
 import pytest
 
-from moin2hugo.path_builder import HugoPathBuilder
+from moin2kibun.path_builder import KibunPathBuilder
 
 
 @pytest.mark.parametrize(
@@ -9,16 +9,13 @@ from moin2hugo.path_builder import HugoPathBuilder
         ("xyz", "xyz"),
         ("abc/xyz.md", "abc/xyz.md"),
         ("ab%01cd", "ab%01cd"),
-        ("ab%08cd", "ab08cd"),
-        ("a-----b", "a-b"),
-        ("a- b", "a-b"),
-        ("中点・テスト", "中点テスト"),
-        ("全角　スペース", "全角-スペース"),
+        ("   abc /  cc ", "abc/cc"),
+        ("__abc ", "abc"),
     ],
 )
 def test_sanitize_path(data: str, expected: str):
-    path_builder = HugoPathBuilder()
-    ret = path_builder._sanitize_path(data)  # type: ignore
+    path_builder = KibunPathBuilder()
+    ret = path_builder._sanitize_pagename(data)  # type: ignore
     assert ret == expected
 
 
@@ -29,7 +26,7 @@ def test_sanitize_path(data: str, expected: str):
         ("apresentação", "apresentacao"),
     ],
 )
-def test_sanitize_pagename_with_remove_path_accents(data: str, expected: str):
-    path_builder = HugoPathBuilder(remove_path_accents=True)
+def test_sanitize_path_with_remove_path_accents(data: str, expected: str):
+    path_builder = KibunPathBuilder(remove_path_accents=True)
     ret = path_builder._sanitize_pagename(data)  # type: ignore
     assert ret == expected

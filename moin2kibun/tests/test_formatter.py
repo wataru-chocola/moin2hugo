@@ -3,9 +3,9 @@ from typing import Any
 
 import pytest
 
-from moin2hugo.config import HugoConfig
-from moin2hugo.formatter import HugoFormatter
-from moin2hugo.path_builder import HugoPathBuilder
+from moin2kibun.config import FormatConfig
+from moin2kibun.formatter import KibunFormatter
+from moin2kibun.path_builder import KibunPathBuilder
 from moin2x.page_tree import Pagelink, PageRoot, Paragraph, ParsedText, Remark, Strong, Text
 
 
@@ -100,7 +100,7 @@ from moin2x.page_tree import Pagelink, PageRoot, Paragraph, ParsedText, Remark, 
     ],
 )
 def test_consolidate(data: dict[str, Any], expected: dict[str, Any]):
-    formatter = HugoFormatter()
+    formatter = KibunFormatter()
     data_page = PageRoot.from_dict(data)
     expected_page = PageRoot.from_dict(expected)
     ret = formatter._consolidate(data_page)  # type: ignore
@@ -152,7 +152,7 @@ def test_consolidate(data: dict[str, Any], expected: dict[str, Any]):
 )
 def test_text_escape(data: str, expected: str):
     text = Text(data)
-    assert HugoFormatter.format(text) == expected
+    assert KibunFormatter.format(text) == expected
 
 
 @pytest.mark.parametrize(
@@ -191,14 +191,14 @@ def test_codeblock(data: str, expected: str):
     expected = textwrap.dedent(expected).rstrip()
 
     e = ParsedText(content=data)
-    assert HugoFormatter.format(e) == expected
+    assert KibunFormatter.format(e) == expected
 
 
 def test_root_path():
     pagelink = Pagelink(target_pagename="SomePage", current_pagename="PageName")
-    config = HugoConfig(root_path="/hugo")
-    hugo_path_builder = HugoPathBuilder(root_path=config.root_path)
-    ret = HugoFormatter.format(
-        pagelink, pagename="PageName", config=config, path_builder=hugo_path_builder
+    config = FormatConfig(root_path="/kibun")
+    kibun_path_builder = KibunPathBuilder(root_path=config.root_path)
+    ret = KibunFormatter.format(
+        pagelink, pagename="PageName", config=config, path_builder=kibun_path_builder
     )
-    assert ret == "[](/hugo/SomePage)"
+    assert ret == "[](/kibun/SomePage)"

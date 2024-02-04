@@ -427,7 +427,8 @@ class Link(LinkBase):
 
 @attr.s(slots=True)
 class Pagelink(LinkBase):
-    pagename: str = attr.ib(kw_only=True)
+    target_pagename: str = attr.ib(kw_only=True)
+    current_pagename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
     anchor: Optional[str] = attr.ib(default=None)
 
@@ -442,7 +443,8 @@ class Interwikilink(LinkBase):
 
 @attr.s(slots=True)
 class AttachmentLink(LinkBase):
-    pagename: str = attr.ib(kw_only=True)
+    target_pagename: Optional[str] = attr.ib(kw_only=True, default=None)
+    current_pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     queryargs: Optional[Dict[str, str]] = attr.ib(default=None)
 
@@ -514,7 +516,8 @@ class ImageAttr:
 
 @attr.s(slots=True)
 class AttachmentImage(PageElement):
-    pagename: str = attr.ib(kw_only=True)
+    target_pagename: Optional[str] = attr.ib(kw_only=True, default=None)
+    current_pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     attrs: ImageAttr = attr.ib(default=attr.Factory(ImageAttr))
 
@@ -560,7 +563,8 @@ class Transclude(PageElement):
 
 @attr.s(slots=True)
 class AttachmentTransclude(PageElement):
-    pagename: str = attr.ib(kw_only=True)
+    target_pagename: Optional[str] = attr.ib(kw_only=True, default=None)
+    current_pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     attrs: ObjectAttr = attr.ib(default=attr.Factory(ObjectAttr))
 
@@ -568,6 +572,7 @@ class AttachmentTransclude(PageElement):
 # Transclude (Other)
 @attr.s(slots=True)
 class AttachmentInlined(PageElement):
-    pagename: str = attr.ib(kw_only=True)
+    target_pagename: Optional[str] = attr.ib(kw_only=True, default=None)
+    current_pagename: str = attr.ib(kw_only=True)
     filename: str = attr.ib(kw_only=True)
     link_text: str = attr.ib(kw_only=True)

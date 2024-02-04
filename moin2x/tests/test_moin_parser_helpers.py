@@ -56,7 +56,8 @@ def test_bang_meta():
                                 Pagelink,
                                 {
                                     "anchor": "",
-                                    "pagename": "WikiName",
+                                    "target_pagename": "WikiName",
+                                    "current_pagename": "PageName",
                                     "source_text": "!WikiName",
                                     "children": [
                                         (
