@@ -37,11 +37,17 @@ class HugoPathBuilder(MarkdownPathBuilder):
         self.disable_path_to_lower = disable_path_to_lower
         self.remove_path_accents = remove_path_accents
 
-    def _sanitize_path(self, path: str) -> str:
-        # noqa refer: https://github.com/gohugoio/hugo/blob/ba1d0051b44fdd242b20899e195e37ab26501516/helpers/path.go#L134
+    def _sanitize_pagename(self, pagename: str) -> str:
         if self.remove_path_accents:
-            path = self._remove_accents(path)
+            pagename = self._remove_accents(pagename)
+        return pagename
 
+    def _sanitize_attachment_filename(self, filename: str) -> str:
+        if self.remove_path_accents:
+            filename = self._remove_accents(filename)
+        return filename
+
+    def _sanitize_path(self, path: str) -> str:
         sanitized_path = ""
         prepend_hyphen = False
         for i, c in enumerate(path):
@@ -72,11 +78,14 @@ class HugoPathBuilder(MarkdownPathBuilder):
         return sanitized_path
 
     def page_filepath(self, pagename: str) -> str:
+        pagename = self._sanitize_pagename(pagename)
         if pagename == self.page_front_page:
             pagename = ""
         return self._sanitize_path(pagename)
 
     def attachment_filepath(self, pagename: str, filename: str) -> str:
+        pagename = self._sanitize_pagename(pagename)
+        filename = self._sanitize_attachment_filename(filename)
         if pagename == self.page_front_page:
             pagename = ""
         attachfile_hugo_name = self._sanitize_path(filename)
@@ -85,6 +94,7 @@ class HugoPathBuilder(MarkdownPathBuilder):
         return filepath
 
     def page_url(self, pagename: str, relative_base: Optional[str] = None) -> str:
+        pagename = self._sanitize_pagename(pagename)
         if is_relative_pagename_to_parent(pagename):
             url = pagename
         elif is_relative_pagename_to_curdir(pagename):
@@ -107,7 +117,9 @@ class HugoPathBuilder(MarkdownPathBuilder):
     def attachment_url(
         self, pagename: Optional[str], filename: str, relative_base: Optional[str] = None
     ) -> str:
+        filename = self._sanitize_attachment_filename(filename)
         if pagename is not None:
+            pagename = self._sanitize_pagename(pagename)
             page_url = self.page_url(pagename, relative_base=relative_base)
             cur_url = urllib.parse.urljoin(self.root_path + "/", relative_base)
             if page_url == "" or page_url == cur_url:

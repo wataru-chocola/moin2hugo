@@ -29,7 +29,7 @@ def test_sanitize_path(data: str, expected: str):
         ("apresentação", "apresentacao"),
     ],
 )
-def test_sanitize_path_with_remove_path_accents(data: str, expected: str):
+def test_sanitize_pagename_with_remove_path_accents(data: str, expected: str):
     path_builder = HugoPathBuilder(remove_path_accents=True)
-    ret = path_builder._sanitize_path(data)  # type: ignore
+    ret = path_builder._sanitize_pagename(data)  # type: ignore
     assert ret == expected

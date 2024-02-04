@@ -195,7 +195,7 @@ def test_codeblock(data: str, expected: str):
 
 
 def test_root_path():
-    pagelink = Pagelink(pagename="SomePage")
+    pagelink = Pagelink(target_pagename="SomePage", current_pagename="PageName")
     config = FormatConfig(root_path="/kibun")
     kibun_path_builder = KibunPathBuilder(root_path=config.root_path)
     ret = KibunFormatter.format(

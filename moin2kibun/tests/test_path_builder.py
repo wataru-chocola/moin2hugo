@@ -9,13 +9,13 @@ from moin2kibun.path_builder import KibunPathBuilder
         ("xyz", "xyz"),
         ("abc/xyz.md", "abc/xyz.md"),
         ("ab%01cd", "ab%01cd"),
-        ("   abc ", "abc"),
+        ("   abc /  cc ", "abc/cc"),
         ("__abc ", "abc"),
     ],
 )
 def test_sanitize_path(data: str, expected: str):
     path_builder = KibunPathBuilder()
-    ret = path_builder._sanitize_path(data)  # type: ignore
+    ret = path_builder._sanitize_pagename(data)  # type: ignore
     assert ret == expected
 
 
@@ -28,5 +28,5 @@ def test_sanitize_path(data: str, expected: str):
 )
 def test_sanitize_path_with_remove_path_accents(data: str, expected: str):
     path_builder = KibunPathBuilder(remove_path_accents=True)
-    ret = path_builder._sanitize_path(data)  # type: ignore
+    ret = path_builder._sanitize_pagename(data)  # type: ignore
     assert ret == expected

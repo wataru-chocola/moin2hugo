@@ -37,7 +37,7 @@ from moin2x.page_tree import AttachmentImage
         ),  # noqa
         ("[[drawing:SomePage/image.png]]", r"\[\[drawing:SomePage/image.png\]\]"),
         ("[[http://example.net/|example site]]", "[example site](http://example.net/)"),
-        ("[[interwiki-like:somepage]]", r"[interwiki-like:somepage](interwiki-like-somepage)"),
+        ("[[interwiki-like:somepage]]", r"[interwiki-like:somepage](/interwiki-like-somepage)"),
         # rel links
         ("[[../RelPage|Relative Link]]", "[Relative Link](../RelPage)"),
         ("[[/RelPage|Relative Link]]", "[Relative Link](./RelPage)"),

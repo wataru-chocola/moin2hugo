@@ -40,7 +40,7 @@ test = "pytest moin2x/ moin2hugo/ moin2kibun/"
 typecheck = "pyright"
 
 [tool.pyright]
-include = ["moin2hugo", "tests"]
+include = ["moin2x", "moin2hugo", "moin2kibun"]
 typeCheckingMode = "strict"
 
 [build-system]
