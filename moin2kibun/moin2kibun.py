@@ -18,6 +18,12 @@ from moin2x.utils import safe_path_join
 logger = logging.getLogger(__name__)
 
 
+def jinja2_isoformat(value: Optional[datetime]):
+    if value is None:
+        return ""
+    return value.isoformat(timespec="seconds")
+
+
 @attr.s(frozen=True)
 class KibunPageInfo:
     filepath: str = attr.ib()
@@ -50,6 +56,7 @@ class Moin2Kibun(Moin2XConverter, object):
             tmpl_file = "page.tmpl"
             env = jinja2.Environment(loader=jinja2.PackageLoader("moin2kibun", "templates"))
 
+        env.filters["isoformat"] = jinja2_isoformat  # type: ignore
         self.page_tmpl = env.get_template(tmpl_file)
 
     def render_page(self, page: KibunPageInfo, content: str) -> str:

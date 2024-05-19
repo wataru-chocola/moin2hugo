@@ -1,6 +1,8 @@
 ---
 title: "{{ page.title }}"
-updatedAt: {{ page.updatedAt }}
+{% if page.updated -%}
+updatedAt: {{ page.updated | isoformat }}
+{% endif -%}
 ---
 
 {{ content }}
